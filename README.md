@@ -62,22 +62,40 @@ RaspberryPi-Traffic-Violation-Detection/
 │   ├── README.md
 │   ├── speed-data-collection/
 │   │   ├── speed_data_collection.py
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   ├── tests/
+│   │   │   └── test_speed_data_collection.py
+│   │   └── .env
 │   ├── stop-sign-data-collection/
 │   │   ├── stop_sign_data_collection.py
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   ├── tests/
+│   │   │   └── test_stop_sign_data_collection.py
+│   │   └── .env
 │   ├── license-plate-data-collection/
 │   │   ├── license_plate_data_collection.py
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   ├── tests/
+│   │   │   └── test_license_plate_data_collection.py
+│   │   └── .env
 │   ├── data-consolidator/
 │   │   ├── data_consolidator.py
-│   │   └── requirements.txt
+│   │   ├── requirements.txt
+│   │   ├── tests/
+│   │   │   └── test_data_consolidator.py
+│   │   └── .env
 │   ├── data-persister/
 │   │   ├── data_persister.py
-│   │   └── requirements.txt
-│   └── utils/
-│       ├── utils.py
-│       └── requirements.txt
+│   │   ├── requirements.txt
+│   │   ├── tests/
+│   │   │   └── test_data_persister.py
+│   │   └── .env
+│   ├── utils/
+│   │   ├── utils.py
+│   │   ├── requirements.txt
+│   │   ├── tests/
+│   │   │   └── test_utils.py
+│   │   └── .env
 │
 ├── webserver/
 │   ├── README.md
@@ -93,7 +111,10 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   ├── database/
 │   │   │   ├── database.module.ts
 │   │   │   └── database.service.ts
-│   └── package.json
+│   │   ├── tests/
+│   │   │   └── test_app.module.ts
+│   ├── package.json
+│   └── .env
 │
 ├── database/
 │   ├── README.md
@@ -102,21 +123,25 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   ├── create_tables.sql
 │   ├── scripts/
 │   │   ├── data_import.sh
-│   └── backups/
-│       ├── backup_20241203.sql
+│   ├── backups/
+│   │   └── backup_20241203.sql
+│   └── .env
 │
 ├── website/
 │   ├── README.md
 │   ├── public/
-│   │   ├── index.html
-│   └── src/
-│       ├── App.js
-│       ├── components/
-│       │   ├── CameraView.js
-│       │   ├── LogsView.js
-│       └── package.json
+│   │   └── index.html
+│   ├── src/
+│   │   ├── App.js
+│   │   ├── components/
+│   │   │   ├── CameraView.js
+│   │   │   └── LogsView.js
+│   │   ├── tests/
+│   │   │   ├── test_components.js
+│   │   │   └── test_app.js
+│   ├── package.json
+│   └── .env
 │
-├── mobile/
 │   ├── README.md
 │   ├── android/
 │   ├── ios/
@@ -125,6 +150,11 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   ├── views/
 │   │   │   ├── camera_view.dart
 │   │   │   └── logs_view.dart
-│   └── pubspec.yaml
+│   │   ├── tests/
+│   │   │   ├── test_views.dart
+│   │   │   └── test_main.dart
+│   ├── pubspec.yaml
+│   └── .env
 │
 └── README.md
+├── mobile/
