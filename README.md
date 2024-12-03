@@ -1,4 +1,4 @@
-# CST_590_Computer_Science_Capstone_Project
+﻿# CST_590_Computer_Science_Capstone_Project
 Raspberry Pi-based system detects speeding and stop sign violations, improving road safety. Uses computer vision and AI for real-time monitoring and data analysis.
 ## Raspberry Pi-Based Traffic Violation Detection System
 
@@ -53,3 +53,78 @@ This project aims to develop a Raspberry Pi-based system capable of detecting sp
 **Contributing:**
 
 We welcome contributions to this project after August 2025. Please feel free to fork the repository and submit pull requests.
+
+Repo Structure
+
+RaspberryPi-Traffic-Violation-Detection/
+│
+├── data-collection/
+│   ├── README.md
+│   ├── speed-data-collection/
+│   │   ├── speed_data_collection.py
+│   │   └── requirements.txt
+│   ├── stop-sign-data-collection/
+│   │   ├── stop_sign_data_collection.py
+│   │   └── requirements.txt
+│   ├── license-plate-data-collection/
+│   │   ├── license_plate_data_collection.py
+│   │   └── requirements.txt
+│   ├── data-consolidator/
+│   │   ├── data_consolidator.py
+│   │   └── requirements.txt
+│   ├── data-persister/
+│   │   ├── data_persister.py
+│   │   └── requirements.txt
+│   └── utils/
+│       ├── utils.py
+│       └── requirements.txt
+│
+├── webserver/
+│   ├── README.md
+│   ├── src/
+│   │   ├── main.ts
+│   │   ├── app.module.ts
+│   │   ├── controllers/
+│   │   │   ├── data.controller.ts
+│   │   │   └── camera.controller.ts
+│   │   ├── services/
+│   │   │   ├── data.service.ts
+│   │   │   └── camera.service.ts
+│   │   ├── database/
+│   │   │   ├── database.module.ts
+│   │   │   └── database.service.ts
+│   └── package.json
+│
+├── database/
+│   ├── README.md
+│   ├── init_db.sql
+│   ├── schema/
+│   │   ├── create_tables.sql
+│   ├── scripts/
+│   │   ├── data_import.sh
+│   └── backups/
+│       ├── backup_20241203.sql
+│
+├── website/
+│   ├── README.md
+│   ├── public/
+│   │   ├── index.html
+│   └── src/
+│       ├── App.js
+│       ├── components/
+│       │   ├── CameraView.js
+│       │   ├── LogsView.js
+│       └── package.json
+│
+├── mobile/
+│   ├── README.md
+│   ├── android/
+│   ├── ios/
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── views/
+│   │   │   ├── camera_view.dart
+│   │   │   └── logs_view.dart
+│   └── pubspec.yaml
+│
+└── README.md
