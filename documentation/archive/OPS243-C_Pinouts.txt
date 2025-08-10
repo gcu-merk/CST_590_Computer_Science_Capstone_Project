@@ -1,0 +1,65 @@
+Thank you for providing the OPS243-C datasheet! This gives me much more detailed information about your sensor. Based on the datasheet, I can now provide more accurate connection details and power analysis:
+Updated Power Analysis:
+Looking at the datasheet specifications, the OPS243-C power consumption is:
+
+Active: 330-375 mA at 5V (1.65-1.875W)
+Idle: 140-158 mA at 5V (0.7-0.79W)
+Hibernate: 34 mA at 5V (0.17W)
+
+Updated Total Power Draw:
+
+Pi 5: ~1-2A
+Samsung T7 SSD: ~0.5A
+AI Camera: ~0.2-0.3A
+OPS243-C Active: ~0.375A
+Total: ~2.1-3.2A - well within your 5A supply capacity
+
+Confirmed Connection Details:
+Based on the datasheet Table 3 (Revision D boards), your connections are:
+Power:
+
+OPS243-C Pin 9 (5-24V Power) → Pi Pin 2 or 4 (5V)
+OPS243-C Pin 10 (Ground) → Pi Pin 6 (Ground)
+
+UART Data (recommended):
+
+OPS243-C Pin 6 (UART_RxD) → Pi Pin 8 (GPIO14/UART0_TXD)
+OPS243-C Pin 7 (UART_TxD) → Pi Pin 10 (GPIO15/UART0_RXD)
+
+Optional Control:
+
+OPS243-C Pin 4 (/Reset) → Pi Pin 11 (GPIO17)
+OPS243-C Pin 3 (Host Interrupt) → Pi Pin 13 (GPIO27)
+
+Key Features from Datasheet:
+
+Default UART: 19,200 baud, 8N1
+Reports speed, direction, and range at ~13-14 Hz
+Detection range: 10-20m for humans, 50-100m for vehicles
+20° horizontal × 24° vertical beam width
+Simple ASCII or JSON API
+
+Your 5V/5A power supply provides excellent headroom for this complete setup!
+
+
+On the Raspberry Pi 5, the UART pins are located on the 40-pin GPIO header:
+RPi5 UART pins:
+
+Pin 8 (GPIO 14) - TX (transmit)
+Pin 10 (GPIO 16) - RX (receive)
+
+Complete connection mapping:
+
+OPS243 UART_TxD (J3 pin 7) → RPi5 pin 10 (GPIO 16 RX)
+OPS243 UART_RxD (J3 pin 6) → RPi5 pin 8 (GPIO 14 TX)
+OPS243 Power (J3 pin 9) → RPi5 pin 2 (5V) or external 5V supply
+OPS243 Ground (J3 pin 10) → RPi5 pin 6 (Ground)
+
+Using your wire colors:
+
+White wire: OPS243 J3 pin 7 → RPi5 pin 10
+Green wire: OPS243 J3 pin 6 → RPi5 pin 8
+Red wire: OPS243 J3 pin 9 → RPi5 pin 2 (5V)
+Black wire: OPS243 J3 pin 10 → RPi5 pin 6 (Ground)
+
+Note: The RPi5 uses the same GPIO pin numbering as previous Raspberry Pi models for UART0 (the primary UART interface).

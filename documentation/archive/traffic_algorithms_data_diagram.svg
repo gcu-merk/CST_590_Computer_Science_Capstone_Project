@@ -1,0 +1,312 @@
+<svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="inputGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#047857;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="visionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#dc2626;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b91c1c;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="radarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="fusionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ea580c;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c2410c;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="analyticsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0891b2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0e7490;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="outputGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4338ca;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3730a3;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1400" height="900" fill="#f8fafc"/>
+  
+  <!-- Title -->
+  <rect x="0" y="0" width="1400" height="60" fill="url(#headerGrad)"/>
+  <text x="700" y="35" text-anchor="middle" fill="white" font-size="24" font-weight="bold">Traffic Monitoring System - Algorithms & Data Flow</text>
+  
+  <!-- Input Data Layer -->
+  <rect x="50" y="80" width="1300" height="100" fill="#ecfdf5" stroke="#10b981" stroke-width="2" rx="10" filter="url(#shadow)"/>
+  <text x="70" y="105" fill="#047857" font-size="16" font-weight="bold">Input Data Streams</text>
+  
+  <!-- Camera Input -->
+  <rect x="80" y="120" width="180" height="50" fill="url(#inputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="170" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Camera Feed</text>
+  <text x="80" y="152" fill="white" font-size="9">1080p@30fps → RGB[H,W,3]</text>
+  <text x="80" y="163" fill="white" font-size="9">uint8 numpy arrays</text>
+  
+  <!-- Radar Input -->
+  <rect x="280" y="120" width="180" height="50" fill="url(#inputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="370" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Radar Data</text>
+  <text x="280" y="152" fill="white" font-size="9">Speed: float32, Range: float32</text>
+  <text x="280" y="163" fill="white" font-size="9">Direction: int8, SNR: float32</text>
+  
+  <!-- Environment Input -->
+  <rect x="480" y="120" width="180" height="50" fill="url(#inputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="570" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Environment Data</text>
+  <text x="480" y="152" fill="white" font-size="9">Weather: JSON, Temp: float32</text>
+  <text x="480" y="163" fill="white" font-size="9">Visibility: float32, Time: datetime</text>
+  
+  <!-- System State -->
+  <rect x="680" y="120" width="180" height="50" fill="url(#inputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="770" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="bold">System State</text>
+  <text x="680" y="152" fill="white" font-size="9">Previous tracks: List[Track]</text>
+  <text x="680" y="163" fill="white" font-size="9">Calibration: Matrix[3,3]</text>
+  
+  <!-- Computer Vision Pipeline -->
+  <rect x="50" y="200" width="670" height="150" fill="#fef2f2" stroke="#ef4444" stroke-width="2" rx="10" filter="url(#shadow)"/>
+  <text x="70" y="225" fill="#dc2626" font-size="16" font-weight="bold">Computer Vision Pipeline</text>
+  
+  <!-- Preprocessing -->
+  <rect x="80" y="245" width="140" height="90" fill="url(#visionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="150" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Preprocessing</text>
+  <text x="85" y="280" fill="white" font-size="9">• cv2.resize()</text>
+  <text x="85" y="292" fill="white" font-size="9">• cv2.GaussianBlur()</text>
+  <text x="85" y="304" fill="white" font-size="9">• Normalize [0,1]</text>
+  <text x="85" y="316" fill="white" font-size="9">• Color conversion</text>
+  <text x="85" y="328" fill="white" font-size="9">Output: tensor[1,640,640,3]</text>
+  
+  <!-- YOLO Detection -->
+  <rect x="240" y="245" width="140" height="90" fill="url(#visionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="310" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">YOLOv8 Detection</text>
+  <text x="245" y="280" fill="white" font-size="9">• model.predict()</text>
+  <text x="245" y="292" fill="white" font-size="9">• NMS filtering</text>
+  <text x="245" y="304" fill="white" font-size="9">• Confidence > 0.5</text>
+  <text x="245" y="316" fill="white" font-size="9">• Class: [car,truck,bus]</text>
+  <text x="245" y="328" fill="white" font-size="9">Output: bbox[x,y,w,h,conf]</text>
+  
+  <!-- Feature Extraction -->
+  <rect x="400" y="245" width="140" height="90" fill="url(#visionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="470" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Feature Extraction</text>
+  <text x="405" y="280" fill="white" font-size="9">• ROI extraction</text>
+  <text x="405" y="292" fill="white" font-size="9">• HOG descriptors</text>
+  <text x="405" y="304" fill="white" font-size="9">• Color histograms</text>
+  <text x="405" y="316" fill="white" font-size="9">• Shape features</text>
+  <text x="405" y="328" fill="white" font-size="9">Output: feature_vec[128]</text>
+  
+  <!-- Tracking -->
+  <rect x="560" y="245" width="140" height="90" fill="url(#visionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="630" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Multi-Object Tracking</text>
+  <text x="565" y="280" fill="white" font-size="9">• SORT algorithm</text>
+  <text x="565" y="292" fill="white" font-size="9">• Kalman filter predict</text>
+  <text x="565" y="304" fill="white" font-size="9">• Hungarian matching</text>
+  <text x="565" y="316" fill="white" font-size="9">• Track management</text>
+  <text x="565" y="328" fill="white" font-size="9">Output: tracks[id,bbox,vel]</text>
+  
+  <!-- Radar Processing Pipeline -->
+  <rect x="740" y="200" width="610" height="150" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2" rx="10" filter="url(#shadow)"/>
+  <text x="760" y="225" fill="#7c3aed" font-size="16" font-weight="bold">Radar Signal Processing Pipeline</text>
+  
+  <!-- Signal Conditioning -->
+  <rect x="770" y="245" width="140" height="90" fill="url(#radarGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="840" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Signal Conditioning</text>
+  <text x="775" y="280" fill="white" font-size="9">• ADC sampling</text>
+  <text x="775" y="292" fill="white" font-size="9">• Bandpass filter</text>
+  <text x="775" y="304" fill="white" font-size="9">• Noise reduction</text>
+  <text x="775" y="316" fill="white" font-size="9">• DC removal</text>
+  <text x="775" y="328" fill="white" font-size="9">Output: signal[N]</text>
+  
+  <!-- FFT Analysis -->
+  <rect x="930" y="245" width="140" height="90" fill="url(#radarGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1000" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">FFT Analysis</text>
+  <text x="935" y="280" fill="white" font-size="9">• np.fft.fft()</text>
+  <text x="935" y="292" fill="white" font-size="9">• Power spectrum</text>
+  <text x="935" y="304" fill="white" font-size="9">• Peak detection</text>
+  <text x="935" y="316" fill="white" font-size="9">• Doppler shift calc</text>
+  <text x="935" y="328" fill="white" font-size="9">Output: freq_peaks[]</text>
+  
+  <!-- Speed Calculation -->
+  <rect x="1090" y="245" width="140" height="90" fill="url(#radarGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1160" y="265" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Speed Calculation</text>
+  <text x="1095" y="280" fill="white" font-size="9">• v = λ*f_d/2</text>
+  <text x="1095" y="292" fill="white" font-size="9">• Range estimation</text>
+  <text x="1095" y="304" fill="white" font-size="9">• Multi-target resolve</text>
+  <text x="1095" y="316" fill="white" font-size="9">• Validation filters</text>
+  <text x="1095" y="328" fill="white" font-size="9">Output: speed[mph], range[m]</text>
+  
+  <!-- Data Fusion Layer -->
+  <rect x="50" y="370" width="1300" height="120" fill="#fff7ed" stroke="#f97316" stroke-width="2" rx="10" filter="url(#shadow)"/>
+  <text x="70" y="395" fill="#ea580c" font-size="16" font-weight="bold">Multi-Sensor Data Fusion</text>
+  
+  <!-- Spatial Alignment -->
+  <rect x="80" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="155" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Spatial Alignment</text>
+  <text x="85" y="445" fill="white" font-size="9">• Coordinate transform</text>
+  <text x="85" y="455" fill="white" font-size="9">• Homography matrix</text>
+  <text x="85" y="465" fill="white" font-size="9">• ROI intersection</text>
+  <text x="85" y="475" fill="white" font-size="9">Data: transform_matrix[3,3]</text>
+  
+  <!-- Temporal Sync -->
+  <rect x="250" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="325" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Temporal Sync</text>
+  <text x="255" y="445" fill="white" font-size="9">• Timestamp align</text>
+  <text x="255" y="455" fill="white" font-size="9">• Buffer management</text>
+  <text x="255" y="465" fill="white" font-size="9">• Interpolation</text>
+  <text x="255" y="475" fill="white" font-size="9">Data: sync_buffer[T,N]</text>
+  
+  <!-- Association -->
+  <rect x="420" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="495" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Data Association</text>
+  <text x="425" y="445" fill="white" font-size="9">• Distance metrics</text>
+  <text x="425" y="455" fill="white" font-size="9">• Gating functions</text>
+  <text x="425" y="465" fill="white" font-size="9">• Assignment problem</text>
+  <text x="425" y="475" fill="white" font-size="9">Data: cost_matrix[M,N]</text>
+  
+  <!-- Kalman Filter -->
+  <rect x="590" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="665" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Kalman Filtering</text>
+  <text x="595" y="445" fill="white" font-size="9">• State prediction</text>
+  <text x="595" y="455" fill="white" font-size="9">• Measurement update</text>
+  <text x="595" y="465" fill="white" font-size="9">• Covariance update</text>
+  <text x="595" y="475" fill="white" font-size="9">Data: state[x,y,vx,vy]</text>
+  
+  <!-- Track Management -->
+  <rect x="760" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="835" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Track Management</text>
+  <text x="765" y="445" fill="white" font-size="9">• Track initialization</text>
+  <text x="765" y="455" fill="white" font-size="9">• Track termination</text>
+  <text x="765" y="465" fill="white" font-size="9">• Lifecycle states</text>
+  <text x="765" y="475" fill="white" font-size="9">Data: track_list[Track]</text>
+  
+  <!-- Validation -->
+  <rect x="930" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1005" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Validation</text>
+  <text x="935" y="445" fill="white" font-size="9">• Physics constraints</text>
+  <text x="935" y="455" fill="white" font-size="9">• Consistency checks</text>
+  <text x="935" y="465" fill="white" font-size="9">• Outlier rejection</text>
+  <text x="935" y="475" fill="white" font-size="9">Data: valid_tracks[]</text>
+  
+  <!-- Event Generation -->
+  <rect x="1100" y="410" width="150" height="70" fill="url(#fusionGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1175" y="430" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Event Generation</text>
+  <text x="1105" y="445" fill="white" font-size="9">• Speed violations</text>
+  <text x="1105" y="455" fill="white" font-size="9">• Traffic events</text>
+  <text x="1105" y="465" fill="white" font-size="9">• Alert triggers</text>
+  <text x="1105" y="475" fill="white" font-size="9">Data: events[Event]</text>
+  
+  <!-- Analytics Layer -->
+  <rect x="50" y="510" width="1300" height="120" fill="#f0f9ff" stroke="#0891b2" stroke-width="2" rx="10" filter="url(#shadow)"/>
+  <text x="70" y="535" fill="#0891b2" font-size="16" font-weight="bold">Traffic Analytics & Machine Learning</text>
+  
+  <!-- Statistical Analysis -->
+  <rect x="80" y="550" width="160" height="70" fill="url(#analyticsGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="160" y="570" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Statistical Analysis</text>
+  <text x="85" y="585" fill="white" font-size="9">• Traffic flow metrics</text>
+  <text x="85" y="595" fill="white" font-size="9">• Speed distributions</text>
+  <text x="85" y="605" fill="white" font-size="9">• Density calculations</text>
+  <text x="85" y="615" fill="white" font-size="9">Data: stats{mean,std,p95}</text>
+  
+  <!-- Time Series -->
+  <rect x="260" y="550" width="160" height="70" fill="url(#analyticsGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="340" y="570" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Time Series Analysis</text>
+  <text x="265" y="585" fill="white" font-size="9">• Trend analysis</text>
+  <text x="265" y="595" fill="white" font-size="9">• Seasonal patterns</text>
+  <text x="265" y="605" fill="white" font-size="9">• ARIMA modeling</text>
+  <text x="265" y="615" fill="white" font-size="9">Data: timeseries[T,F]</text>
+  
+  <!-- Pattern Recognition -->
+  <rect x="440" y="550" width="160" height="70" fill="url(#analyticsGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="520" y="570" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Pattern Recognition</text>
+  <text x="445" y="585" fill="white" font-size="9">• Clustering (K-means)</text>
+  <text x="445" y="595" fill="white" font-size="9">• Classification (SVM)</text>
+  <text x="445" y="605" fill="white" font-size="9">• Anomaly detection</text>
+  <text x="445" y="615" fill="white" font-size="9">Data: clusters[labels]</text>
+  
+  <!-- Predictive Models -->
+  <rect x="620" y="550" width="160" height="70" fill="url(#analyticsGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="700" y="570" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Predictive Models</text>
+  <text x="625" y="585" fill="white" font-size="9">• Traffic forecasting</text>
+  <text x="625" y="595" fill="white" font-size="9">• Congestion prediction</text>
+  <text x="625" y="605" fill="white" font-size="9">• Demand modeling</text>
+  <text x="625" y="615" fill="white" font-size="9">Data: predictions[T+n]</text>
+  
+  <!-- Performance Metrics -->
+  <rect x="800" y="550" width="160" height="70" fill="url(#analyticsGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="880" y="570" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Performance Metrics</text>
+  <text x="805" y="585" fill="white" font-size="9">• System accuracy</text>
+  <text x="805" y="595" fill="white" font-size="9">• Detection rates</text>
+  <text x="805" y="605" fill="white" font-size="9">• Processing latency</text>
+  <text x="805" y="615" fill="white" font-size="9">Data: metrics{recall,precision}</text>
+  
+  <!-- Reporting Engine -->
+  <rect x="980" y="550" width="160" height="70" fill="url(#analyticsGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1060" y="570" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Reporting Engine</text>
+  <text x="985" y="585" fill="white" font-size="9">• Automated reports</text>
+  <text x="985" y="595" fill="white" font-size="9">• Dashboard updates</text>
+  <text x="985" y="605" fill="white" font-size="9">• Alert generation</text>
+  <text x="985" y="615" fill="white" font-size="9">Data: reports[PDF,JSON]</text>
+  
+  <!-- Output Data Layer -->
+  <rect x="50" y="650" width="1300" height="120" fill="#f0f4ff" stroke="#4338ca" stroke-width="2" rx="10" filter="url(#shadow)"/>
+  <text x="70" y="675" fill="#4338ca" font-size="16" font-weight="bold">Output Data Structures & Storage</text>
+  
+  <!-- Real-time Data -->
+  <rect x="80" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="155" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Real-time Stream</text>
+  <text x="85" y="725" fill="white" font-size="9">• Live track updates</text>
+  <text x="85" y="735" fill="white" font-size="9">• Speed measurements</text>
+  <text x="85" y="745" fill="white" font-size="9">• Event notifications</text>
+  <text x="85" y="755" fill="white" font-size="9">Format: JSON/SocketIO</text>
+  
+  <!-- Historical Database -->
+  <rect x="250" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="325" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Historical Database</text>
+  <text x="255" y="725" fill="white" font-size="9">• SQLite tables</text>
+  <text x="255" y="735" fill="white" font-size="9">• Indexed queries</text>
+  <text x="255" y="745" fill="white" font-size="9">• Compressed storage</text>
+  <text x="255" y="755" fill="white" font-size="9">Schema: vehicles, events</text>
+  
+  <!-- Time Series Store -->
+  <rect x="420" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="495" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Time Series Store</text>
+  <text x="425" y="725" fill="white" font-size="9">• HDF5 datasets</text>
+  <text x="425" y="735" fill="white" font-size="9">• Chunked arrays</text>
+  <text x="425" y="745" fill="white" font-size="9">• Compressed data</text>
+  <text x="425" y="755" fill="white" font-size="9">Structure: /traffic/hourly</text>
+  
+  <!-- Analytics Cache -->
+  <rect x="590" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="665" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Analytics Cache</text>
+  <text x="595" y="725" fill="white" font-size="9">• Computed metrics</text>
+  <text x="595" y="735" fill="white" font-size="9">• Aggregated data</text>
+  <text x="595" y="745" fill="white" font-size="9">• Pre-computed views</text>
+  <text x="595" y="755" fill="white" font-size="9">TTL: 1h, 1d, 1w</text>
+  
+  <!-- API Responses -->
+  <rect x="760" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="835" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">API Responses</text>
+  <text x="765" y="725" fill="white" font-size="9">• REST endpoints</text>
+  <text x="765" y="735" fill="white" font-size="9">• JSON serialization</text>
+  <text x="765" y="745" fill="white" font-size="9">• Pagination support</text>
+  <text x="765" y="755" fill="white" font-size="9">Format: GeoJSON, CSV</text>
+  
+  <!-- Visualization Data -->
+  <rect x="930" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1005" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Visualization Data</text>
+  <text x="935" y="725" fill="white" font-size="9">• Chart datasets</text>
+  <text x="935" y="735" fill="white" font-size="9">• Dashboard metrics</text>
+  <text x="935" y="745" fill="white" font-size="9">• Interactive plots</text>
+  <text x="935" y="755" fill="white" font-size="9">Libraries: D3, Plotly</text>
+  
+  <!-- Alert System -->
+  <rect x="1100" y="690" width="150" height="70" fill="url(#outputGrad)" rx="5" filter="url(#shadow)"/>
+  <text x="1175" y="710" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Alert System</text>
+  <text x="1105" y="725" fill="white" font-size="9">• Threshold monitoring</text>
+  <text x="1105" y="735" fill="white" font-size="9">• Notification queue</text>
+  <text x="1105" y="745" fill="white" font-size="9">• Multi-channel alerts</text>
+  <text x="1105" y="755" fill="white" font-size="

@@ -1,0 +1,6 @@
+?I{"UsbTxStatus" : "down"}
+{"UartTxStatus" : "up"}
+{"UartBaudRate" : 19200}
+{"Interface" : "UART Available"}
+{"Interface" : "RS232 Available"}
+{"Interface" : "UART Selected"}

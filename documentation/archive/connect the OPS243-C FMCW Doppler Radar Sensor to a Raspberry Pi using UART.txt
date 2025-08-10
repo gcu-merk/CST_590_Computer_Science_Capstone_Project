@@ -1,0 +1,68 @@
+To connect the OPS243-C FMCW Doppler Radar Sensor to a Raspberry Pi using UART, you'll need to make the following connections:
+
+## Hardware Connections
+
+**OPS243-C to Raspberry Pi GPIO pins:**
+- VCC (OPS243-C) → 3.3V or 5V (Pin 1 or 2 on Pi)
+- GND (OPS243-C) → Ground (Pin 6, 9, 14, 20, 25, 30, 34, or 39 on Pi)
+- TX (OPS243-C) → GPIO 15 / RXD (Pin 10 on Pi)
+- RX (OPS243-C) → GPIO 14 / TXD (Pin 8 on Pi)
+
+## Power Requirements
+The OPS243-C typically operates on 5V, but check your specific module's datasheet. If it requires 5V, use Pin 2 (5V) for VCC. If it can operate on 3.3V, use Pin 1 (3.3V).
+
+## Raspberry Pi UART Configuration
+
+1. **Enable UART on the Pi:**
+   ```bash
+   sudo raspi-config
+   ```
+   Navigate to "Interfacing Options" → "Serial" → Enable serial interface but disable serial console.
+
+2. **Edit the boot config:**
+   ```bash
+   sudo nano /boot/config.txt
+   ```
+   Add or uncomment:
+   ```
+   enable_uart=1
+   dtoverlay=disable-bt
+   ```
+
+3. **Disable serial console (if not done via raspi-config):**
+   ```bash
+   sudo nano /boot/cmdline.txt
+   ```
+   Remove `console=serial0,115200` if present.
+
+4. **Reboot the Pi:**
+   ```bash
+   sudo reboot
+   ```
+
+## Communication Settings
+The OPS243-C typically uses:
+- Baud rate: 9600 bps
+- Data bits: 8
+- Parity: None
+- Stop bits: 1
+
+The UART device will be available at `/dev/serial0` or `/dev/ttyAMA0` on most Raspberry Pi models.
+
+## Basic Python Test
+```python
+import serial
+import time
+
+ser = serial.Serial('/dev/serial0', 9600, timeout=1)
+time.sleep(2)  # Allow time for connection
+
+# Send initialization command (check OPS243-C manual for specific commands)
+ser.write(b'??')  # Example command to query module info
+response = ser.readline()
+print(response.decode())
+
+ser.close()
+```
+
+Make sure to consult the OPS243-C datasheet for specific command protocols and initialization sequences, as these can vary between firmware versions.

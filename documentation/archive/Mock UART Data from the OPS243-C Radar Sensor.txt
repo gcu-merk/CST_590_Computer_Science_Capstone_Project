@@ -1,0 +1,241 @@
+Here are several approaches to mock UART data from the OPS243-C radar sensor on your Raspberry Pi:
+
+## Method 1: Software Serial Port Emulation
+
+Create a Python script that simulates the sensor data format:
+
+```python
+import serial
+import time
+import random
+import threading
+from serial.tools import list_ports
+
+class OPS243CMock:
+    def __init__(self, port='/dev/ttyUSB0', baudrate=9600):
+        self.port = port
+        self.baudrate = baudrate
+        self.running = False
+        
+    def generate_speed_data(self):
+        """Generate realistic speed data in m/s"""
+        # Simulate pedestrian speeds (-2 to +2 m/s) with some noise
+        base_speed = random.uniform(-2.0, 2.0)
+        noise = random.uniform(-0.1, 0.1)
+        return base_speed + noise
+    
+    def generate_magnitude_data(self):
+        """Generate signal magnitude data"""
+        return random.randint(100, 9999)
+    
+    def format_ops243c_output(self, speed, magnitude):
+        """Format data like actual OPS243-C output"""
+        # OPS243-C typically outputs: {speed},{magnitude}\n
+        return f"{speed:.2f},{magnitude}\n"
+    
+    def start_mock_data(self):
+        """Start generating mock data"""
+        self.running = True
+        while self.running:
+            speed = self.generate_speed_data()
+            magnitude = self.generate_magnitude_data()
+            data = self.format_ops243c_output(speed, magnitude)
+            print(f"Mock data: {data.strip()}")
+            time.sleep(0.1)  # 10Hz update rate
+    
+    def stop(self):
+        self.running = False
+
+# Usage
+mock_sensor = OPS243CMock()
+mock_sensor.start_mock_data()
+```
+
+## Method 2: Virtual Serial Port Pair
+
+Create two connected virtual serial ports using `socat`:
+
+```bash
+# Install socat if not available
+sudo apt-get install socat
+
+# Create virtual serial port pair
+socat -d -d pty,raw,echo=0 pty,raw,echo=0
+```
+
+This creates two linked ports (e.g., `/dev/pts/1` and `/dev/pts/2`). Write to one and read from the other.
+
+**Mock data sender script:**
+```python
+import serial
+import time
+import random
+
+def send_mock_data(port='/dev/pts/1'):
+    ser = serial.Serial(port, 9600, timeout=1)
+    
+    try:
+        while True:
+            # Generate mock OPS243-C data
+            speed = random.uniform(-3.0, 3.0)  # m/s
+            magnitude = random.randint(200, 5000)
+            
+            # Format as OPS243-C would send
+            data = f"{speed:.2f},{magnitude}\r\n"
+            ser.write(data.encode())
+            
+            time.sleep(0.1)  # 10Hz
+            
+    except KeyboardInterrupt:
+        ser.close()
+
+if __name__ == "__main__":
+    send_mock_data()
+```
+
+**Data receiver script (your main application):**
+```python
+import serial
+
+def read_mock_data(port='/dev/pts/2'):
+    ser = serial.Serial(port, 9600, timeout=1)
+    
+    try:
+        while True:
+            if ser.in_waiting > 0:
+                data = ser.readline().decode().strip()
+                print(f"Received: {data}")
+                
+                # Parse the data
+                if ',' in data:
+                    speed, magnitude = data.split(',')
+                    print(f"Speed: {speed} m/s, Magnitude: {magnitude}")
+                    
+    except KeyboardInterrupt:
+        ser.close()
+
+if __name__ == "__main__":
+    read_mock_data()
+```
+
+## Method 3: Mock Serial Class
+
+Create a drop-in replacement for the serial connection:
+
+```python
+import time
+import random
+import threading
+from queue import Queue
+
+class MockSerial:
+    def __init__(self, port, baudrate, timeout=1):
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.is_open = True
+        self.data_queue = Queue()
+        self.running = True
+        
+        # Start background thread to generate data
+        self.data_thread = threading.Thread(target=self._generate_data)
+        self.data_thread.daemon = True
+        self.data_thread.start()
+    
+    def _generate_data(self):
+        """Background thread to generate mock sensor data"""
+        while self.running:
+            speed = random.uniform(-2.5, 2.5)
+            magnitude = random.randint(150, 8000)
+            data = f"{speed:.2f},{magnitude}\r\n"
+            self.data_queue.put(data.encode())
+            time.sleep(0.1)  # 10Hz
+    
+    def readline(self):
+        """Mock readline method"""
+        try:
+            return self.data_queue.get(timeout=self.timeout)
+        except:
+            return b''
+    
+    def read(self, size=1):
+        """Mock read method"""
+        data = self.readline()
+        return data[:size] if data else b''
+    
+    def write(self, data):
+        """Mock write method"""
+        print(f"Mock write: {data}")
+        return len(data)
+    
+    def close(self):
+        """Mock close method"""
+        self.running = False
+        self.is_open = False
+    
+    @property
+    def in_waiting(self):
+        """Mock in_waiting property"""
+        return self.data_queue.qsize()
+
+# Usage - replace serial.Serial with MockSerial
+# ser = serial.Serial('/dev/serial0', 9600, timeout=1)
+ser = MockSerial('/dev/serial0', 9600, timeout=1)
+
+# Your existing code works unchanged
+while True:
+    data = ser.readline().decode().strip()
+    if data:
+        print(f"Received: {data}")
+        # Process data as normal
+```
+
+## Method 4: File-based Mock Data
+
+Create a file with pre-recorded sensor data:
+
+```python
+import time
+
+class FileMockSerial:
+    def __init__(self, data_file):
+        self.data_file = data_file
+        self.file_handle = open(data_file, 'r')
+        self.is_open = True
+    
+    def readline(self):
+        line = self.file_handle.readline()
+        if not line:  # End of file, restart
+            self.file_handle.seek(0)
+            line = self.file_handle.readline()
+        
+        time.sleep(0.1)  # Simulate sensor timing
+        return line.encode()
+    
+    def close(self):
+        self.file_handle.close()
+        self.is_open = False
+
+# Create sample data file
+sample_data = """1.23,2500
+-0.45,1800
+2.10,3200
+0.00,500
+-1.67,4100
+"""
+
+with open('mock_sensor_data.txt', 'w') as f:
+    f.write(sample_data)
+
+# Usage
+mock_ser = FileMockSerial('mock_sensor_data.txt')
+```
+
+## OPS243-C Specific Data Format
+
+The OPS243-C typically outputs data in these formats:
+- Speed only: `{speed}\n` (in m/s)
+- Speed with magnitude: `{speed},{magnitude}\n`
+- JSON format (newer firmware): `{"speed":1.23,"magnitude":2500}`
+
+Choose the method that best fits your development workflow. Method 3 (Mock Serial Class) is often the most convenient as it requires no external dependencies and can be easily toggled on/off in your code.

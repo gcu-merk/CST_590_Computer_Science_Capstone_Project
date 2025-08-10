@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Monitoring System - Happy Path Data Flow</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            position: relative;
+        }
+        
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .flow-step:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+        
+        .step-1 { background: linear-gradient(135deg, #ff6b6b, #ee5a24); }
+        .step-2 { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
+        .step-3 { background: linear-gradient(135deg, #45b7d1, #2980b9); }
+        .step-4 { background: linear-gradient(135deg, #f9ca24, #f0932b); }
+        .step-5 { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+        
+        .step-number {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            flex-shrink: 0;
+            border: 3px solid rgba(255,255,255,0.5);
+        }
+        
+        .step-content {
+            flex: 1;
+            color: white;
+        }
+        
+        .step-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .step-description {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            opacity: 0.95;
+        }
+        
+        .technologies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .tech-tag {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .flow-arrow {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid rgba(255,255,255,0.7);
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .data-flow {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .data-icon {
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+        }
+        
+        .data-info {
+            flex: 1;
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+        
+        .users-section {
+            margin-top: 40px;
+            padding: 25px;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            border-radius: 15px;
+            color: white;
+        }
+        
+        .users-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .users-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .user-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .user-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .flow-step {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .flow-arrow {
+                display: none;
+            }
+            
+            .technologies {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Traffic Monitoring System - Happy Path Data Flow</h1>
+        
+        <div class="flow-container">
+            <div class="flow-step step-1">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">🚗 Vehicle Detection & Sensing</div>
+                    <div class="step-description">
+                        Vehicles enter the monitoring zone where multiple sensors simultaneously capture data. AI cameras detect and classify vehicles while Doppler radar measures precise speeds.
+                    </div>
+                    <div class="technologies">
+                        <span class="tech-tag">Sony IMX500 AI Camera</span>
+                        <span class="tech-tag">OPS243-C Doppler Radar</span>
+                        <span class="tech-tag">Raspberry Pi 5</span>
+                        <span class="tech-tag">Environmental Housing</span>
+                    </div>
+                    <div class="data-flow">
+                        <div class="data-icon">📊</div>
+                        <div class="data-info">
+                            <strong>Data Output:</strong> Vehicle images, speed measurements, timestamps, sensor metadata
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-arrow"></div>
+            </div>
+            
+            <div class="flow-step step-2">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">🧠 AI Analysis & Data Processing</div>
+                    <div class="step-description">
+                        Raw sensor data undergoes real-time AI analysis. Computer vision algorithms identify vehicle types, extract features, and track movements while signal processing refines radar measurements.
+                    </div>
+                    <div class="technologies">
+                        <span class="tech-tag">YOLOv8 + TensorFlow</span>
+                        <span class="tech-tag">OpenCV</span>
+                        <span class="tech-tag">NumPy/SciPy</span>
+                        <span class="tech-tag">Multi-Object Tracking</span>
+                        <span class="tech-tag">Kalman Filtering</span>
+                    </div>
+                    <div class="data-flow">
+                        <div class="data-icon">🔍</div>
+                        <div class="data-info">
+                            <strong>Data Output:</strong> Vehicle classifications, trajectories, validated speeds, tracking IDs
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-arrow"></div>
+            </div>
+            
+            <div class="flow-step step-3">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">🔄 Data Fusion & Analytics</div>
+                    <div class="step-description">
+                        Multi-sensor data is fused and correlated with environmental conditions. The analytics engine generates traffic metrics, patterns, and insights from the processed information.
+                    </div>
+                    <div class="technologies">
+                        <span class="tech-tag">Data Association Algorithms</span>
+                        <span class="tech-tag">Weather API Integration</span>
+                        <span class="tech-tag">Analytics Engine</span>
+                        <span class="tech-tag">Pattern Recognition</span>
+                        <span class="tech-tag">Statistical Analysis</span>
+                    </div>
+                    <div class="data-flow">
+                        <div class="data-icon">📈</div>
+                        <div class="data-info">
+                            <strong>Data Output:</strong> Traffic flow metrics, density calculations, speed distributions, event alerts
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-arrow"></div>
+            </div>
+            
+            <div class="flow-step step-4">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <div class="step-title">💾 Data Storage & Management</div>
+                    <div class="step-description">
+                        Processed data is stored across multiple formats optimized for different use cases. Real-time events, time series data, and historical records are preserved for analysis and reporting.
+                    </div>
+                    <div class="technologies">
+                        <span class="tech-tag">SQLite Database</span>
+                        <span class="tech-tag">HDF5 Time Series</span>
+                        <span class="tech-tag">File System Storage</span>
+                        <span class="tech-tag">External SSD Archive</span>
+                        <span class="tech-tag">Cloud Backup</span>
+                    </div>
+                    <div class="data-flow">
+                        <div class="data-icon">🗄️</div>
+                        <div class="data-info">
+                            <strong>Data Output:</strong> Structured databases, time series files, configuration data, archived records
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-arrow"></div>
+            </div>
+            
+            <div class="flow-step step-5">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <div class="step-title">🌐 User Interface & Data Access</div>
+                    <div class="step-description">
+                        End users access real-time and historical traffic data through web dashboards, mobile apps, and API endpoints. Multiple stakeholders can view customized visualizations and reports.
+                    </div>
+                    <div class="technologies">
+                        <span class="tech-tag">Flask Web Server</span>
+                        <span class="tech-tag">REST API</span>
+                        <span class="tech-tag">SocketIO Real-time</span>
+                        <span class="tech-tag">Web Dashboard</span>
+                        <span class="tech-tag">Mobile Integration</span>
+                    </div>
+                    <div class="data-flow">
+                        <div class="data-icon">📱</div>
+                        <div class="data-info">
+                            <strong>Data Output:</strong> Live dashboards, API responses, mobile notifications, downloadable reports
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="users-section">
+            <div class="users-title">👥 System Users & Stakeholders</div>
+            <div class="users-grid">
+                <div class="user-card">
+                    <div class="user-icon">🚦</div>
+                    <div><strong>Traffic Managers</strong></div>
+                    <div>Real-time monitoring and control</div>
+                </div>
+                <div class="user-card">
+                    <div class="user-icon">🏗️</div>
+                    <div><strong>City Planners</strong></div>
+                    <div>Historical data and trends</div>
+                </div>
+                <div class="user-card">
+                    <div class="user-icon">👮</div>
+                    <div><strong>Law Enforcement</strong></div>
+                    <div>Incident detection and alerts</div>
+                </div>
+                <div class="user-card">
+                    <div class="user-icon">🔬</div>
+                    <div><strong>Researchers</strong></div>
+                    <div>Data analysis and insights</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

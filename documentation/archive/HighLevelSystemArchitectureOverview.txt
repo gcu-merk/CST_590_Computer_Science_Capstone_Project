@@ -1,0 +1,110 @@
+---
+
+## **High-Level System Architecture Overview**  
+
+### **Architecture Layers**  
+
+#### **Layer 1: Physical Sensing Layer**  
+**Hardware Components:**  
+- Raspberry Pi AI Camera (Sony IMX500 sensor)  
+- OPS243-C FMCW Doppler Radar Sensor  
+- Raspberry Pi 5 (16GB RAM, ARM Cortex-A76 CPU)  
+- External USB SSD (Samsung T7 or SanDisk Extreme Pro)  
+- Power & Connectivity (PoE, WiFi/Ethernet, optional cellular backup)  
+
+**Responsibilities:**  
+- Physical vehicle detection and classification  
+- Speed measurement via Doppler radar  
+- Environmental sensing (lighting conditions)  
+- Raw data capture and initial processing  
+
+#### **Layer 2: Edge Processing Layer (Raspberry Pi 5)**  
+**Core Services:**  
+- Vehicle Detection Service (TensorFlow + OpenCV + AI Camera)  
+- Speed Analysis Service (OPS243-C radar data processing)  
+- Multi-Vehicle Tracking Service (SORT algorithm implementation)  
+- Data Fusion Engine (Camera + Radar correlation)  
+- Weather Integration Service (API calls to weather providers)  
+- Anomaly Detection Service (Traffic pattern analysis)  
+
+**Supporting Components:**  
+- **Edge UI (Local Web Dashboard)**: Provides **real-time visualization** of detections and speeds.  
+- System Health Monitor (Watchdog timers, performance metrics)  
+- Local Storage Manager (tmpfs, SSD data management)  
+- Edge API Gateway (Flask-SocketIO server)  
+
+**Responsibilities:**  
+- Real-time ML inference and vehicle detection  
+- Multi-sensor data fusion and correlation  
+- Traffic pattern analysis and anomaly detection  
+- Local data storage and management  
+- System reliability and health monitoring  
+
+#### **Layer 3: Network & Communication Layer**  
+**Components:**  
+- Local Network Interface (WiFi/Ethernet connectivity)  
+- WebSocket Server (Real-time data streaming)  
+- REST API Endpoints (Configuration and status)  
+- Data Compression & Queuing (Optimized cloud transmission)  
+- Network Resilience (Offline-first operation, reconnection logic)  
+
+**UI Integration:**  
+- Enables **communication between Edge UI and Cloud UI**  
+- Handles **data streaming for real-time monitoring**  
+- Supports **API requests for external system integration**  
+
+**Optional Backup:**  
+- Cellular Modem (5G/LTE for remote locations)  
+- Mesh Networking (Multi-unit coordination)  
+
+#### **Layer 4: Cloud Services Layer (Optional)**  
+**Data Services:**  
+- Data Aggregation Service (AWS Lambda + DynamoDB or similar)  
+- Time Series Database (Traffic metrics storage)  
+- Data Analytics Engine (Historical pattern analysis)  
+- Model Update Service (ML model versioning and deployment)  
+
+**Application Services:**  
+- **Cloud UI (Web-Based Dashboard)**: Centralized interface for viewing **historical traffic trends, reports, and alerts**.  
+- Alert & Notification Service (Email/SMS alerts for incidents)  
+- API Gateway (External system integration)  
+- User Management (Authentication and access control)  
+
+**Supporting Infrastructure:**  
+- Message Queue (MQTT broker or AWS SQS)  
+- File Storage (S3 or similar for images/videos)  
+- Content Delivery (CloudFront for dashboard assets)  
+
+**Responsibilities:**  
+- Long-term data storage and historical analysis  
+- Advanced analytics and reporting  
+- Remote system management and updates  
+- Integration with city traffic management systems  
+
+### **UI Layer Breakdown**  
+
+#### **Edge UI (Local Web Dashboard - Layer 2)**  
+- **Real-time visualization** of vehicle detections and speed data.  
+- **Direct interaction** with edge processing services (Flask-SocketIO).  
+- **Configuration controls** for system adjustments.  
+
+#### **Cloud UI (Web-Based Dashboard - Layer 4)**  
+- **Advanced analytics** with historical traffic patterns.  
+- **Incident alerts and reports** for traffic violations.  
+- **Remote management** of edge devices and ML models.  
+
+### **Data Flow Architecture**  
+
+#### **Real-Time Processing Flow:**  
+**Physical Sensors → Edge Processing → Local Dashboard (Edge UI)**  
+↓  
+**Raw Data → Processed Intelligence → Real-Time Visualization**  
+
+#### **Cloud Integration Flow (When Available):**  
+**Edge Processing → Network Layer → Cloud Services → Web-Based Dashboard (Cloud UI)**  
+↓  
+**Local Storage → Data Queue → Cloud Storage → Analytics/Alerts**  
+
+This updated version explicitly defines the **UI Layer**, clarifying its role within **Layer 2 (Edge UI)** and **Layer 4 (Cloud UI)**.  
+
+Does this match what you had in mind? I can refine it further based on how you plan to implement the UI or specific front-end frameworks you're considering!  

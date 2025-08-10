@@ -1,0 +1,46 @@
+Here's how you might prioritize and refine your artifact list for Milestone 3 and the overall capstone:
+
+Prioritize Core Deliverables:
+
+
+System Architecture Diagram (Hardware and Software): Absolutely essential. Combine these into a clear, unified diagram that shows how all components, both physical and logical, interact. Your "Traffic Monitoring System - Happy Path Data Flow" diagram is a fantastic starting point for this. Enhance it with details on the technologies used in each layer.
+
+Database Schema Design: Crucial for any data driven application. An Entity Relationship Diagram (ERD) and table structures are key.
+
+Key API Documentation: Focus on the critical endpoints that facilitate data flow between your backend, web dashboard, and mobile app. You don't need to document every single minor API.
+
+Implementation Plan (Deployment and Integration): This is vital. Clearly articulate how the software will be deployed, integrated with the Raspberry Pi, radar sensor, and PostgreSQL. Focus on the practical steps.
+
+User Guide (for key features): This is where you demonstrate the usability of your solution. Focus on how a typical user would interact with the system's main features. Your dashboards (Maple Street Traffic Monitor and Traffic Analytics Dashboard) provide excellent visual context for what a user would see.
+
+Strategic Selection within Categories:
+
+
+Hardware Design Artifacts: Instead of all listed, focus on the "System Architecture Diagram" as mentioned, and a "Component Selection Justification" (perhaps as a concise table or paragraph) for your key hardware components (Raspberry Pi, radar sensor). You don't necessarily need detailed electrical schematics unless a significant portion of your capstone is hardware design.
+
+Software Design Artifacts: Beyond architecture, database schema, and APIs, consider the "Data Processing Pipeline Design." This directly relates to your added ML/AI components and shows how data flows and is transformed.
+
+User Interface Design Artifacts: Instead of full wireframes, mockups, and interactive prototypes for all elements, provide strong "Web Dashboard Layout" and "Mobile App UI Mockup" for the most important screens, showcasing how users interact with your ML/AI insights and data. The screenshots you've provided of your dashboards are excellent examples of what a polished UI could look like.
+
+Research Design Artifacts: Since you added ML/AI, demonstrate how you validate the accuracy or performance of your ML models. A concise "Evaluation Metrics Framework" or a description of your "Testing Protocol Documentation" specifically for the ML/AI components would be highly relevant. You likely won't need full community surveys unless that is a core part of your capstone's research methodology.
+
+Project Management Artifacts: Focus on a realistic "Detailed Implementation Timeline" for the remaining scope, and a "Risk Management Matrix" that highlights key technical and project risks relevant to your current scope, especially those related to your ML/AI integration. A full "Budget Allocation Plan" might be less critical unless the financial aspect is a central theme of your capstone.
+
+Connect to Your ML/AI Evolution:
+
+
+Your desire to "add more ML and AI into the scope of the project" is a fantastic evolution, as it leverages your advanced skills. Ensure that the artifacts you choose strongly demonstrate this aspect. For example, your "AI Analysis & Data Processing" and "Data Fusion & Analytics" sections in your "Traffic Monitoring System - Happy Path Data Flow" diagram are excellent areas to elaborate on through your documentation.
+
+Explain why ML/AI was added and the value it brings (e.g., more accurate violation detection, predictive analytics, enhanced insights).
+
+Overall Recommendation:
+
+Instead of trying to produce a separate document for each of the artifacts you listed, consider integrating them into a few comprehensive capstone documents. For example:
+
+Technical Design Document: Could encompass your system architecture (hardware and software), database schema, key API specifications, and data processing pipeline.
+
+Implementation and Deployment Guide: Details how to set up and run your system.
+
+User Guide: Focuses on how an end user interacts with the system and its features.
+
+Project Management Summary: A concise overview of your timeline, key risks, and quality assurance approach.
