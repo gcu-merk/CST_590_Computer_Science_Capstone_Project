@@ -1,0 +1,51 @@
+# Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+ENV/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore JetBrains IDE settings
+.idea/
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore Windows system files
+Thumbs.db
+
+# Ignore node modules
+node_modules/
+
+# Ignore build and log files
+*.log
+dist/
+build/
+
+# Ignore database backups
+*.sql
+*.sqlite3
+
+# Ignore Dart/Flutter build files
+.dart_tool/
+build/
+
+# Ignore Android/iOS build files
+android/.gradle/
+android/app/build/
+ios/Pods/
+ios/Runner.xcworkspace/
+
+# Ignore miscellaneous
+.vs/
+*.swp
+*.swo
