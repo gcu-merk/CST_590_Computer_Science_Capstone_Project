@@ -39,11 +39,11 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 ## 2. System Architecture
 
 ### Unified Architecture Diagram
-![System Architecture Diagram](../traffic_monitoring_architecture.svg)
+![System Architecture Diagram](../archive/traffic_monitoring_architecture.svg)
 
 *Figure 1: System Architecture Diagram*
 
-![Data Flow Diagram](../traffic_algorithms_data_diagram.svg)
+![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.svg)
 
 *Figure 2: Data Flow from Sensors to Analytics and Dashboards*
 
@@ -105,19 +105,19 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 | 4 (optional) | Reset    | 16 (GPIO 23)       | GPIO 23 | Hardware reset control |
 
 #### Enclosure and Pinout Visuals
-![Enclosure Inside](../ResidentialRadarEnclosureInside.jpg)
+![Enclosure Inside](../archive/ResidentialRadarEnclosureInside.jpg)
 *Figure 3: Inside View of Residential Radar Enclosure*
 
-![Enclosure Installed](../ResidentialRadarEnclosureInstalled.jpg)
+![Enclosure Installed](../archive/ResidentialRadarEnclosureInstalled.jpg)
 *Figure 4: Installed Enclosure on Site*
 
-![Radar Sensor Board Pinout](../ResidentialRadarEnclosureRadarSensorBoardPinout.jpg)
+![Radar Sensor Board Pinout](../archive/ResidentialRadarEnclosureRadarSensorBoardPinout.jpg)
 *Figure 5: Radar Sensor Board Pinout*
 
-![Radar Sensor Pinout](../ResidentialRadarEnclosureRadarSensorPinout.jpg)
+![Radar Sensor Pinout](../archive/ResidentialRadarEnclosureRadarSensorPinout.jpg)
 *Figure 6: Radar Sensor Pinout Reference*
 
-![Enclosure External View](../ResidentialRadarEnclosureView.jpg)
+![Enclosure External View](../archive/ResidentialRadarEnclosureView.jpg)
 *Figure 7: External View of Enclosure*
 ### Additional Hardware Connections
 | Component | Interface | Connection Details |
