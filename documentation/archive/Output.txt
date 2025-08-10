@@ -1,0 +1,180 @@
+merk@raspberrypi:~ $ python3 ops243_reader.py
+Connecting to OPS243-C...
+Sending configuration commands to OPS243-C...
+============================================================
+
+----------------------------------------
+Sending: ?? (Query sensor info)
+  ✅ JSON: {"Product" : "OPS243-C", "rev" : "D2", "flash" : "1024", "features" : "UART RS232 PLL"}
+  ✅ JSON: {"Version" : "1.2.6"}
+  ✅ JSON: {"Clock" : 8774}
+  ✅ JSON: {"PowerMode" : "Active Continuously"}
+  ✅ JSON: {"Power" : "Max"}
+  ✅ JSON: {"OperationMode" : "Speed and Distance Mode"}
+  ✅ JSON: {"FMCWSampleRateHz" : 320000}
+  ✅ JSON: {"FMCWSampleSize" : 512}
+  ✅ JSON: {"RangeFFTScale" : 2, "RangeFFTSize" : 1024}
+  ✅ JSON: {"RangeResolution" : 0.3407, "RangeUnit" : "m"}
+  ✅ JSON: {"RangeMagnitudeMin" : 20, "RangeMagnitudeMax" : "No Maximum Range Magnitude"}
+  ✅ JSON: {"RequiredMinRange" : 0.000, "RequiredMaxRange" : "No Maximum Range", "RangeUnit" : "m"}
+  ✅ JSON: {"RangeUnit" : "m"}
+  ✅ JSON: {"DopplerSampleRateHz" : 10000}
+  ✅ JSON: {"DopplerSampleSize" : 512}
+  ✅ JSON: {"SpeedFFTScale" : 1, "SpeedFFTSize" : 512}
+  ✅ JSON: {"SpeedResolution" : 0.1214, "SpeedUnit" : "mps"}
+  ✅ JSON: {"SpeedMagnitudeMin" : 20, "SpeedMagnitudeMax" : "No Maximum Speed Magnitude"}
+  ✅ JSON: {"RequiredMinSpeed" : 0.000, "RequiredMaxSpeed" : "No Maximum Speed", "RequiredDirection" : "Either", "SpeedUnit" : "mps"}
+  ✅ JSON: {"SpeedUnit" : "mps"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command '??' completed successfully
+
+----------------------------------------
+Sending: OI (Turn off I data)
+  ✅ JSON: {"SpeedOutputFeature" : "I"}
+  ❌ ERROR: {"SpeedOutputFeature" : "ERROR--I UNKNOWN!!"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ❌ Command 'OI' generated errors!
+
+----------------------------------------
+Sending: OQ (Turn off Q data)
+  ✅ JSON: {"SpeedOutputFeature" : "Q"}
+  ❌ ERROR: {"SpeedOutputFeature" : "ERROR--Q UNKNOWN!!"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ❌ Command 'OQ' generated errors!
+
+----------------------------------------
+Sending: OF (Turn off FFT data)
+  ✅ JSON: {"SpeedOutputFeature" : "F"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}  
+  ✅ Command 'OF' completed successfully
+
+----------------------------------------
+Sending: OM (Turn off magnitude data)
+  ✅ JSON: {"SpeedOutputFeature" : "M"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}  
+  ✅ Command 'OM' completed successfully
+
+----------------------------------------
+Sending: OD (Turn off detection data)
+  ✅ JSON: {"SpeedOutputFeature" : "D"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'OD' completed successfully
+
+----------------------------------------
+Sending: OS (Turn off speed data)
+  ✅ JSON: {"SpeedOutputFeature" : "S"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'OS' completed successfully
+
+----------------------------------------
+Sending: OR (Turn off range data)
+  ✅ JSON: {"SpeedOutputFeature" : "R"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'OR' completed successfully
+
+----------------------------------------
+Sending: Oj (Enable JSON speed output)
+  ✅ JSON: {"SpeedOutputFeature" : "j"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'Oj' completed successfully
+
+----------------------------------------
+Sending: Om (Enable JSON magnitude output)
+  ✅ JSON: {"SpeedOutputFeature" : "m"}
+  ℹ️  Response: "m",0.7
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'Om' completed successfully
+
+----------------------------------------
+Sending: Od (Enable JSON direction output)
+  ✅ JSON: {"SpeedOutputFeature" : "d"}
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'Od' completed successfully
+
+----------------------------------------
+Sending: SM50 (Set minimum speed magnitude to 50)
+  ✅ JSON: {"DopplerSampleCmd" : "illegal value: M"}
+  ❌ ERROR: {"UnknownCommand" : "5"}
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ❌ Command 'SM50' generated errors!
+
+----------------------------------------
+Sending: RM50 (Set minimum range magnitude to 50)
+  ❌ ERROR: {"UnknownCommand" : "5"}
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ❌ Command 'RM50' generated errors!
+
+----------------------------------------
+Sending: O? (Query current output settings)
+  ✅ JSON: {"SpeedOutputFeature" : "?"}
+  ✅ JSON: {"SpeedOutputSpeed" : "enabled"}
+  ✅ JSON: {"SpeedOutputDistance" : "disabled"}
+  ✅ JSON: {"SpeedOutputSpeedAndDistance" : "disabled"}
+  ✅ JSON: {"SpeedOutputCombo" : "disabled"}
+  ✅ JSON: {"SpeedOutputJSON" : "disabled"}
+  ✅ JSON: {"SpeedOutputTime" : "disabled"}
+  ✅ JSON: {"SpeedOutputHumanReadableTime" : "disabled"}
+  ✅ JSON: {"SpeedOutputMagnitude" : "disabled"}
+  ✅ JSON: {"SpeedOutputUnits" : "enabled"}
+  ✅ JSON: {"SpeedOutputByValue" : "disabled"}
+  ✅ JSON: {"SpeedOutputByIncreasing" : "disabled"}
+  ✅ JSON: {"SpeedOutputBinary" : "disabled"}
+  ✅ JSON: {"SpeedOutputDetectedObject" : "disabled"}
+  ✅ JSON: {"SpeedOutputIntervalReport" : "query only"}
+  ✅ JSON: {"SpeedOutputClassifier" : "disabled"}
+  ✅ JSON: {"SpeedReportCount" : 1}
+  ✅ JSON: {"IgnoreWatchdogForUSBTX" : "enabled"}
+  ✅ JSON: {"I":[2056,...2049]}
+  ✅ JSON: {"Q":[2058,...2053]}
+  ✅ Command 'O?' completed successfully
+
+============================================================
+CONFIGURATION SUMMARY:
+============================================================
+??     - Query sensor info                   - ✅ SUCCESS
+OI     - Turn off I data                     - ❌ FAILED
+OQ     - Turn off Q data                     - ❌ FAILED
+OF     - Turn off FFT data                   - ✅ SUCCESS
+OM     - Turn off magnitude data             - ✅ SUCCESS
+OD     - Turn off detection data             - ✅ SUCCESS
+OS     - Turn off speed data                 - ✅ SUCCESS
+OR     - Turn off range data                 - ✅ SUCCESS
+Oj     - Enable JSON speed output            - ✅ SUCCESS
+Om     - Enable JSON magnitude output        - ✅ SUCCESS
+Od     - Enable JSON direction output        - ✅ SUCCESS
+SM50   - Set minimum speed magnitude to 50   - ❌ FAILED
+RM50   - Set minimum range magnitude to 50   - ❌ FAILED
+O?     - Query current output settings       - ✅ SUCCESS
+
+Results: 10 successful, 4 failed
+
+⚠️  Some commands failed. Check:
+   - Sensor firmware version compatibility
+   - Command syntax for your specific model
+   - Baud rate settings
+   - Power cycle the sensor and try again
+
+============================================================
+Connection closed.

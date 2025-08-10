@@ -1,0 +1,2 @@
+P{"Product" : "OPS243-C", "rev" : "D2", "flash" : "1024", "features" : "UART RS232 PLL"}
+N{"SerialNumber" : "A25080103"}

@@ -1,0 +1,25 @@
+Basic OPS243-C Commands:
+
+?? - Get help/list all commands
+?A - Get current settings
+?B - Get board information
+?C - Get firmware version
+?D - Get detection status
+?F - Get frequency of operation
+?G - Get gain setting
+?M - Get measurement mode
+?P - Get power mode
+?R - Get range
+?S - Get speed units
+?T - Get threshold
+?U - Get units (mph/kph/mps)
+?V - Get magnitude
+
+Configuration Commands:
+
+G<value> - Set gain (0-255)
+M<mode> - Set measurement mode (S=speed, M=magnitude, D=direction)
+P<mode> - Set power mode (C=continuous, T=triggered)
+R<range> - Set range (0-1023)
+S<units> - Set speed units (US=mph, UK=kph, MPS=m/s)
+T<value> - Set threshold (0-65535)
