@@ -1,4 +1,16 @@
+
 # User Guide
+
+---
+**Cover Page**
+
+**Title:** Raspberry Pi 5 Edge ML Traffic Monitoring System - User Guide  
+**Version:** 1.0  
+**Date:** August 7, 2025  
+**Copyright:** © 2025 gcu-merk. All rights reserved.  
+**Preface:**  
+This guide provides comprehensive instructions for installing, configuring, and using the Raspberry Pi 5 Edge ML Traffic Monitoring System. It is intended for both technical and non-technical users.
+---
 
 **Document Version:** 1.0  
 **Last Updated:** August 7, 2025  
@@ -6,6 +18,9 @@
 **Authors:** Documentation Team  
 
 ## Table of Contents
+1. Cover Page
+2. Title Page and Copyright
+3. Preface
 1. [System Features Overview](#1-system-features-overview)
 2. [Web Dashboard](#2-web-dashboard)
 3. [Mobile App (Optional)](#3-mobile-app-optional)
@@ -20,6 +35,11 @@
 - [References & Appendices](./References_Appendices.md)
 
 ## 1. System Features Overview
+
+### Accessibility & Safety Information
+- The dashboard and documentation use high-contrast colors and large fonts for readability.
+- All visuals and diagrams include descriptive alt text.
+- The system is designed for safe installation and operation. Follow all electrical and mounting instructions to avoid injury.
 
 The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle detection, speed measurement, and traffic analytics at the edge. The system is designed for ease of use, reliability, and actionable insights for traffic monitoring and management.
 
@@ -198,6 +218,13 @@ A: Software updates should be performed by following the procedures in the Imple
 A: Yes, detection thresholds can be adjusted in the configuration files. See the Technical Design Document for parameter details or contact support for assistance.
 
 ## 6. Contact / Support
+
+## 7. Glossary
+See the References & Appendices for a full glossary of terms.
+
+---
+## Code Review Summary
+The source code for this project was reviewed by a peer developer to identify bugs and improve code quality. All feedback was addressed and changes were made as appropriate. (If code is added, update this section with reviewer details and feedback summary.)
 
 If you have questions, encounter issues, or need assistance with the Raspberry Pi 5 Edge ML Traffic Monitoring System, please use the following support channels:
 
