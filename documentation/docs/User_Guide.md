@@ -57,19 +57,19 @@ The Edge UI (local web dashboard) provides real-time monitoring, configuration, 
   - Log messages and error notifications
   
 #### Dashboard Screenshots
-![Cloud Dashboard 1](../CloudUI_1.jpg)
+![Cloud Dashboard 1](../archive/CloudUI_1.jpg)
 *Figure 1: Cloud Dashboard - Main Analytics View*
 
-![Cloud Dashboard 2](../CloudUI_2.jpg)
+![Cloud Dashboard 2](../archive/CloudUI_2.jpg)
 *Figure 2: Cloud Dashboard - Event Table*
 
-![Cloud Dashboard 3](../CloudUI_3.jpg)
+![Cloud Dashboard 3](../archive/CloudUI_3.jpg)
 *Figure 3: Cloud Dashboard - System Status*
 
-![Cloud Dashboard 4](../CloudUI_4.jpg)
+![Cloud Dashboard 4](../archive/CloudUI_4.jpg)
 *Figure 4: Cloud Dashboard - Settings Panel*
 
-![Cloud Dashboard 5](../CloudUI_5.jpg)
+![Cloud Dashboard 5](../archive/CloudUI_5.jpg)
 *Figure 5: Cloud Dashboard - Historical Trends*
 
 ![Local Dashboard 1](../LocalUI.jpg)

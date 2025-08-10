@@ -19,7 +19,7 @@
 
 ## 1. References
 
-- **OmniPreSense OPS243-C Radar Sensor Datasheet:** [OPS-DS-003-M_OPS243.pdf](../OPS-DS-003-M_OPS243.pdf)
+- **OmniPreSense OPS243-C Radar Sensor Datasheet:** [OPS-DS-003-M_OPS243.pdf](../archive/OPS-DS-003-M_OPS243.pdf)
 - **Raspberry Pi 5 Documentation:** [Official Raspberry Pi Docs](https://www.raspberrypi.com/documentation/computers/)
 - **Sony IMX500 AI Camera Documentation:** [Sony IMX500 Product Page](https://www.sony-semicon.com/en/products/IS/sensor/IMX500.html)
 - **TensorFlow Documentation:** [https://www.tensorflow.org/](https://www.tensorflow.org/)
@@ -39,25 +39,25 @@
 
 ### Visual References
 
-![System Architecture Diagram](../traffic_monitoring_architecture.svg)
+![System Architecture Diagram](../archive/traffic_monitoring_architecture.svg)
 *Figure 1: System Architecture Diagram*
 
-![Data Flow Diagram](../traffic_algorithms_data_diagram.svg)
+![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.svg)
 *Figure 2: Data Flow from Sensors to Analytics and Dashboards*
 
-![Cloud Dashboard 1](../CloudUI_1.jpg)
+![Cloud Dashboard 1](../archive/CloudUI_1.jpg)
 *Figure 3: Cloud Dashboard - Main Analytics View*
 
-![Cloud Dashboard 2](../CloudUI_2.jpg)
+![Cloud Dashboard 2](../archive/CloudUI_2.jpg)
 *Figure 4: Cloud Dashboard - Event Table*
 
-![Cloud Dashboard 3](../CloudUI_3.jpg)
+![Cloud Dashboard 3](../archive/CloudUI_3.jpg)
 *Figure 5: Cloud Dashboard - System Status*
 
-![Cloud Dashboard 4](../CloudUI_4.jpg)
+![Cloud Dashboard 4](../archive/CloudUI_4.jpg)
 *Figure 6: Cloud Dashboard - Settings Panel*
 
-![Cloud Dashboard 5](../CloudUI_5.jpg)
+![Cloud Dashboard 5](../archive/CloudUI_5.jpg)
 *Figure 7: Cloud Dashboard - Historical Trends*
 
 ![Local Dashboard 1](../LocalUI.jpg)
@@ -66,22 +66,22 @@
 ![Local Dashboard 2](../LocalUI2.jpg)
 *Figure 9: Local Edge UI - Analytics Panel*
 
-![Enclosure Inside](../ResidentialRadarEnclosureInside.jpg)
+![Enclosure Inside](../archive/ResidentialRadarEnclosureInside.jpg)
 *Figure 10: Inside View of Residential Radar Enclosure*
 
-![Enclosure Installed](../ResidentialRadarEnclosureInstalled.jpg)
+![Enclosure Installed](../archive/ResidentialRadarEnclosureInstalled.jpg)
 *Figure 11: Installed Enclosure on Site*
 
-![Radar Sensor Board Pinout](../ResidentialRadarEnclosureRadarSensorBoardPinout.jpg)
+![Radar Sensor Board Pinout](../archive/ResidentialRadarEnclosureRadarSensorBoardPinout.jpg)
 *Figure 12: Radar Sensor Board Pinout*
 
-![Radar Sensor Pinout](../ResidentialRadarEnclosureRadarSensorPinout.jpg)
+![Radar Sensor Pinout](../archive/ResidentialRadarEnclosureRadarSensorPinout.jpg)
 *Figure 13: Radar Sensor Pinout Reference*
 
-![Enclosure External View](../ResidentialRadarEnclosureView.jpg)
+![Enclosure External View](../archive/ResidentialRadarEnclosureView.jpg)
 *Figure 14: External View of Enclosure*
 
-![Standard Data Flow](../Traffic Monitoring System - Standard Data Flow.jpeg)
+![Standard Data Flow](../archive/Traffic Monitoring System - Standard Data Flow.jpeg)
 *Figure 15: Standard Data Flow Overview*
 
 ## 3. Glossary
