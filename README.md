@@ -54,10 +54,11 @@ This project aims to develop a Raspberry Pi-based system capable of detecting sp
 
 We welcome contributions to this project after August 2025. Please feel free to fork the repository and submit pull requests.
 
-Repo Structure
 
-RaspberryPi-Traffic-Violation-Detection/
-│
+## Repo Structure
+
+```text
+CST_590_Computer_Science_Capstone_Project/
 ├── data-collection/
 │   ├── README.md
 │   ├── speed-data-collection/
@@ -65,38 +66,31 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   ├── requirements.txt
 │   │   ├── tests/
 │   │   │   └── test_speed_data_collection.py
-│   │   └── .env
 │   ├── stop-sign-data-collection/
 │   │   ├── stop_sign_data_collection.py
 │   │   ├── requirements.txt
 │   │   ├── tests/
 │   │   │   └── test_stop_sign_data_collection.py
-│   │   └── .env
 │   ├── license-plate-data-collection/
 │   │   ├── license_plate_data_collection.py
 │   │   ├── requirements.txt
 │   │   ├── tests/
 │   │   │   └── test_license_plate_data_collection.py
-│   │   └── .env
 │   ├── data-consolidator/
 │   │   ├── data_consolidator.py
 │   │   ├── requirements.txt
 │   │   ├── tests/
 │   │   │   └── test_data_consolidator.py
-│   │   └── .env
 │   ├── data-persister/
 │   │   ├── data_persister.py
 │   │   ├── requirements.txt
 │   │   ├── tests/
 │   │   │   └── test_data_persister.py
-│   │   └── .env
 │   ├── utils/
 │   │   ├── utils.py
 │   │   ├── requirements.txt
 │   │   ├── tests/
 │   │   │   └── test_utils.py
-│   │   └── .env
-│
 ├── webserver/
 │   ├── README.md
 │   ├── src/
@@ -114,8 +108,6 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   ├── tests/
 │   │   │   └── test_app.module.ts
 │   ├── package.json
-│   └── .env
-│
 ├── database/
 │   ├── README.md
 │   ├── init_db.sql
@@ -125,8 +117,6 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   ├── data_import.sh
 │   ├── backups/
 │   │   └── backup_20241203.sql
-│   └── .env
-│
 ├── website/
 │   ├── README.md
 │   ├── public/
@@ -140,8 +130,7 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   │   ├── test_components.js
 │   │   │   └── test_app.js
 │   ├── package.json
-│   └── .env
-│
+├── mobile/
 │   ├── README.md
 │   ├── android/
 │   ├── ios/
@@ -154,7 +143,5 @@ RaspberryPi-Traffic-Violation-Detection/
 │   │   │   ├── test_views.dart
 │   │   │   └── test_main.dart
 │   ├── pubspec.yaml
-│   └── .env
-│
-└── README.md
-├── mobile/
+└── ...
+```
