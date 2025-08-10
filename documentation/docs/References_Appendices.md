@@ -1,4 +1,5 @@
 
+
 # References & Appendices
 
 **Document Version:** 1.0  
@@ -7,6 +8,10 @@
 **Authors:** Research Team  
 
 ## Table of Contents
+1. References
+2. Additional Visuals
+3. Glossary
+4. Code Review Summary
 1. [References](#1-references)
 2. [Additional Visuals](#2-additional-visuals)
 3. [Glossary](#3-glossary)
@@ -85,6 +90,19 @@
 *Figure 15: Standard Data Flow Overview*
 
 ## 3. Glossary
+
+**Edge ML:** Machine learning performed on local devices rather than in the cloud.
+**OPS243-C:** A Doppler radar sensor used for speed measurement.
+**YOLOv8:** A real-time object detection algorithm.
+**REST API:** An interface for communication between systems using HTTP requests.
+**SocketIO:** A library for real-time web communication.
+**SSD:** Solid State Drive, used for fast data storage.
+**PoE:** Power over Ethernet, a method for delivering power and data over a single cable.
+**HDF5:** A file format for storing large scientific data.
+**CSV:** Comma-Separated Values, a simple file format for tabular data.
+**JSON:** JavaScript Object Notation, a lightweight data-interchange format.
+# 4. Code Review Summary
+The source code for this project was reviewed by a peer developer to identify bugs and improve code quality. All feedback was addressed and changes were made as appropriate. (If code is added, update this section with reviewer details and feedback summary.)
 
 | Term | Definition |
 |------|------------|
