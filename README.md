@@ -59,79 +59,55 @@ We welcome contributions to this project after August 2025. Please feel free to 
 
 ```text
 CST_590_Computer_Science_Capstone_Project/
+├── .gitignore
+├── .vs/
+├── LICENSE
+├── README.md
 ├── data-collection/
-│   ├── README.md
-│   ├── speed-data-collection/
-│   │   ├── speed_data_collection.py
-│   │   ├── requirements.txt
-│   │   ├── tests/
-│   │   │   └── test_speed_data_collection.py
-│   ├── stop-sign-data-collection/
-│   │   ├── stop_sign_data_collection.py
-│   │   ├── requirements.txt
-│   │   ├── tests/
-│   │   │   └── test_stop_sign_data_collection.py
-│   ├── license-plate-data-collection/
-│   │   ├── license_plate_data_collection.py
-│   │   ├── requirements.txt
-│   │   ├── tests/
-│   │   │   └── test_license_plate_data_collection.py
 │   ├── data-consolidator/
 │   │   ├── data_consolidator.py
 │   │   ├── requirements.txt
-│   │   ├── tests/
-│   │   │   └── test_data_consolidator.py
+│   │   └── tests/
+│   │       └── test_data_consolidator.py
 │   ├── data-persister/
 │   │   ├── data_persister.py
 │   │   ├── requirements.txt
-│   │   ├── tests/
-│   │   │   └── test_data_persister.py
+│   │   └── tests/
+│   │       └── test_data_persister.py
+│   ├── license-plate-data-collection/
+│   │   ├── license_plate_data_collection.py
+│   │   ├── requirements.txt
+│   │   └── tests/
+│   │       └── test_license_plate_data_collection.py
+│   ├── speed-data-collection/
+│   │   ├── speed_data_collection.py
+│   │   ├── requirements.txt
+│   │   └── tests/
+│   │       └── test_speed_data_collection.py
+│   ├── stop-sign-data-collection/
+│   │   ├── stop_sign_data_collection.py
+│   │   ├── requirements.txt
+│   │   └── tests/
+│   │       └── test_stop_sign_data_collection.py
 │   ├── utils/
 │   │   ├── utils.py
 │   │   ├── requirements.txt
-│   │   ├── tests/
-│   │   │   └── test_utils.py
-├── webserver/
-│   ├── README.md
-│   ├── src/
-│   │   ├── main.ts
-│   │   ├── app.module.ts
-│   │   ├── controllers/
-│   │   │   ├── data.controller.ts
-│   │   │   └── camera.controller.ts
-│   │   ├── services/
-│   │   │   ├── data.service.ts
-│   │   │   └── camera.service.ts
-│   │   ├── database/
-│   │   │   ├── database.module.ts
-│   │   │   └── database.service.ts
-│   │   ├── tests/
-│   │   │   └── test_app.module.ts
-│   ├── package.json
+│   │   └── tests/
+│   │       └── test_utils.py
 ├── database/
-│   ├── README.md
-│   ├── init_db.sql
-│   ├── schema/
-│   │   ├── create_tables.sql
-│   ├── scripts/
-│   │   ├── data_import.sh
 │   ├── backups/
 │   │   └── backup_20241203.sql
-├── website/
-│   ├── README.md
-│   ├── public/
-│   │   └── index.html
-│   ├── src/
-│   │   ├── App.js
-│   │   ├── components/
-│   │   │   ├── CameraView.js
-│   │   │   └── LogsView.js
-│   │   ├── tests/
-│   │   │   ├── test_components.js
-│   │   │   └── test_app.js
-│   ├── package.json
+│   ├── init_db.sql/
+│   ├── README.md/
+│   ├── schema/
+│   │   └── create_tables.sql
+│   ├── scripts/
+│   │   └── data_import.sh
+├── documentation/
+│   ├── archive/
+│   ├── docs/
+│   └── README.md
 ├── mobile/
-│   ├── README.md
 │   ├── android/
 │   ├── ios/
 │   ├── lib/
@@ -139,9 +115,39 @@ CST_590_Computer_Science_Capstone_Project/
 │   │   ├── views/
 │   │   │   ├── camera_view.dart
 │   │   │   └── logs_view.dart
-│   │   ├── tests/
-│   │   │   ├── test_views.dart
-│   │   │   └── test_main.dart
+│   │   └── tests/
+│   │       ├── test_main.dart
+│   │       └── test_views.dart
 │   ├── pubspec.yaml
-└── ...
+│   └── README.md/
+├── webserver/
+│   ├── package.json/
+│   ├── README.md/
+│   └── src/
+│       ├── app.module.ts
+│       ├── controllers/
+│       │   ├── camera.controller.ts
+│       │   └── data.controller.ts
+│       ├── database/
+│       │   ├── database.module.ts
+│       │   └── database.service.ts
+│       ├── main.ts
+│       ├── services/
+│       │   ├── camera.service.ts
+│       │   └── data.service.ts
+│       └── tests/
+│           └── test_app.module.ts
+├── website/
+│   ├── package.json/
+│   ├── public/
+│   │   └── index.html
+│   ├── README.md/
+│   └── src/
+│       ├── App.js
+│       ├── components/
+│       │   ├── CameraView.js
+│       │   └── LogsView.js
+│       └── tests/
+│           ├── test_app.js
+│           └── test_components.js
 ```
