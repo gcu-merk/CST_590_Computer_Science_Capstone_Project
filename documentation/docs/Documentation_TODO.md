@@ -24,6 +24,15 @@
 - [ ] Document any firewall or port changes needed for Tailscale access
 - [ ] Clarify if Tailscale is used for SSH, dashboard, or both
 - [ ] Add troubleshooting tips for Tailscale connectivity
+- [ ] Add instructions for running and accessing the Hello World webserver
+- [ ] Document SSH connection info and remote access best practices
+- [ ] Ensure all documentation links are up to date and working
+- [ ] Add section on how to contribute to documentation
+- [ ] Review and update README files in all subfolders for clarity and completeness
+- [ ] Add a changelog or revision history to documentation
+- [ ] Standardize formatting and style across all documentation files
+- [ ] Add example configuration files and templates
+- [ ] Document backup and restore procedures for documentation and configs
 
 ## 2. In Progress
 - [ ] Review and align documentation with latest codebase changes
