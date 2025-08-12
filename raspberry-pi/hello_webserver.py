@@ -1,3 +1,4 @@
+# SSH connection info: ssh merk@100.121.231.16
 from flask import Flask
 
 app = Flask(__name__)

@@ -1,3 +1,4 @@
+# SSH connection info: ssh merk@100.121.231.16
 # Documentation
 
 This folder contains all project documentation, guides, and related resources for the Raspberry Pi 5 Edge ML Traffic Monitoring System. Use these documents to install, configure, deploy, and maintain the system.
