@@ -65,10 +65,10 @@
 ![Cloud Dashboard 5](../archive/CloudUI_5.jpg)
 *Figure 7: Cloud Dashboard - Historical Trends*
 
-![Local Dashboard 1](../LocalUI.jpg)
+![Local Dashboard 1](../archive/LocalUI.jpg)
 *Figure 8: Local Edge UI - Live View*
 
-![Local Dashboard 2](../LocalUI2.jpg)
+![Local Dashboard 2](../archive/LocalUI2.jpg)
 *Figure 9: Local Edge UI - Analytics Panel*
 
 ![Enclosure Inside](../archive/ResidentialRadarEnclosureInside.jpg)
