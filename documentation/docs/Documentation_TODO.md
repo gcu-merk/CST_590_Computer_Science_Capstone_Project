@@ -10,6 +10,7 @@
 2. In Progress
 3. Completed
 
+
 ## 1. Outstanding Tasks
 - [ ] Review and update all hardware installation steps for clarity
 - [ ] Add more visuals/screenshots to User Guide
@@ -17,6 +18,12 @@
 - [ ] Cross-reference all diagrams in Technical Design
 - [ ] Add more troubleshooting examples to User Guide
 - [ ] Update glossary with new technical terms
+- [ ] Add detailed Tailscale setup instructions to Implementation & Deployment Guide
+- [ ] Confirm which OS is running on the Raspberry Pi for Tailscale install steps
+- [ ] Specify authentication method used for Tailscale (Google, Microsoft, etc.)
+- [ ] Document any firewall or port changes needed for Tailscale access
+- [ ] Clarify if Tailscale is used for SSH, dashboard, or both
+- [ ] Add troubleshooting tips for Tailscale connectivity
 
 ## 2. In Progress
 - [ ] Review and align documentation with latest codebase changes

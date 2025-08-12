@@ -186,8 +186,18 @@ A: With default settings, the system generates approximately 1-2 GB of data per 
 **Q: What network connectivity is required?**
 A: The system requires an internet connection for cloud synchronization and remote access. Local operation (Edge UI) works without internet. Minimum bandwidth requirement is 1 Mbps for cloud features.
 
+
 **Q: Can I access the system remotely?**
-A: Yes, through the Cloud UI dashboard (if configured) or by setting up VPN access to the local network. Remote access requires proper network security configuration.
+A: Yes. This system supports secure remote access to the Raspberry Pi using Tailscale, a mesh VPN that creates a private network between your devices. Tailscale allows you to SSH or access the dashboard from anywhere, as if you were on the same local network. See the Implementation & Deployment Guide for setup instructions. Remote access requires proper network security configuration.
+
+**Q: How do I connect to the Raspberry Pi using Tailscale?**
+A: After installing and authenticating Tailscale on both your Raspberry Pi and your client device (laptop/desktop), you can use the Tailscale-assigned IP address to SSH into the Pi or access the web dashboard. Example:
+```bash
+ssh pi@<tailscale-ip>
+```
+or open `http://<tailscale-ip>:5000` in your browser. Ensure Tailscale is running and connected on both devices.
+
+For more details, see the Implementation & Deployment Guide.
 
 **Q: How do I calibrate the speed measurement?**
 A: The radar sensor is factory-calibrated, but you can verify accuracy by comparing readings with a GPS speedometer or radar gun. Contact support if recalibration is needed.
