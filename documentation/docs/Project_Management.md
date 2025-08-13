@@ -6,13 +6,15 @@
 **Authors:** Project Team  
 
 ## Table of Contents
+
 1. [Executive Summary](#executive-summary)
 2. [Implementation Timeline](#1-implementation-timeline)
 3. [Budget & Cost Estimates](#2-budget--cost-estimates)
-4. [Risk Management Matrix](#3-risk-management-matrix)
-5. [Quality Assurance](#4-quality-assurance)
+4. [Risk Management Matrix](#3-risk-management-matrix--contingency-planning)
+5. [Quality Assurance & Testing Protocols](#4-quality-assurance--testing-protocols)
 
 **See also:**
+
 - [Technical Design Document](./Technical_Design.md)
 - [Implementation & Deployment Guide](./Implementation_Deployment.md)
 - [User Guide](./User_Guide.md)
@@ -45,6 +47,7 @@ This project follows an agile, milestone-based approach. The initial focus is on
 ## 2. Budget & Cost Estimates
 
 ### Hardware Costs (Per Unit)
+
 | Component | Model/Description | Unit Cost (USD) | Quantity | Total Cost |
 |-----------|-------------------|----------------|----------|------------|
 | Raspberry Pi 5 | 16GB RAM model | $120 | 1 | $120 |
@@ -58,6 +61,7 @@ This project follows an agile, milestone-based approach. The initial focus is on
 | **Hardware Subtotal** | | | | **$439** |
 
 ### Software & Development Costs
+
 | Category | Description | Cost (USD) |
 |----------|-------------|------------|
 | Software Licenses | Open source (PostgreSQL, Python, TensorFlow) | $0 |
@@ -66,6 +70,7 @@ This project follows an agile, milestone-based approach. The initial focus is on
 | **Software Subtotal** | | **$0-50** |
 
 ### Implementation & Deployment Costs
+
 | Activity | Description | Hours | Rate | Total Cost |
 |----------|-------------|-------|------|------------|
 | System Integration | Hardware assembly and configuration | 8 | $75 | $600 |
@@ -75,14 +80,13 @@ This project follows an agile, milestone-based approach. The initial focus is on
 | **Implementation Subtotal** | | | | **$1,650** |
 
 ### Total Project Cost
+
 - **Per Unit Hardware:** $439
 - **Implementation (One-time):** $1,650
 - **Monthly Operating:** $20-50 (if using cloud services)
 - **Total First Unit:** $2,089 + monthly costs
 
 *Note: Costs may vary based on supplier, location, and bulk purchasing agreements.*
-
-
 
 ## 3. Risk Management Matrix & Contingency Planning
 
@@ -98,19 +102,19 @@ This project follows an agile, milestone-based approach. The initial focus is on
 | Regulatory/compliance issues | Medium | Low | Review laws, anonymize data | Compliance checklist | Remove/modify non-compliant features |
 
 **Contingency Planning:**
+
 - Prioritize core MVP features to ensure essential delivery if time is tight
 - Allocate buffer time in each milestone for unforeseen issues
 - Plan regular backups and use version control for rollback
 - Use simulated data if live sensor data is unavailable
 - Monitor for hardware, network, and security risks with alerts
 
-
 ---
-
 
 ## 4. Quality Assurance & Testing Protocols
 
 ### Testing Protocols
+
 - Break down development into small, testable sub-tasks for each milestone
 - Perform frequent, incremental testing during development (unit, integration, system)
 - Use automated tests and code reviews to catch issues early
@@ -118,22 +122,19 @@ This project follows an agile, milestone-based approach. The initial focus is on
 - Validate MVP features first, then expand to additional features
 
 ### ML/AI Evaluation Metrics
+
 - Track model accuracy, precision, recall, and real-world performance
 - Use field testing feedback to improve models
 
 ### Documentation & Review
+
 - Update documentation iteratively as features evolve
 - Schedule regular documentation reviews before each milestone
 
 ## 5. Future Work & Clarifications
 
 ### Future Work
-- **Stop Sign Violation Detection:** Planned for future implementation. The current system focuses on speed and general vehicle detection. Stop sign violation detection is a key roadmap feature (see [GitHub repo](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)).
-- **Alert/Notification System:** Customizable alerting is planned. Current documentation describes the architecture; implementation is in progress.
-- **Cloud/Remote Monitoring:** Cloud UI and analytics are described in the documentation. Full cloud integration and remote monitoring are planned enhancements.
-- **User Interface Enhancements:** Ongoing improvements to dashboard usability and configuration options.
-- **Detection Accuracy:** Improve performance in challenging lighting and weather conditions.
-- **Advanced Deep Learning:** Explore new ML models for better detection/classification.
+
 - **Stop Sign Violation Detection:** Planned for future implementation. The current system focuses on speed and general vehicle detection. Stop sign violation detection is a key roadmap feature (see [GitHub repo](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)).
 - **Alert/Notification System:** Customizable alerting is planned. Current documentation describes the architecture; implementation is in progress.
 - **Cloud/Remote Monitoring:** Cloud UI and analytics are described in the documentation. Full cloud integration and remote monitoring are planned enhancements.
@@ -142,11 +143,13 @@ This project follows an agile, milestone-based approach. The initial focus is on
 - **Advanced Deep Learning:** Explore new ML models for better detection/classification.
 
 ### Contradictions & Clarifications
+
 - The GitHub repository emphasizes stop sign violation detection and customizable alerts as core features. The current deployed system focuses on speed and vehicle detection; stop sign and advanced alerting are future work.
 - Both sources mention cloud/remote monitoring. The documentation describes the intended architecture; some features may be in development.
 - The dashboard is described as implemented in the documentation, but the GitHub repo lists it as future work. Clarify the current status in project updates.
 
 ### Repository Reference
+
 - For code, structure, and contribution guidelines, see: [CST_590_Computer_Science_Capstone_Project GitHub](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)
 
 - Use feedback from field testing to improve models and system reliability
