@@ -13,8 +13,13 @@
 
 ## 1. Outstanding Tasks
 - [ ] Review and update all hardware installation steps for clarity
+	- [ ] List and verify all hardware components
+	- [ ] Add buffer time for hardware issues (see Project Management)
 - [ ] Add more visuals/screenshots to User Guide
 - [ ] Expand contingency planning section in Project Management
+	- [ ] Add buffer time to each milestone
+	- [ ] Document simulated data fallback and regular backups
+	- [ ] Add risk monitoring/alerting details
 - [ ] Cross-reference all diagrams in Technical Design
 - [ ] Add more troubleshooting examples to User Guide
 - [ ] Update glossary with new technical terms
@@ -33,6 +38,8 @@
 - [ ] Standardize formatting and style across all documentation files
 - [ ] Add example configuration files and templates
 - [ ] Document backup and restore procedures for documentation and configs
+- [ ] Break down each milestone into actionable sub-tasks (see Project Management)
+- [ ] Reference new QA/testing protocols and risk monitoring in User Guide
 
 ## 2. In Progress
 - [ ] Review and align documentation with latest codebase changes
