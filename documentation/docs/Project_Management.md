@@ -500,3 +500,15 @@ EOF
 - For code, structure, and contribution guidelines, see: [CST_590_Computer_Science_Capstone_Project GitHub](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)
 
 - Use feedback from field testing to improve models and system reliability
+
+---
+
+## Unified Architecture Diagram
+
+![System Architecture Diagram](../archive/traffic_monitoring_architecture.svg)
+
+*Figure 1: System Architecture Diagram*
+
+![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.svg)
+
+*Figure 2: Data Flow from Sensors to Analytics and Dashboards*
