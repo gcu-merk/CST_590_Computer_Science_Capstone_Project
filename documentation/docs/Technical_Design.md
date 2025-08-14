@@ -16,6 +16,7 @@
 7. [Database Entity-Relationship Diagram (ERD)](#7-database-entity-relationship-diagram-erd)
 8. [API Endpoint Map](#8-api-endpoint-map)
 9. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
+10. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
 
 **See also:**
 
@@ -265,4 +266,39 @@ Vehicle Detected
 +-------------------+      +-------------------+      +-------------------+
 ```
 
-Legend: <====> = Encrypted/Authenticated connection
+## 10. Remote Access Flow via Tailscale
+
+This diagram illustrates how SSH and HTML (web dashboard) connections are securely routed to the Raspberry Pi through the Tailscale mesh VPN network.
+
+```text
++-------------------+        +-------------------+        +----------------------|
+|   Remote Client   |        |   Remote Client   |        |   Remote Client      |
+|   (SSH/HTML)      |        |   (SSH/HTML)      |        |   (SSH/HTML)         |
++--------+----------+        +--------+----------+        +----------+-----------+
+         |                            |                              |
+         |   SSH / HTTPS / HTTP       |   SSH / HTTPS / HTTP         |   SSH / HTTPS / HTTP
+         |   (Port 22 / 80 / 443)     |   (Port 22 / 80 / 443)       |   (Port 22 / 80 / 443)
+         v                            v                              v
++--------------------------------------------------------------------------+
+|                           Tailscale Network                              |
+|   (Encrypted Mesh VPN - All Devices Authenticated & Discoverable)        |
++-------------------+-------------------+-------------------+--------------+
+         |                   |                   |
+         +---------+---------+                   |
+                   |                             |
+                   v                             v
+           +-----------------------------+   +-----------------------------+
+           |      Raspberry Pi 5         |   |      Raspberry Pi 5         |
+           |  (Tailscale IP: 100.x.x.x)  |   |  (Tailscale IP: 100.x.x.x)  |
+           |  +-----------------------+  |   |  +-----------------------+  |
+           |  |  SSH Server (22)      |  |   |  |  Web Server (80/443)  |  |
+           |  |  Web Dashboard (UI)   |  |   |  |  (HTML/HTTPS)         |  |
+           |  +-----------------------+  |   |  +-----------------------+  |
+           +-----------------------------+   +-----------------------------+
+```
+
+**Legend:**
+
+- All connections (SSH, HTTP, HTTPS) are routed through the Tailscale mesh VPN.
+- Remote clients connect to the Raspberry Pi using its Tailscale IP address.
+- Tailscale handles encryption and authentication, so no direct exposure to the public internet is required.
