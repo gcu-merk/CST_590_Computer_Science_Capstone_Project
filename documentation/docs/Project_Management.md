@@ -12,6 +12,7 @@
 3. [Budget & Cost Estimates](#2-budget--cost-estimates)
 4. [Risk Management Matrix](#3-risk-management-matrix--contingency-planning)
 5. [Quality Assurance & Testing Protocols](#4-quality-assurance--testing-protocols)
+6. [Architectural Design Comparison](#architectural-design-comparison)
 
 **See also:**
 
@@ -478,37 +479,21 @@ EOF
 
 ---
 
-## 6. Future Work & Clarifications
+## Architectural Design Comparison
 
-### Future Work
+| **Aspect**                     | **Technical Design Document**                                                                 | **Traffic Monitoring System Design Document**                                                                 |
+|--------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| **Physical Sensing Layer**     | Raspberry Pi AI Camera (Sony IMX500), OPS243-C Radar, Raspberry Pi 5, External SSD          | Same components, but includes IP65/IP66 weatherproof enclosure (-40°C to +71°C)                             |
+| **Edge Processing Layer**      | TensorFlow + OpenCV, Radar data processing, SORT algorithm, Flask-SocketIO server           | Adds Kalman filtering for data fusion, anomaly detection, and weather integration                           |
+| **Network Layer**              | WebSocket Server, REST API, Data Compression, Network Resilience                            | Same features, but explicitly mentions TLS/SSL encryption and API authentication                            |
+| **Cloud Services Layer**       | Optional: Data Aggregation, Analytics Engine, Cloud UI, Alert Service                       | Same features, but adds ML model versioning and updates                                                     |
+| **Data Flow Architecture**     | Sensors → Edge Processing → Local Dashboard → Cloud Services                                | Adds explicit flow for Local Storage → Data Queue → Cloud Storage → Analytics/Alerts                       |
+| **Hardware Specification**     | Raspberry Pi 5 (16GB RAM), Samsung T7 SSD, PoE, WiFi/Ethernet                               | Same components, but specifies 2TB SSD and UPS for continuous operation                                     |
+| **Sensor Hardware**            | AI Camera (Sony IMX500), OPS243-C Radar                                                     | Same components, but includes detailed specs like resolution, frequency, and power consumption              |
+| **Power and Connectivity**     | PoE, WiFi/Ethernet, optional cellular backup                                                | Same features, but adds UPS and official Raspberry Pi PSU                                                   |
 
-- **Stop Sign Violation Detection:** Planned for future implementation. The current system focuses on speed and general vehicle detection. Stop sign violation detection is a key roadmap feature (see [GitHub repo](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)).
-- **Alert/Notification System:** Customizable alerting is planned. Current documentation describes the architecture; implementation is in progress.
-- **Cloud/Remote Monitoring:** Cloud UI and analytics are described in the documentation. Full cloud integration and remote monitoring are planned enhancements.
-- **User Interface Enhancements:** Ongoing improvements to dashboard usability and configuration options.
-- **Detection Accuracy:** Improve performance in challenging lighting and weather conditions.
-- **Advanced Deep Learning:** Explore new ML models for better detection/classification.
-
-### Contradictions & Clarifications
-
-- The GitHub repository emphasizes stop sign violation detection and customizable alerts as core features. The current deployed system focuses on speed and vehicle detection; stop sign and advanced alerting are future work.
-- Both sources mention cloud/remote monitoring. The documentation describes the intended architecture; some features may be in development.
-- The dashboard is described as implemented in the documentation, but the GitHub repo lists it as future work. Clarify the current status in project updates.
-
-### Repository Reference
-
-- For code, structure, and contribution guidelines, see: [CST_590_Computer_Science_Capstone_Project GitHub](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)
-
-- Use feedback from field testing to improve models and system reliability
-
----
-
-## Unified Architecture Diagram
-
+### Figure 1: System Architecture Diagram
 ![System Architecture Diagram](../archive/traffic_monitoring_architecture.png)
 
-*Figure 1: System Architecture Diagram*
-
+### Figure 2: Data Flow from Sensors to Analytics and Dashboards
 ![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.png)
-
-*Figure 2: Data Flow from Sensors to Analytics and Dashboards*
