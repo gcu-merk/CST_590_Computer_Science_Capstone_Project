@@ -41,6 +41,99 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 
 ### Unified Architecture Diagram
 
+```text
++-------------------------------------------------------------+
+|                Cloud Services Layer (Optional)              |
+|  +-------------------+   +-------------------+              |
+|  | Data Aggregation  |   | Analytics Engine  |              |
+|  |   (AWS Lambda,    |   |  (Time Series DB) |              |
+|  |   DynamoDB, etc.) |   +-------------------+              |
+|  +-------------------+   | Cloud UI, Alerts  |              |
+|         |                    |                              |
++---------|--------------------|------------------------------+
+          |                    |
+          v                    v
++-------------------------------------------------------------+
+|         Network & Communication Layer                       |
+|  +-------------------+   +-------------------+              |
+|  | WebSocket Server  |   | REST API Endpoints|              |
+|  +-------------------+   +-------------------+              |
+|  | Data Compression  |   | Network Resilience|              |
++---------|--------------------|------------------------------+
+          |                    |
+          v                    v
++-------------------------------------------------------------+
+|         Edge Processing Layer (Raspberry Pi 5)              |
+|  +-------------------+   +-------------------+              |
+|  | Vehicle Detection |   | Speed Analysis    |              |
+|  |  (TensorFlow,     |   |  (OPS243-C Radar)|              |
+|  |   OpenCV, AI Cam) |   +-------------------+              |
+|  +-------------------+   | Multi-Vehicle     |              |
+|  | Data Fusion Engine|   | Tracking (SORT)   |              |
+|  +-------------------+   +-------------------+              |
+|  | Edge API Gateway  |   | Edge UI (Web Dash)|              |
+|  +-------------------+   +-------------------+              |
+|  | System Health/    |   | Local Storage     |              |
+|  | Watchdog/Weather  |   | Manager           |              |
++---------|--------------------|------------------------------+
+          |                    |
+          v                    v
++-------------------------------------------------------------+
+|         Physical Sensing Layer                              |
+|  +-------------------+   +-------------------+              |
+|  | AI Camera         |   | OPS243-C Radar    |              |
+|  | (Sony IMX500)     |   | (Doppler, UART)   |              |
+|  +-------------------+   +-------------------+              |
+|  | Raspberry Pi 5    |   | External SSD      |              |
+|  | (16GB RAM, ARM)   |   | (Samsung T7)      |              |
+|  +-------------------+   +-------------------+              |
+|  | Power & Connectivity (PoE, WiFi/Ethernet, Cellular)      |
+|  | Environmental Housing (IP65/IP66)                        |
++-------------------------------------------------------------+
+```
+
+## 2.1 Physical Architecture Overview
+
+```text
++-------------------------------------------------------------+
+|           Cloud / Data Center (Optional, Remote)            |
+|  - Cloud UI (Web Dashboard)                                 |
+|  - Data Aggregation, Analytics Engine, Alert Service        |
+|  - Long-term Storage, Model Management                      |
++---------------------^---------------------------------------+
+                      |
+                      v
++-------------------------------------------------------------+
+|           Local Network / Internet                          |
+|  - WiFi / Ethernet / Cellular                               |
++---------------------^---------------------------------------+
+                      |
+                      v
++-------------------------------------------------------------+
+|           Edge Device: Raspberry Pi 5 Enclosure             |
+|                                                             |
+|  +-------------------+   +-------------------+              |
+|  | Raspberry Pi 5    |   | Power Supply      |              |
+|  | (16GB RAM, ARM)   |   | (PoE, USB-C, UPS) |              |
+|  +-------------------+   +-------------------+              |
+|  | External SSD      |   | Environmental     |              |
+|  | (Samsung T7)      |   | Housing (IP65)    |              |
+|  +-------------------+   +-------------------+              |
+|                                                             |
+|  +-------------------+   +-------------------+              |
+|  | AI Camera         |   | OPS243-C Radar    |              |
+|  | (Sony IMX500)     |   | (UART, Doppler)   |              |
+|  +-------------------+   +-------------------+              |
+|                                                             |
+|  [All sensors and storage connect to the Pi 5]              |
+|                                                             |
+|  - Edge UI (Web Dashboard runs on Pi 5)                     |
+|  - Vehicle Detection (TensorFlow/OpenCV on Pi 5)            |
+|  - Speed Analysis (Radar on Pi 5)                           |
+|  - Data Fusion, Local Storage, Health Monitoring (on Pi 5)  |
++-------------------------------------------------------------+
+```
+
 ## 3. Hardware Design
 
 This section describes the hardware components and their specifications for the Raspberry Pi 5 Edge ML Traffic Monitoring System.
