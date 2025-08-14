@@ -9,14 +9,15 @@
 
 1. [System Overview](#1-system-overview)
 2. [System Architecture](#2-system-architecture)
-3. [Hardware Design](#3-hardware-design)
-4. [Component Interaction Diagram](#4-component-interaction-diagram)
-5. [Sequence Diagram (Typical Event Flow)](#5-sequence-diagram-typical-event-flow)
-6. [Deployment Diagram (Physical/Virtual Placement)](#6-deployment-diagram-physicalvirtual-placement)
-7. [Database Entity-Relationship Diagram (ERD)](#7-database-entity-relationship-diagram-erd)
-8. [API Endpoint Map](#8-api-endpoint-map)
-9. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
-10. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
+3. [Top-Down Approach](#2x-top-down-approach)
+4. [Hardware Design](#3-hardware-design)
+5. [Component Interaction Diagram](#4-component-interaction-diagram)
+6. [Sequence Diagram (Typical Event Flow)](#5-sequence-diagram-typical-event-flow)
+7. [Deployment Diagram (Physical/Virtual Placement)](#6-deployment-diagram-physicalvirtual-placement)
+8. [Database Entity-Relationship Diagram (ERD)](#7-database-entity-relationship-diagram-erd)
+9. [API Endpoint Map](#8-api-endpoint-map)
+10. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
+11. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
 
 **See also:**
 
@@ -72,10 +73,10 @@ This diagram summarizes the overall system structure and data flow for both tech
                                          v                                    v
                                 +-------------------+                +-------------------+
                                 |   Edge UI (Web)   |<---------------|  AI Camera        |
-                                +-------------------+                | (Sony IMX500)     |
-                                |   Edge API        |                +-------------------+
-                                +-------------------+                |  OPS243-C Radar   |
-                                |   Data Fusion     |<---------------| (UART/Serial)     |
+                                +-------------------+                +-------------------+
+                                |   Edge API        |                | (Sony IMX500)     |
+                                +-------------------+                +-------------------+
+                                |   Data Fusion     |<---------------|  OPS243-C Radar   |
                                 +-------------------+                +-------------------+
                                 |   Speed Analysis  |                |  External SSD     |
                                 +-------------------+                | (Samsung T7)      |
@@ -351,3 +352,102 @@ This diagram illustrates how SSH and HTML (web dashboard) connections are secure
 - All connections (SSH, HTTP, HTTPS) are routed through the Tailscale mesh VPN.
 - Remote clients connect to the Raspberry Pi using its Tailscale IP address.
 - Tailscale handles encryption and authentication, so no direct exposure to the public internet is required.
+
+## 2.x Top-Down Approach
+
+### Primary System Functions
+
+- Vehicle detection and classification
+- Speed measurement
+- Data fusion (camera + radar)
+- Real-time event logging and alerting
+- Local dashboard (Edge UI)
+- Cloud data sync and analytics (optional)
+- System health monitoring and self-recovery
+- Secure remote access and management
+
+### Decomposition of Major Tasks into Subtasks
+
+- **Vehicle Detection**
+  - Capture video frames
+  - Run ML inference (object detection)
+  - Classify vehicle type
+- **Speed Measurement**
+  - Read radar data
+  - Calculate speed
+  - Correlate with camera detections
+- **Data Fusion**
+  - Match radar and camera events
+  - Filter and validate events
+- **Event Logging & Alerting**
+  - Store events locally
+  - Trigger alerts for speeding/anomalies
+  - Sync events to cloud (if enabled)
+- **Dashboard/UI**
+  - Serve real-time data to web clients
+  - Display analytics and system status
+- **System Health**
+  - Monitor CPU, memory, storage
+  - Restart services if needed
+  - Log health events
+- **Remote Access**
+  - Authenticate users (Tailscale)
+  - Provide SSH and web access
+
+### System Flowchart (Top-Down)
+
+```text
++-----------------------------+
+|   Start / System Boot       |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Initialize Sensors & HW    |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Main Processing Loop       |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Capture Video & Radar      |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Detect Vehicles (ML)       |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Measure Speed (Radar)      |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Data Fusion & Validation   |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Log Event / Trigger Alert  |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Update Dashboard & Sync    |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|  Health Check & Recovery    |
++-----------------------------+
+              |
+              v
++-----------------------------+
+|   Wait / Next Cycle         |
++-----------------------------+
+```
