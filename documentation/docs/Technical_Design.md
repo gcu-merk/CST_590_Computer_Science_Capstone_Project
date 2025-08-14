@@ -137,78 +137,42 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 
 This section describes the hardware components and their specifications for the Raspberry Pi 5 Edge ML Traffic Monitoring System.
 
-- **Raspberry Pi 5 (16GB RAM, ARM Cortex-A76 CPU)**
-- **AI Camera (Sony IMX500 sensor)**
-- **OPS243-C FMCW Doppler Radar Sensor**
-- **External USB SSD (Samsung T7 or similar)**
-- **Power & Connectivity:** PoE, WiFi/Ethernet, optional cellular backup
+- **Raspberry Pi 5 (16GB RAM, ARM Cortex-A76 CPU, VideoCore VII GPU)**
+- **AI Camera (Sony IMX500 sensor, 12MP, on-chip AI processing)**
+- **OPS243-C FMCW Doppler Radar Sensor (24.125 GHz, UART/Serial, 200m range)**
+- **External USB SSD (Samsung T7 Shield 2TB) + 256GB MicroSD (UHS-I Class 10)**
+- **Power & Connectivity:** Official Raspberry Pi 5 PSU (5.1V, 5A, 25W), PoE+ HAT, WiFi/Ethernet, optional cellular backup, UPS for continuous operation
+- **Environmental Housing:** IP65/IP66 weatherproof enclosure (-40°C to +71°C)
 
-![System Architecture Diagram](../archive/traffic_monitoring_architecture.png)
+### Edge Processing Layer (Software)
+- **Vehicle Detection Service:** TensorFlow + OpenCV + AI Camera processing
+- **Speed Analysis Service:** Radar data processing and Doppler calculations
+- **Multi-Vehicle Tracking:** SORT algorithm implementation, Kalman filtering
+- **Data Fusion Engine:** Camera + Radar correlation with Kalman filtering
+- **Weather Integration:** API-based environmental context
+- **Anomaly Detection:** Pattern analysis and incident detection
+- **System Health Monitor:** Watchdog timers and performance metrics
+- **Local Storage Manager:** tmpfs and SSD data optimization
+- **Edge API Gateway:** Flask-SocketIO server for real-time communication
+- **Edge UI:** Local Web Dashboard
 
-### Figure 1: System Architecture Diagram
+### Network & Communication Layer
+- **WebSocket Server:** Real-time data streaming
+- **REST API Endpoints:** Configuration and status management
+- **Data Compression & Queuing:** Optimized cloud transmission
+- **Network Resilience:** Offline-first operation with reconnection logic
+- **Security:** TLS/SSL encryption and API authentication
 
-![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.png)
-
-### Figure 2: Data Flow from Sensors to Analytics and Dashboards
-
-### Architecture Layers
-
-#### Layer 1: Physical Sensing Layer
-
-- Raspberry Pi AI Camera (Sony IMX500 sensor)
-
-- OPS243-C FMCW Doppler Radar Sensor
-
-- Raspberry Pi 5 (16GB RAM, ARM Cortex-A76 CPU)
-
-- External USB SSD (Samsung T7 or similar)
-
-- Power & Connectivity (PoE, WiFi/Ethernet, optional cellular backup)
-
-#### Layer 2: Edge Processing Layer (Raspberry Pi 5)
-
-- Vehicle Detection Service (TensorFlow + OpenCV + AI Camera)
-
-- Speed Analysis Service (OPS243-C radar data processing)
-
-- Multi-Vehicle Tracking (SORT algorithm)
-
-- Data Fusion Engine (Camera + Radar correlation)
-
-- Edge API Gateway (Flask/Flask-SocketIO server)
-
-- Edge UI (Local Web Dashboard)
-
-- System Health Monitor, Local Storage Manager
-
-#### Layer 3: Network & Communication Layer
-
-- Local Network Interface (WiFi/Ethernet)
-
-- WebSocket Server (real-time streaming)
-
-- REST API Endpoints (configuration/status)
-
-- Data Compression & Queuing
-
-- Network Resilience (offline-first, reconnection logic)
-
-#### Layer 4: Cloud Services Layer (Optional)
-
-- Data Aggregation Service (AWS Lambda, DynamoDB, or similar)
-
-- Time Series Database, Analytics Engine
-
-- Cloud UI (Web Dashboard), Alert Service, API Gateway
+### Cloud Services Layer (Optional)
+- **Data Aggregation:** Historical pattern analysis
+- **Advanced Analytics:** Traffic flow modeling and prediction
+- **Model Management:** ML model versioning and updates
+- **Dashboard & Reporting:** Web-based traffic analytics
+- **Alert & Notification:** Incident response system
 
 ### Technologies and Protocols Used
-
 - Python 3, TensorFlow, OpenCV, Flask, Flask-SocketIO
-
 - UART/Serial for radar communication
-
 - WebSocket/REST for dashboard and API
-
 - MQTT (optional, for cloud data transmission)
-
 - Docker (recommended for deployment)
