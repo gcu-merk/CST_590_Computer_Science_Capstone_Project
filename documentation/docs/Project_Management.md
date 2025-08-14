@@ -493,7 +493,9 @@ EOF
 | **Power and Connectivity**     | PoE, WiFi/Ethernet, optional cellular backup                                                | Same features, but adds UPS and official Raspberry Pi PSU                                                   |
 
 ### Figure 1: System Architecture Diagram
+
 ![System Architecture Diagram](../archive/traffic_monitoring_architecture.png)
 
 ### Figure 2: Data Flow from Sensors to Analytics and Dashboards
+
 ![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.png)
