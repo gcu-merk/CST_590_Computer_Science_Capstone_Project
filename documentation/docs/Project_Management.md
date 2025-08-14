@@ -505,10 +505,10 @@ EOF
 
 ## Unified Architecture Diagram
 
-![System Architecture Diagram](../archive/traffic_monitoring_architecture.svg)
+![System Architecture Diagram](../archive/traffic_monitoring_architecture.png)
 
 *Figure 1: System Architecture Diagram*
 
-![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.svg)
+![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.png)
 
 *Figure 2: Data Flow from Sensors to Analytics and Dashboards*
