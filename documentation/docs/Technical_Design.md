@@ -45,6 +45,55 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 
 ## 2. System Architecture
 
+## Executive Summary System Architecture Diagram
+
+The following high-level ASCII diagram provides an executive summary of the system architecture, showing the main components and their relationships:
+
+```text
+                        +--------------------------------------+
+                        |         Cloud Services (Optional)     |
+                        |  +-------------------------------+   |
+                        |  | Data Aggregation / Analytics  |   |
+                        |  |   (AWS, DynamoDB, Lambda)     |   |
+                        |  +-------------------------------+   |
+                        |  |   Cloud UI / Alerts           |   |
+                        |  +-------------------------------+   |
+                        +------------------------^-------------+
+                                         | (MQTT/REST, TLS)
+                                         v
++-------------------+        +-------------------------------+        +-------------------+
+|   Remote User     |<------>|  Local Network / Tailscale    |<------>|   Edge Device     |
+| (Web/SSH Client)  |        |  (WiFi/Ethernet/Cellular)     |        | (Raspberry Pi 5)  |
++-------------------+        +-------------------------------+        +-------------------+
+                                         |                                    |
+                                         |                                    |
+                                         v                                    v
+                                +-------------------+                +-------------------+
+                                |   Edge UI (Web)   |<---------------|  AI Camera        |
+                                +-------------------+                | (Sony IMX500)     |
+                                |   Edge API        |                +-------------------+
+                                +-------------------+                |  OPS243-C Radar   |
+                                |   Data Fusion     |<---------------| (UART/Serial)     |
+                                +-------------------+                +-------------------+
+                                |   Speed Analysis  |                |  External SSD     |
+                                +-------------------+                | (Samsung T7)      |
+                                |   Local Storage   |                +-------------------+
+                                +-------------------+                |  Power/PoE/UPS    |
+                                +-------------------+
+                                |   Health Monitor  |
+                                +-------------------+
+```
+
+Legend:
+
+Cloud Services are optional and only receive processed data/events.
+Remote users connect via Tailscale VPN for secure SSH and web access.
+The Edge Device (Raspberry Pi 5) hosts all core services, fusing data from the AI camera and radar, and provides a local dashboard.
+All sensors and storage are directly attached to the Pi.
+The network layer (Tailscale, WiFi/Ethernet/Cellular) secures and routes all connections.
+
+This diagram summarizes the overall system structure and data flow for both technical and non-technical stakeholders.
+
 ### Unified Architecture Diagram
 
 ```text
