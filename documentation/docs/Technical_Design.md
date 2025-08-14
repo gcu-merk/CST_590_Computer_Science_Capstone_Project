@@ -10,6 +10,12 @@
 1. [System Overview](#1-system-overview)
 2. [System Architecture](#2-system-architecture)
 3. [Hardware Design](#3-hardware-design)
+4. [Component Interaction Diagram](#4-component-interaction-diagram)
+5. [Sequence Diagram (Typical Event Flow)](#5-sequence-diagram-typical-event-flow)
+6. [Deployment Diagram (Physical/Virtual Placement)](#6-deployment-diagram-physicalvirtual-placement)
+7. [Database Entity-Relationship Diagram (ERD)](#7-database-entity-relationship-diagram-erd)
+8. [API Endpoint Map](#8-api-endpoint-map)
+9. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
 
 **See also:**
 
@@ -145,6 +151,7 @@ This section describes the hardware components and their specifications for the 
 - **Environmental Housing:** IP65/IP66 weatherproof enclosure (-40°C to +71°C)
 
 ### Edge Processing Layer (Software)
+
 - **Vehicle Detection Service:** TensorFlow + OpenCV + AI Camera processing
 - **Speed Analysis Service:** Radar data processing and Doppler calculations
 - **Multi-Vehicle Tracking:** SORT algorithm implementation, Kalman filtering
@@ -157,6 +164,7 @@ This section describes the hardware components and their specifications for the 
 - **Edge UI:** Local Web Dashboard
 
 ### Network & Communication Layer
+
 - **WebSocket Server:** Real-time data streaming
 - **REST API Endpoints:** Configuration and status management
 - **Data Compression & Queuing:** Optimized cloud transmission
@@ -164,6 +172,7 @@ This section describes the hardware components and their specifications for the 
 - **Security:** TLS/SSL encryption and API authentication
 
 ### Cloud Services Layer (Optional)
+
 - **Data Aggregation:** Historical pattern analysis
 - **Advanced Analytics:** Traffic flow modeling and prediction
 - **Model Management:** ML model versioning and updates
@@ -171,8 +180,89 @@ This section describes the hardware components and their specifications for the 
 - **Alert & Notification:** Incident response system
 
 ### Technologies and Protocols Used
+
 - Python 3, TensorFlow, OpenCV, Flask, Flask-SocketIO
 - UART/Serial for radar communication
 - WebSocket/REST for dashboard and API
 - MQTT (optional, for cloud data transmission)
 - Docker (recommended for deployment)
+
+## 4. Component Interaction Diagram
+
+```text
++-------------------+      +-------------------+      +-------------------+
+| Vehicle Detection |----->| Data Fusion Engine|----->| Local Storage     |
+|  (TensorFlow,     |      | (Python)          |      |  (SSD, tmpfs)     |
+|   OpenCV, AI Cam) |      +-------------------+      +-------------------+
++-------------------+               |                        ^
+        |                           v                        |
+        |                +-------------------+               |
+        +--------------->| Edge API Gateway  |---------------+
+                         | (Flask-SocketIO)  |
+                         +-------------------+
+                                 |
+                                 v
+                         +-------------------+
+                         | Edge UI (Web Dash)|
+                         +-------------------+
+```
+
+## 5. Sequence Diagram (Typical Event Flow)
+
+```text
+Vehicle Detected
+    |
+    v
++-------------------+      +-------------------+      +-------------------+      +-------------------+
+| AI Camera/Radar   |----->| Vehicle Detection |----->| Data Fusion Engine|----->| Edge UI/Storage   |
++-------------------+      +-------------------+      +-------------------+      +-------------------+
+    |                                                                                  |
+    |                                                                                  v
+    |----------------------------------------------------------------------------> Cloud Sync (optional)
+```
+
+## 6. Deployment Diagram (Physical/Virtual Placement)
+
+```text
++-------------------+         +-------------------+         +-------------------+
+|  Cloud Services   |<------->| Local Network     |<------->| Edge Device       |
+|  (AWS, Web UI)    |         | (WiFi/Ethernet)   |         | (Raspberry Pi 5)  |
++-------------------+         +-------------------+         +-------------------+
+```
+
+## 7. Database Entity-Relationship Diagram (ERD)
+
+```text
++-------------------+      +-------------------+      +-------------------+
+| VehicleEvent      |<-----| RadarReading      |      | CameraDetection   |
+| id (PK)           |      | id (PK)           |      | id (PK)           |
+| timestamp         |      | event_id (FK)     |      | event_id (FK)     |
+| vehicle_type      |      | speed             |      | image_path        |
+| speed             |      | ...               |      | ...               |
+| ...               |      +-------------------+      +-------------------+
++-------------------+
+```
+
+## 8. API Endpoint Map
+
+```text
++---------------------+-------------------+-----------------------------+
+| Endpoint            | Method            | Purpose                     |
++---------------------+-------------------+-----------------------------+
+| /api/events         | GET, POST         | Retrieve or add events      |
+| /api/radar          | GET               | Get radar readings          |
+| /api/camera         | GET               | Get camera detections       |
+| /ws/stream          | WebSocket         | Real-time event streaming   |
++---------------------+-------------------+-----------------------------+
+```
+
+## 9. Security/Data Flow Diagram
+
+```text
++-------------------+      +-------------------+      +-------------------+
+| Edge Device       |<====>| Local Network     |<====>| Cloud Services    |
+| (TLS/SSL, Auth)   |      | (Encrypted)       |      | (TLS/SSL, Auth)   |
++-------------------+      +-------------------+      +-------------------+
+```
+
+Legend: <====> = Encrypted/Authenticated connection
