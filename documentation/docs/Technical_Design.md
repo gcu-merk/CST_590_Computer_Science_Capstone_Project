@@ -66,7 +66,7 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 |         Edge Processing Layer (Raspberry Pi 5)              |
 |  +-------------------+   +-------------------+              |
 |  | Vehicle Detection |   | Speed Analysis    |              |
-|  |  (TensorFlow,     |   |  (OPS243-C Radar)|              |
+|  |  (TensorFlow,     |   |  (OPS243-C Radar) |              |
 |  |   OpenCV, AI Cam) |   +-------------------+              |
 |  +-------------------+   | Multi-Vehicle     |              |
 |  | Data Fusion Engine|   | Tracking (SORT)   |              |
@@ -213,16 +213,3 @@ This section describes the hardware components and their specifications for the 
 - MQTT (optional, for cloud data transmission)
 
 - Docker (recommended for deployment)
-
-## Architectural Design Comparison
-
-| **Aspect**                     | **Technical Design Document**                                                                 | **Traffic Monitoring System Design Document**                                                                 |
-|--------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| **Physical Sensing Layer**     | Raspberry Pi AI Camera (Sony IMX500), OPS243-C Radar, Raspberry Pi 5, External SSD          | Same components, but includes IP65/IP66 weatherproof enclosure (-40°C to +71°C)                             |
-| **Edge Processing Layer**      | TensorFlow + OpenCV, Radar data processing, SORT algorithm, Flask-SocketIO server           | Adds Kalman filtering for data fusion, anomaly detection, and weather integration                           |
-| **Network Layer**              | WebSocket Server, REST API, Data Compression, Network Resilience                            | Same features, but explicitly mentions TLS/SSL encryption and API authentication                            |
-| **Cloud Services Layer**       | Optional: Data Aggregation, Analytics Engine, Cloud UI, Alert Service                       | Same features, but adds ML model versioning and updates                                                     |
-| **Data Flow Architecture**     | Sensors → Edge Processing → Local Dashboard → Cloud Services                                | Adds explicit flow for Local Storage → Data Queue → Cloud Storage → Analytics/Alerts                       |
-| **Hardware Specification**     | Raspberry Pi 5 (16GB RAM), Samsung T7 SSD, PoE, WiFi/Ethernet                               | Same components, but specifies 2TB SSD and UPS for continuous operation                                     |
-| **Sensor Hardware**            | AI Camera (Sony IMX500), OPS243-C Radar                                                     | Same components, but includes detailed specs like resolution, frequency, and power consumption              |
-| **Power and Connectivity**     | PoE, WiFi/Ethernet, optional cellular backup                                                | Same features, but adds UPS and official Raspberry Pi PSU                                                   |
