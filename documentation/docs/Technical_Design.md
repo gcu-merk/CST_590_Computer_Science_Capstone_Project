@@ -47,7 +47,9 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real
 
 ## Executive Summary System Architecture Diagram
 
-The following high-level ASCII diagram provides an executive summary of the system architecture, showing the main components and their relationships:
+The following high-level ASCII diagram provides an executive summary of the system architecture, showing the main components and their relationships.
+
+This diagram summarizes the overall system structure and data flow for both technical and non-technical stakeholders.
 
 ```text
                         +--------------------------------------+
@@ -91,8 +93,6 @@ Remote users connect via Tailscale VPN for secure SSH and web access.
 The Edge Device (Raspberry Pi 5) hosts all core services, fusing data from the AI camera and radar, and provides a local dashboard.
 All sensors and storage are directly attached to the Pi.
 The network layer (Tailscale, WiFi/Ethernet/Cellular) secures and routes all connections.
-
-This diagram summarizes the overall system structure and data flow for both technical and non-technical stakeholders.
 
 ### Unified Architecture Diagram
 
