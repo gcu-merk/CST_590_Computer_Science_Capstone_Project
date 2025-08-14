@@ -10,7 +10,6 @@
 1. [System Overview](#1-system-overview)
 2. [System Architecture](#2-system-architecture)
 3. [Hardware Design](#3-hardware-design)
-4. [Architectural Design Comparison](#architectural-design-comparison)
 
 **See also:**
 
