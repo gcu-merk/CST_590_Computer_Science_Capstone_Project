@@ -58,6 +58,11 @@
    sudo nano /boot/wpa_supplicant.conf
    ```
 
+3. **(Recommended) Disable SSH password authentication for security**
+   - Use the provided script to disable password-based SSH logins and require SSH keys:
+   - [disable_ssh_password.sh](../archive/disable_ssh_password.sh)
+   - See the script for instructions and safety notes. Ensure you have SSH key access before running.
+
 3. **Update system packages**
    ```bash
    sudo apt update && sudo apt upgrade -y
@@ -161,6 +166,29 @@ password = your_secure_password
 pool_size = 10
 
 ```
+
+---
+
+## Security Hardening
+
+System security is critical for any edge device deployment. Follow these best practices to reduce risk and ensure only authorized access:
+
+- **Disable SSH password authentication:**
+   - Use SSH keys for all remote access. Run the provided script to disable password logins: [disable_ssh_password.sh](../archive/disable_ssh_password.sh)
+   - See the script for instructions and safety notes. Always test SSH key access before logging out.
+- **Change all default passwords** (OS, database, dashboard, etc.) immediately after setup.
+- **Keep the system updated:**
+   - Regularly run `sudo apt update && sudo apt upgrade -y` to patch vulnerabilities.
+- **Enable the firewall:**
+   - Use `sudo ufw enable` and allow only required ports (e.g., 22 for SSH, 5000 for API/dashboard).
+- **Limit user accounts:**
+   - Only create accounts for necessary users. Remove or disable unused accounts.
+- **Monitor logs and enable audit tools:**
+   - Regularly check `/var/log/auth.log`, `/var/log/syslog`, and use tools like `fail2ban` for intrusion prevention.
+- **Backup configuration and data regularly.**
+- **Review and follow additional security recommendations** in the Technical Design and Project Management documents.
+
+For more details on SSH hardening, see the [OpenSSH Manual](https://man.openbsd.org/sshd_config).
 
 ## 5. Future Work & Clarifications
 
