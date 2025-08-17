@@ -5,6 +5,65 @@
 **Project:** Raspberry Pi 5 Edge ML Traffic Monitoring System  
 **Authors:** Documentation Team  
 
+## Capstone Requirements Checklist (Computer Science)
+
+This section tracks all official Computer Science capstone requirements as they apply to this project. Each item should be checked off as it is completed and documented. See the capstone handbook and proposal template for details.
+
+- [ ] **Project Proposal & Requirements Analysis**
+  - [ ] Project name, author, organization, manager, and date
+  - [ ] Project overview: problem statement, background, objectives, challenges, benefits
+  - [ ] Project scope: concise statement, work breakdown, teams/resources
+  - [ ] Work breakdown structure (WBS) with tasks, dependencies, effort, cost, schedule
+  - [ ] Project completion criteria: explicit success measures
+  - [ ] Assumptions and constraints: listed and tracked
+  - [ ] Risk management: risks, probability, impact, mitigation, contingency plan
+  - [ ] Change control log: anticipated/unexpected changes, status, decisions
+  - [ ] Roles and responsibilities: team, roles, responsibilities
+  - [ ] Project schedule: timeline, milestones, task estimates
+  - [ ] Cost estimate (if applicable)
+  - [ ] Issues log: issues, impact, resolution, owner, status
+
+- [ ] **Requirements Analysis**
+  - [ ] Use cases: narrative and/or diagrams
+  - [ ] Top-down system design: flowchart or diagram
+  - [ ] Functional and nonfunctional requirements: listed and categorized
+  - [ ] Technical requirements: hardware/software, performance, security, etc.
+  - [ ] System logical model: logical architecture diagram
+  - [ ] Reports: list of generated reports (or N/A)
+  - [ ] Screen definitions/layouts: UI sketches or component definitions
+  - [ ] Security: security matrix, issues, and access rights
+
+- [ ] **Milestone 2: Architectural Design**
+  - [ ] Design planning summary: overview, need, issues, solution rationale
+  - [ ] High-level design: narrative, mockups, pseudocode, flowcharts
+  - [ ] Detailed solution architecture: system architecture, UML, ERD, workflows, algorithms
+  - [ ] Collaboration/sequence diagrams
+  - [ ] Algorithm descriptions and performance analysis
+  - [ ] Detailed specs for all screens, interfaces, integration points
+  - [ ] Packages, libraries, hardware/software technologies listed
+  - [ ] Security approach and resources
+
+- [ ] **Milestone 3: Implementation**
+  - [ ] Mapping of functional requirements to modules/functions
+  - [ ] Source code listing with class/file descriptions
+  - [ ] Implementation plan: deployment, integration, operationalization
+  - [ ] Requirements review and updates
+
+- [ ] **Milestone 4: Performance Analysis & Presentation**
+  - [ ] Testing process document: test cases, results, performance metrics
+  - [ ] Requirements testing: mapping requirements to test scenarios
+  - [ ] System testing: end-to-end, business processes, data flows
+  - [ ] Operation and maintenance documentation: user guide, admin guide
+  - [ ] Project completion: final code, documentation, screencast presentation
+  - [ ] Evaluation: milestone review, requirements met/not met, planned improvements
+  - [ ] Final project submission: code, documentation, README, video
+
+- [ ] **Academic Integrity & References**
+  - [ ] Academic integrity and plagiarism policy followed
+  - [ ] References and sources cited
+
+---
+
 ## Table of Contents
 
 ## 1. Outstanding Tasks

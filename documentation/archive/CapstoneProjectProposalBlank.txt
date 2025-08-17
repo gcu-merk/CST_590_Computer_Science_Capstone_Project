@@ -1,0 +1,217 @@
+
+Capstone Project Proposal
+
+Retain this document throughout the development of the project. This form should be submitted as needed for instructor feedback. Make sure all instructions/prompts following each subtopic are removed before submission.
+ General Information	
+Project name Author
+Project organization, if applicable Project manager, if applicable
+Date project proposal form is submitted
+ Project Overview and Project Objectives	
+State the Problem Background
+Explain why the project is being undertaken. Include pertinent background information for the project.
+Project Objectives
+List objectives that will be used to measure project success.
+Challenges
+List the known challenges that will be used to measure project success.
+Benefits and Opportunities
+Describe the benefits or opportunities resulting from project implementation.
+ Project Scope	
+1. Give a clear, concise statement that states the scope of the project.
+2. List the work breakdown required to satisfy the project objectives. Identify teams and other resources that may be required to successfully complete the project.
+
+Work Breakdown Structure
+
+
+
+ID
+
+
+
+Task
+
+Dependencies
+
+Status
+
+Effort Hours
+
+Cost
+
+Start Date
+Planned Completion
+Estimate to Completion
+Actual Completion
+
+Resource12 Project Completion	
+1. Describe what measures will be used to calculate project success.
+2. Use the template to list the project completion criteria.
+
+Project Completion Criteria1 -2 -
+3. Use the template to list the project assumptions and constraints, if applicable. An assumption is an educated guess that a likely condition or circumstance is presumed to be true. A constraint is a limiting condition or circumstance that defines the project boundaries. Assumptions allow the project to succeed. Constraints restrict or limit the project execution.
+
+Assumptions and ConstraintsIDDescriptionCommentsTypeStatusDate Entered12 Project Controls	
+1. Use the template to define the risk(s), and list the steps to prevent or minimize the chances of the risk(s) occurring. The contingency plan describes alternative solutions to reduce the impact of the risk(s). An example of a contingency plan is to provide the customer a temporary web server if there are delays in delivery/completion.
+
+Risk ManagementEvent RiskRisk Probability (high, medium, low)Risk ImpactRisk MitigationContingency PlanWhat is the risk?What is the probability?What is the impact if the risk occurs?What can be done to minimize the risk?What can be done to minimize the impact of the
+risk?2. All projects have either anticipated and planned or unexpected changes. Describe any issues in management or management changes due to the anticipated and planned or unexpected changes. Use the template to list anticipated and planned or unexpected changes.
+
+Change Control Log
+ID
+
+
+
+
+
+
+
+
+Change Description
+
+Priority
+
+Originator
+Date Entered
+Date Assigned
+
+Evaluator
+
+Status
+Date of Decision
+Included in Rev. #123. Use the template to describe how the end user is involved in the software development, if applicable. Include relevant information about meetings, reviews, presentations, etc.
+
+Roles and ResponsibilitiesNameTeamProject RoleResponsibility Project Schedule	
+1. Create a project schedule after all project tasks have been defined and prioritized. The schedule is driven by the sequence of courses in the MS program and the milestones due dates.
+2. Set a programming schedule by implementing work breakdown and task time estimates. Create a timeline with dates for completion of key components of the project.
+ Cost Estimate (if applicable)	
+
+1.	Create a spreadsheet of costs related to the scope of the project, with all necessary material and elements required to accomplish it effectively, and the allocated resources. Note: If the project being designed and will not require any cost calculations, please state that here.
+ Issue Log	
+1.	Use the template to identify and monitor project issues.
+
+Issues Log
+ID
+
+
+Issue Description
+
+
+
+
+
+Project Impact
+
+
+
+
+
+Action Plan/Resolution
+
+
+Owner
+Importance
+Date Entered
+Date to Review
+Date Resolved1What is the issue?How will this impact scope, schedule &
+cost?How do you intend to deal with this issue?Who manages this issue?23
+
+Overall Instructor Feedback/CommentsIntegrated Instructor Feedback into Project Documentation
+? Yes ? No
+Project Approval
+? Instructor <Insert Name and Title>
+
+Requirements Analysis
+<Project Title>
+Note: Make sure all instructions/prompts are removed before submission.
+ Use Cases	
+Describe the sequence of actions a project performs with either a listing or graphic.
+
+ System Design	
+Provide a top-down design of the system with a diagram similar to a flowchart.
+
+ Technical Requirements	
+Provide a listing of the technical requirements for the system.
+
+ System Logical Model or Data Science Model	
+If this is for a Computer Science Capstone project, provide a diagram of the logical architecture of the system. For a Data Science Capstone project, provide a data science modeling pipeline diagram (illustrating the source of data and the data types and format).
+
+ Reports	
+Provide a listing of the reports that the application will generate, if applicable. If not, state that the application does not produce any reports, and provide additional documentation as described in the handbook.
+
+ Screen Definitions and Layouts	
+Provide a layout diagram for each user interface screen in the application; if not applicable, define the components of the project as described in the handbook.
+
+ Security	
+Provide a security matrix and a statement of security issues that the system must address. If there are no security issues for the system, state why.
+
+ Other (as dictated by the context and scope of the project)	
+
+Final Architectural Plan or Model Pipeline Design
+Prepared for [Stakeholder Name] (if applicable) [Project Name]
+Prepared by [Name]
+Contributors [Document contributors] (if applicable)
+Note: Make sure all instructions/prompts are removed before submission.
+1.	Write an overview of this specific development project, a synopsis of the situation that led to the need (if
+applicable), and a short description of the issues that the development project is going to solve, as well as a general description of the proposed solution and the rationale for the solution.
+1. Provide the high-level design of the proposed solution or business case with supporting narrative text.
+2. Use the template to list the project deliverables. Include all components, features, and tasks your finished project is expected to perform.
+
+
+Deliverable Acceptance LogIDDeliverable DescriptionComments12345
+The purpose of the detail solution architecture is to provide sufficient information for a developer to produce the system. Write a detailed overview of how the proposed design fits into the overall solution/business case structure. Make sure to:
+1. Create object model and use cases to depict the system.
+2. Use collaboration diagrams and/or sequence diagrams to show the workflows of components/packages/classes inside the component.
+3. Describe algorithms.
+4. Include detailed specifications for all screens, interfaces and integration points, processes, conversion, reports, and any required modification to existing systems.
+5. Include any solution configuration changes that will be required to develop and implement the proposed solution.
+6. Describe the approach and resources required to assure system security, if applicable; otherwise, explain why security is not relevant.
+7. Use the template (below) to list the hardware and software technologies.
+The purpose of the detailed model pipeline design is to provide sufficient information for a developer to implement the steps listed in the pipeline. Write a detailed overview of how the proposed design fits into the overall solution/business case structure, to include:
+
+1. The data sources
+2. The dataset types and formatting
+3. The data cleaning procedure
+4. Method of initial data exploration and visualization
+5. The data model used and its nature (e.g., predictive)
+6. The methodology for interpreting the analysis results
+7. This section should also include any configuration changes that will be required to develop and implement the proposed solution.
+8. Describe the approach and resources required to assure system security, if applicable; otherwise, explain why security is not relevant.
+9. Use the template to list the hardware and software technologies.
+
+Hardware and Software Technologies1 -2 -3 -4 -5 -
+
+Revision and Signoff SheetChange RecordDateEditorRevision NotesInitial draft for review/discussion
+Test Plan
+<Project Title>
+The test approach is the overall test strategy that underpins the whole test plan. A test approach asks, “How are you going to test the software?” If this Test Plan is part of a larger parent project and there are other Test Plans for other parts of the overall system, then the test approach should dovetail with the other test approaches. Also, consider if you are going to use established, documented test processes or procedures, or if you will need to tailor tests specifically for this project. If so, then name these documents and include them in the reference section. As projects vary, consult the instructor regarding the interpretation and adaptation of certain elements in this module to better match the specific characteristics of your project.
+In your test, quantify performance metrics and resource utilization such as speed of computation, memory usage, processing power, accuracy of results, size of data, and more, as pertinent to your project.
+Use the template below, based on the IEEE 829 standard, https://standards.ieee.org/standard/829-2008.html. Note:
+Make sure all instructions/prompts are removed before submission.
+1. Analyze the Product
+1.1. Who will use the product/system/tool?
+1.2. What is the intended use?
+1.3. How will it work?
+1.4. What software and hardware does it use?
+2. Design the Test Strategy
+2.1. The scope of testing
+2.2. Testing type
+2.3. Document risks and issues
+2.4. Create test logistics
+3. Define the Test Objectives
+3.1. List all software features you need to test
+3.2. Define performance goals for each feature tested
+4. Define Test Criteria
+4.1. List specific criteria that measure successful completion of each task
+4.2. Define an overall pass criteria for the project
+5. Resource Planning
+5.1. List all human resources needed to complete the test
+5.2. List all system requirements needed to complete the test
+6. Plan Test Environment
+6.1. Describe the hardware and software required to test the project
+7. Determine Test Deliverables (as applicable to your project)
+7.1. Test plan document (this document)
+7.2. Test cases
+7.3. Test scripts
+7.4. Error logs
+7.5. Etc.
+
+
