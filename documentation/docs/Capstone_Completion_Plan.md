@@ -1,3 +1,4 @@
+
 # Capstone Completion Plan
 
 ## Capstone Milestones Overview
@@ -7,11 +8,13 @@
 | 1 | Project Proposal & Requirements Analysis | Proposal document, requirements, work breakdown structure (WBS), schedule, risk management, scope, objectives, assumptions, constraints, roles, cost estimate, issues log |
 | 2 | Architectural Design / Model Pipeline Design | System architecture, design planning summary, high-level and detailed design diagrams (UML, ERD, workflows), model pipeline (if DSC), technical specs, security plan, packages/libraries list |
 | 3 | Implementation | Source code, mapping requirements to modules/functions, implementation plan (deployment, integration), code documentation, requirements review and updates |
+
 | 4 | Performance Analysis & Presentation | Testing process document (test cases, results), requirements testing, system testing, operation & maintenance docs (user/admin guide), final code, screencast/video presentation, evaluation, milestone review, final submission |
 
 ---
 
 This document lists all required capstone components grouped by milestone. For each component, the following are tracked:
+
 - **Current Status**
 - **Requirements for Desired Performance (if revision needed)**
 - **Completion Date**
@@ -20,6 +23,7 @@ This document lists all required capstone components grouped by milestone. For e
 ---
 
 ## Milestone 1: Project Proposal & Requirements Analysis
+
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed |
 |-----------|---------------|--------------------------------------|-----------------|------------------|
 | Project name, author, org, manager, date | In Progress | Accurate, up-to-date info |  |  |
@@ -35,6 +39,7 @@ This document lists all required capstone components grouped by milestone. For e
 | Issues log | Not Started | Ongoing issue tracking |  |  |
 
 ## Milestone 2: Architectural Design
+
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed |
 |-----------|---------------|--------------------------------------|-----------------|------------------|
 | Design planning summary | In Progress | Overview, rationale, issues addressed |  |  |
@@ -47,6 +52,7 @@ This document lists all required capstone components grouped by milestone. For e
 | Security approach and resources | In Progress | Security plan documented |  |  |
 
 ## Milestone 3: Implementation
+
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed |
 |-----------|---------------|--------------------------------------|-----------------|------------------|
 | Mapping of requirements to modules/functions | In Progress | All requirements mapped |  |  |
@@ -55,6 +61,7 @@ This document lists all required capstone components grouped by milestone. For e
 | Requirements review and updates | Ongoing | All changes tracked |  |  |
 
 ## Milestone 4: Performance Analysis & Presentation
+
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed |
 |-----------|---------------|--------------------------------------|-----------------|------------------|
 | Testing process document (test cases, results) | In Progress | All modules tested, results logged |  |  |
@@ -66,6 +73,7 @@ This document lists all required capstone components grouped by milestone. For e
 | Final project submission (code, docs, README, video) | Not Started | All files submitted |  |  |
 
 ## Academic Integrity & References
+
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed |
 |-----------|---------------|--------------------------------------|-----------------|------------------|
 | Academic integrity & plagiarism policy | Ongoing | All work original or cited |  |  |
@@ -74,5 +82,6 @@ This document lists all required capstone components grouped by milestone. For e
 ---
 
 **Instructions:**
+
 - Update the status, requirements, completion date, and resources as the project progresses.
 - Use this plan to track and ensure timely completion of all capstone deliverables.
