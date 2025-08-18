@@ -6,12 +6,14 @@
 **Authors:** Implementation Team  
 
 ## Table of Contents
+
 1. [Prerequisites](#1-prerequisites)
 2. [Installation Steps](#2-installation-steps)
-3. [Integration & Configuration](#3-integration--configuration)
+3. [Integration](#3-integration)
 4. [Troubleshooting & Maintenance](#4-troubleshooting--maintenance)
 
 **See also:**
+
 - [Technical Design Document](./Technical_Design.md)
 - [User Guide](./User_Guide.md)
 - [Project Management Summary](./Project_Management.md)
@@ -20,6 +22,7 @@
 ## 1. Prerequisites
 
 ### Hardware Requirements
+
 - Raspberry Pi 5 (16GB RAM recommended)
 - Raspberry Pi AI Camera (Sony IMX500)
 - OmniPreSense OPS243-C Radar Sensor
@@ -28,6 +31,7 @@
 - Ethernet or WiFi network access
 
 ### Software Requirements
+
 - Raspberry Pi OS (64-bit, latest)
 - Python 3.10+
 - Docker (recommended for deployment)
@@ -35,6 +39,7 @@
 - Required Python packages: TensorFlow, OpenCV, Flask, Flask-SocketIO, NumPy, SQLAlchemy, etc.
 
 ### Network & Power Setup
+
 - Ensure stable power and network connectivity at the deployment site
 - (Optional) Configure PoE or cellular backup for remote locations
 
@@ -43,33 +48,40 @@
 ## 2. Installation Steps
 
 ### 2.1. Raspberry Pi & OS Setup
+
 1. **Flash Raspberry Pi OS (64-bit) to the MicroSD card**
+
    ```bash
    # Using Raspberry Pi Imager or manual dd command
    sudo dd if=raspios-lite-arm64.img of=/dev/sdX bs=4M status=progress
-   ```
+   ```bash
 
 2. **Boot the Pi and complete initial OS setup**
+
+   ```bash
+   # Enable SSH before first boot (optional)
    ```bash
    # Enable SSH before first boot (optional)
    sudo touch /boot/ssh
-   
+
    # Configure WiFi before first boot (optional)
    sudo nano /boot/wpa_supplicant.conf
-   ```
 
-3. **(Recommended) Disable SSH password authentication for security**
+   ```bash
+
    - Use the provided script to disable password-based SSH logins and require SSH keys:
    - [disable_ssh_password.sh](../archive/disable_ssh_password.sh)
    - See the script for instructions and safety notes. Ensure you have SSH key access before running.
 
 3. **Update system packages**
+
    ```bash
    sudo apt update && sudo apt upgrade -y
    sudo apt install -y git python3-pip python3-venv postgresql postgresql-contrib
-   ```
+   ```bash
 
 4. **Enable required interfaces**
+
    ```bash
    # Enable Camera, SPI, I2C, and UART
    sudo raspi-config nonint do_camera 0
@@ -83,15 +95,17 @@
    
    # Reboot to apply changes
    sudo reboot
-   ```
+   ```bash
 
 ### 2.2. Hardware Assembly
+
 1. **Connect the AI Camera to the Pi camera port**
    - Use the CSI-2 ribbon cable (included with camera)
    - Ensure proper orientation (blue side toward Ethernet port)
 
 2. **Wire the OPS243-C radar sensor to the Pi GPIO header**
-   ```
+
+   ```bash
    OPS243-C Pin 9 (5V)    → Pi Pin 2 (5V)
    OPS243-C Pin 10 (GND)  → Pi Pin 6 (GND)
    OPS243-C Pin 6 (RxD)   → Pi Pin 8 (TXD/GPIO14)
@@ -99,6 +113,7 @@
    ```
 
 3. **Connect SSD for local storage**
+
    ```bash
    # Format and mount external SSD
    sudo fdisk /dev/sda  # Create partition
@@ -111,6 +126,7 @@
    ```
 
 4. **Verify hardware connections**
+
    ```bash
    # Test camera
    libcamera-hello --preview=none --timeout=5000
@@ -123,13 +139,16 @@
    ```
 
 ### 2.3. Python Environment & Dependencies
+
 1. **Create virtual environment**
+
    ```bash
    python3 -m venv /opt/traffic-monitor
    source /opt/traffic-monitor/bin/activate
    ```
 
 2. **Install required packages**
+
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
@@ -141,6 +160,7 @@
    ```
 
 3. **PostgreSQL Database Setup**
+
    ```bash
    # Create database user and database
    sudo -u postgres createuser --interactive traffic_user
@@ -156,6 +176,7 @@
 ### 2.4. Configuration Templates
 
 #### Database Configuration (`config/database.conf`)
+
 ```ini
 [database]
 host = localhost
@@ -174,17 +195,17 @@ pool_size = 10
 System security is critical for any edge device deployment. Follow these best practices to reduce risk and ensure only authorized access:
 
 - **Disable SSH password authentication:**
-   - Use SSH keys for all remote access. Run the provided script to disable password logins: [disable_ssh_password.sh](../archive/disable_ssh_password.sh)
-   - See the script for instructions and safety notes. Always test SSH key access before logging out.
+  - Use SSH keys for all remote access. Run the provided script to disable password logins: [disable_ssh_password.sh](../archive/disable_ssh_password.sh)
+  - See the script for instructions and safety notes. Always test SSH key access before logging out.
 - **Change all default passwords** (OS, database, dashboard, etc.) immediately after setup.
 - **Keep the system updated:**
-   - Regularly run `sudo apt update && sudo apt upgrade -y` to patch vulnerabilities.
+  - Regularly run `sudo apt update && sudo apt upgrade -y` to patch vulnerabilities.
 - **Enable the firewall:**
-   - Use `sudo ufw enable` and allow only required ports (e.g., 22 for SSH, 5000 for API/dashboard).
+  - Use `sudo ufw enable` and allow only required ports (e.g., 22 for SSH, 5000 for API/dashboard).
 - **Limit user accounts:**
-   - Only create accounts for necessary users. Remove or disable unused accounts.
+  - Only create accounts for necessary users. Remove or disable unused accounts.
 - **Monitor logs and enable audit tools:**
-   - Regularly check `/var/log/auth.log`, `/var/log/syslog`, and use tools like `fail2ban` for intrusion prevention.
+  - Regularly check `/var/log/auth.log`, `/var/log/syslog`, and use tools like `fail2ban` for intrusion prevention.
 - **Backup configuration and data regularly.**
 - **Review and follow additional security recommendations** in the Technical Design and Project Management documents.
 
@@ -193,6 +214,7 @@ For more details on SSH hardening, see the [OpenSSH Manual](https://man.openbsd.
 ## 5. Future Work & Clarifications
 
 ### Future Work
+
 - **Automated Deployment Scripts:** Expand and refine scripts for one-click setup, including cloud and edge deployments.
 - **Containerization Enhancements:** Improve Docker Compose and multi-architecture support for easier deployment on various edge devices.
 - **Remote Update Mechanisms:** Add secure, over-the-air update capabilities for field devices.
@@ -200,13 +222,16 @@ For more details on SSH hardening, see the [OpenSSH Manual](https://man.openbsd.
 - **Configuration UI:** Develop a user-friendly web interface for system configuration and diagnostics.
 
 ### Contradictions & Clarifications
+
 - The GitHub repository may reference additional deployment automation or CI/CD features not fully implemented in the current scripts. Document and clarify any differences in future updates.
 - Some troubleshooting and maintenance steps are described as manual; automation is a future goal.
 
 ### Repository Reference
+
 - For deployment scripts, Dockerfiles, and configuration templates, see: [CST_590_Computer_Science_Capstone_Project GitHub](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)
 
 #### API Configuration (`config/api.conf`)
+
 ```ini
 [api]
 host = 0.0.0.0
@@ -222,6 +247,7 @@ allowed_origins = http://localhost:3000,https://yourdomain.com
 ```
 
 #### Radar Sensor Configuration (`config/radar.conf`)
+
 ```ini
 [radar]
 port = /dev/serial0
@@ -236,8 +262,10 @@ range_filter_min = 1.0
 range_filter_max = 200.0
 ```
 
-### 2.5. Application Deployment
+### 2.5. Application Deployment (Systemd/Docker)
+
 1. **Clone project repository**
+
    ```bash
    cd /opt
    git clone https://github.com/your-org/traffic-monitor.git
@@ -245,6 +273,7 @@ range_filter_max = 200.0
    ```
 
 2. **Configure systemd services**
+
    ```bash
    # Copy service files
    sudo cp scripts/traffic-monitor-api.service /etc/systemd/system/
@@ -259,6 +288,7 @@ range_filter_max = 200.0
    ```
 
 3. **Verify deployment**
+
    ```bash
    # Check service status
    sudo systemctl status traffic-monitor-api
@@ -270,31 +300,39 @@ range_filter_max = 200.0
    # View logs
    sudo journalctl -u traffic-monitor-api -f
    ```
-1. Install Python 3.10+ if not already present
-2. Create and activate a virtual environment:
+
+4. Install Python 3.10+ if not already present
+5. Create and activate a virtual environment:
+
    ```bash
    python3 -m venv ~/traffic-monitor/venv
    source ~/traffic-monitor/venv/bin/activate
    ```
-3. Install required Python packages:
+
+6. Install required Python packages:
+
    ```bash
    pip install tensorflow opencv-python flask flask-socketio numpy sqlalchemy psycopg2-binary
    ```
 
-### 2.4. Database Setup
-1. Install PostgreSQL (if local):
+7. Install PostgreSQL (if local):
+
    ```bash
    sudo apt install postgresql postgresql-contrib
    ```
-2. Create database and user:
+
+8. Create database and user:
+
    ```sql
    CREATE DATABASE traffic_monitor;
    CREATE USER tm_user WITH PASSWORD 'yourpassword';
    GRANT ALL PRIVILEGES ON DATABASE traffic_monitor TO tm_user;
    ```
-3. Update backend configuration with database credentials
 
-### 2.5. Application Deployment
+9. Update backend configuration with database credentials
+
+### 2.6. Manual Application Deployment
+
 1. Clone or copy the project code to the Pi
 2. (Recommended) Build and run services using Docker Compose
 3. Alternatively, run backend and dashboard manually from the virtual environment
@@ -302,22 +340,24 @@ range_filter_max = 200.0
 
 ---
 
-
 ## 3. Integration
 
 ### 3.1. Hardware-Software Integration
+
 - Ensure all hardware is connected as per the GPIO pin mapping in the Technical Design Document.
 - Enable UART on the Raspberry Pi (see radar sensor setup instructions).
 - Verify camera functionality using `libcamera` or `picamera2` test commands.
 
 ### 3.2. Database & API Configuration
+
 - Update backend configuration files with correct PostgreSQL credentials and host.
 - Run database migration scripts (if provided) to create tables.
 - Test database connectivity from the backend using a simple script or API call.
 
 ### 3.3. Service Startup & Verification
+
 - Start backend services (Flask API, WebSocket server, ML pipeline).
-- Access the Edge UI dashboard in a browser (default: http://<pi-ip>:5000 or similar).
+- Access the Edge UI dashboard in a browser (default: http://[PI_IP]:5000 or similar).
 - Confirm real-time data is displayed and events are logged in the database.
 
 ---
@@ -327,7 +367,9 @@ range_filter_max = 200.0
 ### 4.1. Common Issues & Solutions
 
 #### Camera Issues
+
 - **No camera detected:**
+
   ```bash
   # Check camera detection
   libcamera-hello --list-cameras
@@ -340,6 +382,7 @@ range_filter_max = 200.0
   ```
 
 - **Poor image quality:**
+
   ```bash
   # Test different camera settings
   libcamera-still -o test.jpg --width 1920 --height 1080
@@ -349,7 +392,9 @@ range_filter_max = 200.0
   ```
 
 #### Radar Sensor Issues
+
 - **No radar data:**
+
   ```bash
   # Verify UART is enabled
   sudo raspi-config nonint do_serial 1
@@ -366,7 +411,9 @@ range_filter_max = 200.0
   ```
 
 #### Database Issues
+
 - **Database connection errors:**
+
   ```bash
   # Check PostgreSQL status
   sudo systemctl status postgresql
@@ -379,6 +426,7 @@ range_filter_max = 200.0
   ```
 
 - **Database performance issues:**
+
   ```sql
   -- Check database size and table statistics
   SELECT schemaname,tablename,attname,n_distinct,correlation 
@@ -390,7 +438,9 @@ range_filter_max = 200.0
   ```
 
 #### Network and API Issues
+
 - **API not responding:**
+
   ```bash
   # Check service status
   sudo systemctl status traffic-monitor-api
@@ -403,6 +453,7 @@ range_filter_max = 200.0
   ```
 
 - **Dashboard not loading:**
+
   ```bash
   # Check firewall rules
   sudo ufw status
@@ -416,6 +467,7 @@ range_filter_max = 200.0
 ### 4.2. Backup & Recovery Procedures
 
 #### Database Backup
+
 ```bash
 #!/bin/bash
 # Create automated backup script: /opt/scripts/backup_database.sh
@@ -440,6 +492,7 @@ echo "Backup completed: $BACKUP_FILE.gz"
 ```
 
 #### System Configuration Backup
+
 ```bash
 #!/bin/bash
 # System backup script: /opt/scripts/backup_system.sh
@@ -459,6 +512,7 @@ echo "Configuration backup completed: $CONFIG_BACKUP"
 ```
 
 #### Recovery Procedures
+
 ```bash
 # Database recovery
 gunzip -c /mnt/storage/backups/traffic_monitor_backup_YYYYMMDD_HHMMSS.sql.gz | \
@@ -476,12 +530,14 @@ sudo systemctl restart traffic-monitor-processor
 ### 4.3. Maintenance Schedule
 
 #### Daily Tasks (Automated)
+
 - Database backup
 - Log rotation
 - System health monitoring
 - Storage usage check
 
 #### Weekly Tasks
+
 ```bash
 # System updates (can be automated with caution)
 sudo apt update && sudo apt list --upgradable
@@ -497,6 +553,7 @@ top -b -n 1 | head -20  # Check CPU/memory usage
 ```
 
 #### Monthly Tasks
+
 - Full system backup
 - Security audit
 - Performance optimization
@@ -505,6 +562,7 @@ top -b -n 1 | head -20  # Check CPU/memory usage
 ### 4.4. Monitoring & Alerting
 
 #### System Health Scripts
+
 ```bash
 #!/bin/bash
 # Health check script: /opt/scripts/health_check.sh
@@ -529,6 +587,7 @@ fi
 ### 4.5. Performance Tuning
 
 #### Database Optimization
+
 ```sql
 -- PostgreSQL performance tuning
 ALTER SYSTEM SET shared_buffers = '256MB';
@@ -539,6 +598,7 @@ SELECT pg_reload_conf();
 ```
 
 #### System Optimization
+
 ```bash
 # Increase file descriptor limits
 echo "* soft nofile 65535" | sudo tee -a /etc/security/limits.conf
