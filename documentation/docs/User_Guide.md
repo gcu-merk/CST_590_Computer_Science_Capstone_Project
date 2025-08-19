@@ -2,14 +2,15 @@
 # User Guide
 
 ---
-**Cover Page**
 
-**Title:** Raspberry Pi 5 Edge ML Traffic Monitoring System - User Guide  
+## Raspberry Pi 5 Edge ML Traffic Monitoring System - User Guide
+
 **Version:** 1.0  
 **Date:** August 7, 2025  
 **Copyright:** © 2025 gcu-merk. All rights reserved.  
 **Preface:**  
 This guide provides comprehensive instructions for installing, configuring, and using the Raspberry Pi 5 Edge ML Traffic Monitoring System. It is intended for both technical and non-technical users.
+
 ---
 
 **Document Version:** 1.0  
@@ -18,17 +19,18 @@ This guide provides comprehensive instructions for installing, configuring, and 
 **Authors:** Documentation Team  
 
 ## Table of Contents
-1. Cover Page
-2. Title Page and Copyright
-3. Preface
+
 1. [System Features Overview](#1-system-features-overview)
 2. [Web Dashboard](#2-web-dashboard)
-3. [Mobile App (Optional)](#3-mobile-app-optional)
+3. [Mobile App (if applicable)](#3-mobile-app-if-applicable)
 4. [Example Use Cases](#4-example-use-cases)
 5. [Frequently Asked Questions](#5-frequently-asked-questions)
-6. [Contact / Support](#6-contact--support)
+6. [Support](#6-support)
+7. [Glossary](#7-glossary)  
+8. [Appendices](#8-appendices)
 
 **See also:**
+
 - [Technical Design Document](./Technical_Design.md)
 - [Implementation & Deployment Guide](./Implementation_Deployment.md)
 - [Project Management Summary](./Project_Management.md)
@@ -37,16 +39,17 @@ This guide provides comprehensive instructions for installing, configuring, and 
 ## 1. System Features Overview
 
 ### Accessibility & Safety Information
+
 - The dashboard and documentation use high-contrast colors and large fonts for readability.
 - All visuals and diagrams include descriptive alt text.
 - The system is designed for safe installation and operation. Follow all electrical and mounting instructions to avoid injury.
 
 The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle detection, speed measurement, and traffic analytics at the edge. The system is designed for ease of use, reliability, and actionable insights for traffic monitoring and management.
 
-
 **For technical details on the ML/AI workflow and component status, see the [ML/AI Workflow and Component Status](./Technical_Design.md#31-mlai-workflow-and-component-status) section in the Technical Design Document.**
 
 ### Main Features
+
 - Real-time vehicle detection and classification using AI camera
 - Speed measurement using radar sensor
 - Data fusion for accurate event logging
@@ -55,6 +58,7 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle 
 - REST and WebSocket APIs for integration and automation
 
 ### User Roles
+
 - **Operator:** Installs, configures, and maintains the system on-site
 - **Traffic Analyst:** Reviews real-time and historical data, generates reports
 - **Administrator:** Manages user access, system configuration, and cloud integration
@@ -64,6 +68,7 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle 
 The Edge UI (local web dashboard) provides real-time monitoring, configuration, and analytics for the traffic monitoring system. The Cloud UI (optional) extends these features with historical data and remote management.
 
 ### Layout & Navigation
+
 - **Header:** Displays system name, current status, and navigation links (e.g., Live View, Analytics, Settings)
 - **Live View Panel:**
   - Real-time video feed from the AI camera (if enabled)
@@ -80,6 +85,7 @@ The Edge UI (local web dashboard) provides real-time monitoring, configuration, 
   - Log messages and error notifications
   
 #### Dashboard Screenshots
+
 ![Cloud Dashboard 1](../archive/CloudUI_1.jpg)
 *Figure 1: Cloud Dashboard - Main Analytics View*
 
@@ -102,8 +108,9 @@ The Edge UI (local web dashboard) provides real-time monitoring, configuration, 
 *Figure 7: Local Edge UI - Analytics Panel*
 
 ### How to View & Interpret Data
-  - Each row in the event table represents a detected vehicle, with type (car, truck, etc.), speed, and detection source (camera, radar, fusion)
-  - Click on an event for more details or to view associated video/radar data
+
+- Each row in the event table represents a detected vehicle, with type (car, truck, etc.), speed, and detection source (camera, radar, fusion)
+- Click on an event for more details or to view associated video/radar data
 - **Live Video & Overlays:**
   - Bounding boxes indicate detected vehicles; color or label shows classification
   - Speed values are displayed next to vehicles when radar data is fused
@@ -116,7 +123,8 @@ The Edge UI (local web dashboard) provides real-time monitoring, configuration, 
   - Error messages provide troubleshooting tips
 
 ### Example Dashboard Workflow
-1. Open the dashboard in a browser (e.g., http://<pi-ip>:5000)
+
+1. Open the dashboard in a browser (e.g., <http://100.121.231.16:5000>)
 2. Monitor live traffic and system health in the Live View and Status panels
 3. Review recent events and analytics for trends or violations
 4. Adjust settings as needed for optimal performance
@@ -126,6 +134,7 @@ The Edge UI (local web dashboard) provides real-time monitoring, configuration, 
 If a mobile app is implemented, it provides remote access to real-time and historical traffic data, system status, and configuration options. The app uses the same REST and WebSocket APIs as the dashboard.
 
 ### Key Screens
+
 - **Login:** Secure authentication for users
 - **Live Events:** Real-time list of detected vehicles, speeds, and locations
 - **Analytics:** Charts for traffic volume, speed, and violations
@@ -133,6 +142,7 @@ If a mobile app is implemented, it provides remote access to real-time and histo
 - **Settings:** User preferences and notification options
 
 ### Typical Workflows
+
 1. **Login and Authentication:**
    - User logs in with credentials (or SSO if enabled)
 2. **Monitor Live Events:**
@@ -151,18 +161,21 @@ If a mobile app is implemented, it provides remote access to real-time and histo
 ## 4. Example Use Cases
 
 ### Use Case 1: Live Traffic Monitoring
+
 1. Operator opens the Edge UI dashboard in a browser.
 2. Observes real-time video feed and vehicle detections with speed overlays.
 3. Checks system status indicators for camera, radar, and storage health.
 4. Reviews the event table for recent detections and violations.
 
 ### Use Case 2: Reviewing Historical Analytics
+
 1. Traffic analyst logs into the Cloud UI dashboard.
 2. Navigates to the Analytics panel to view charts of vehicle counts and speed distributions over the past week.
 3. Filters data by date, location, or vehicle type to identify trends or anomalies.
 4. Downloads a report for further analysis or presentation.
 
 ### Use Case 3: Investigating a Speed Violation
+
 1. Operator receives an alert for a speeding event.
 2. Clicks on the event in the dashboard to view details (timestamp, speed, vehicle type, location).
 3. Reviews associated video and radar data for verification.
@@ -189,16 +202,17 @@ A: With default settings, the system generates approximately 1-2 GB of data per 
 **Q: What network connectivity is required?**
 A: The system requires an internet connection for cloud synchronization and remote access. Local operation (Edge UI) works without internet. Minimum bandwidth requirement is 1 Mbps for cloud features.
 
-
 **Q: Can I access the system remotely?**
 A: Yes. This system supports secure remote access to the Raspberry Pi using Tailscale, a mesh VPN that creates a private network between your devices. Tailscale allows you to SSH or access the dashboard from anywhere, as if you were on the same local network. See the Implementation & Deployment Guide for setup instructions. Remote access requires proper network security configuration.
 
 **Q: How do I connect to the Raspberry Pi using Tailscale?**
 A: After installing and authenticating Tailscale on both your Raspberry Pi and your client device (laptop/desktop), you can use the Tailscale-assigned IP address to SSH into the Pi or access the web dashboard. Example:
+
 ```bash
-ssh pi@<tailscale-ip>
+ssh merk@100.121.231.16>
 ```
-or open `http://<tailscale-ip>:5000` in your browser. Ensure Tailscale is running and connected on both devices.
+
+Or open `http://100.121.231.16:5000` in your browser. Ensure Tailscale is running and connected on both devices.
 
 For more details, see the Implementation & Deployment Guide.
 
@@ -211,14 +225,16 @@ A: The system will resume normal operation when power is restored. If you have a
 ### Troubleshooting
 
 **Q: The dashboard shows "No data" - what should I check?**
-A: 
+A:
+
 1. Verify the camera and radar connections
 2. Check that all services are running (see Implementation Guide)
 3. Ensure the database is accessible
 4. Look for error messages in the system logs
 
 **Q: Vehicle detections seem inaccurate - how can I improve them?**
-A: 
+A:
+
 1. Clean the camera lens
 2. Adjust the camera angle for optimal vehicle visibility
 3. Check that lighting conditions are adequate
@@ -230,14 +246,7 @@ A: Software updates should be performed by following the procedures in the Imple
 **Q: Can I customize the detection sensitivity?**
 A: Yes, detection thresholds can be adjusted in the configuration files. See the Technical Design Document for parameter details or contact support for assistance.
 
-## 6. Contact / Support
-
-## 7. Glossary
-See the References & Appendices for a full glossary of terms.
-
----
-## Code Review Summary
-The source code for this project was reviewed by a peer developer to identify bugs and improve code quality. All feedback was addressed and changes were made as appropriate. (If code is added, update this section with reviewer details and feedback summary.)
+## 6. Support
 
 If you have questions, encounter issues, or need assistance with the Raspberry Pi 5 Edge ML Traffic Monitoring System, please use the following support channels:
 
@@ -248,21 +257,27 @@ If you have questions, encounter issues, or need assistance with the Raspberry P
 - **Updates:** For software updates and documentation revisions, visit the project repository or website.
 
 When contacting support, please provide:
+
 - A description of the issue or question
 - System version and hardware details
 - Any error messages or logs
 - Steps to reproduce the problem (if applicable)
 
 ### Use Case 4: System Maintenance
+
 1. Administrator logs into the dashboard and checks system health logs.
 2. Notices a warning about low storage space.
 3. Initiates a backup and clears old data as needed.
-
 4. Updates system software and dependencies via the maintenance panel.
 
-## 7. Future Work & Clarifications
+## 7. Glossary
+
+See the References & Appendices for a full glossary of terms.
+
+## 8. Appendices
 
 ### Future Work
+
 - **Mobile App Expansion:** Add more features to the mobile app, including push notifications and remote configuration.
 - **User Customization:** Enable advanced user roles, permissions, and dashboard customization.
 - **Accessibility Improvements:** Enhance UI accessibility for all user types.
@@ -270,8 +285,10 @@ When contacting support, please provide:
 - **Multi-Site Management:** Support for managing multiple installations from a single dashboard.
 
 ### Contradictions & Clarifications
+
 - The GitHub repository may reference additional user features or mobile app capabilities not yet present in the current release. These are planned for future updates.
 - Some dashboard features described in the documentation may be in development or staged for future releases.
 
 ### Repository Reference
+
 - For user guides, feature updates, and support resources, see: [CST_590_Computer_Science_Capstone_Project GitHub](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project)
