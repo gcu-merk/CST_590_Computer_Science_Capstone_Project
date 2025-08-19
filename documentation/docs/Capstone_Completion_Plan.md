@@ -35,7 +35,7 @@ This document lists all required capstone components grouped by milestone. For e
 | Change control log | Not Started | Track all changes/decisions |  |  | [Documentation TODO: Outstanding Tasks](./Documentation_TODO.md#1-outstanding-tasks) |
 | Roles and responsibilities | In Progress | All team roles defined |  |  | [Project Management: Executive Summary](./Project_Management.md#executive-summary) |
 | Project schedule & milestones | In Progress | Realistic, buffer time included |  |  | [Project Management: Implementation Timeline](./Project_Management.md#1-implementation-timeline) |
-| Cost estimate | In Progress | All costs accounted for |  |  | [Project Management: Budget & Cost Estimates](./Project_Management.md#2-budget--cost-estimates) |
+| Cost estimate | Not Started | All costs accounted for |  |  | [Project Management: Budget & Cost Estimates](./Project_Management.md#2-budget--cost-estimates) |
 | Issues log | Not Started | Ongoing issue tracking |  |  | [Documentation TODO: Outstanding Tasks](./Documentation_TODO.md#1-outstanding-tasks) |
 
 ## Milestone 2: Architectural Design
@@ -45,7 +45,7 @@ This document lists all required capstone components grouped by milestone. For e
 | Design planning summary | Not Started | Overview, rationale, issues addressed. Includes system context, design goals, and fit within overall project. |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
 | High-level design (narrative, mockups, flowcharts) | In Progress | All major flows and UI mocked |  |  | [Technical Design: System Architecture](./Technical_Design.md#2-system-architecture) |
 | Detailed solution architecture (UML, ERD, workflows) | In Progress | All diagrams complete and accurate. Includes object/data definitions, UML, ERD, workflow diagrams, database schema, and detailed flowcharts. |  |  | [Technical Design: Table of Contents](./Technical_Design.md#table-of-contents) |
-| Collaboration/sequence diagrams | In Progress | All key interactions diagrammed. Includes collaboration and/or sequence diagrams to show workflows of components/packages/classes. |  |  | [Technical Design: Sequence Diagram](./Technical_Design.md#5-sequence-diagram-typical-event-flow) |
+| Collaboration/sequence diagrams | Not Started | All key interactions diagrammed. Includes collaboration and/or sequence diagrams to show workflows of components/packages/classes. |  |  | [Technical Design: Sequence Diagram](./Technical_Design.md#5-sequence-diagram-typical-event-flow) |
 | Algorithm descriptions & performance analysis | In Progress | All core algorithms described, with detailed performance analysis and metrics. |  |  | [Technical Design: Top-Down Approach](./Technical_Design.md#2x-top-down-approach) |
 | Detailed specs for screens, interfaces, integration | In Progress | All specs documented. Includes all screens, interfaces, integration points, processes, conversion, and reports. |  |  | [Technical Design: Detailed Specs](./Technical_Design.md#detailed-specs-for-screens-interfaces-integration) |
 | Packages, libraries, hardware/software listed | In Progress | All dependencies listed. Includes all packages, software libraries, hardware, and software technologies used. |  |  | [Technical Design: Packages, Libraries, Hardware/Software](./Technical_Design.md#packages-libraries-hardwaresoftware) |
