@@ -51,15 +51,19 @@ This project follows an agile, milestone-based approach. The initial focus is on
 
 | Component | Model/Description | Unit Cost (USD) | Quantity | Total Cost |
 |-----------|-------------------|----------------|----------|------------|
-| Raspberry Pi 5 | 16GB RAM model | $120 | 1 | $120 |
+| Raspberry Pi 5 | CanaKit Raspberry Pi 5 Starter Kit MAX - Turbine White (256 GB Edition) (16GB RAM) | $120 | 1 | $219 |
 | AI Camera | Sony IMX500 (Raspberry Pi AI Camera) | $70 | 1 | $70 |
-| Radar Sensor | OmniPreSense OPS243-C | $89 | 1 | $89 |
-| Storage | Samsung T7 SSD (256GB) | $40 | 1 | $40 |
-| MicroSD Card | 64GB Class 10 | $15 | 1 | $15 |
-| Power Supply | PoE+ Splitter or USB-C adapter | $25 | 1 | $25 |
-| Enclosure | Weather-resistant housing | $50 | 1 | $50 |
+| Radar Sensor | OmniPreSense OPS243-C | $255 | 1 | $255 |
+| Storage | Samsung T7 Shield 2TB, Portable SSD, up-to 1050MB/s, USB 3.2 Gen2, Rugged,IP65 Water & Dust Resistant, Extenal Solid State Drive (MU-PE2T0S/AM), Black | $149 | 1 | $149 |
+| MicroSD Card Extender | LANMU Micro SD to Micro SD Card Extension Cable Adapter Flexible Extender Compatible with Ender 3 Pro/Ender 3/Ender 3 V2/Ender 5 Plus/Ender 5 Pro/CR-10S Pro/Raspberry Pi(5.9in/15cm) | $5.99 | 1 | $5.99 |
+| Power Supply | DC 12V/24V to 5V 15A Step Down Converter - Voltage Regulator Buck Converter Power Supply Transformer | $10.99 | 1 | $10.99 |
+| USB Power Supply | DC 12V/24V to 5V USB C Step Down Converter Type-C Interface 5A 25W Waterproof Buck Module Power Adapter Compatible with Raspberry Pi 4, Cell Phones 1-Pack | $9.99 | 1 | $9.99 |
+| Main power adapter | 24V DC Power Adapter Doorbell Transformer for C WireThermostat,Heywell Nest,Ring Pro doorbell,Ring Wired doorbell,Wyze Video Doorbell,24V LED Strip Light,Comes with CH-2 Connector, Cord 19.6FT Black | $15.99 | 1 | $15.99 |
+| Ethernet cable | adaol Cat 6 Ethernet Cable 100 ft, Outdoor & Indoor 10Gbps Support Cat8 Cat7 Network, Flat RJ45 Internet LAN Computer Patch Cable for Router, Modem, Switch, Gaming Consoles, Streaming Devices, White | $16.14 | 1 | $16.14 |
+| Enclosure | Junction Box, IP67 Waterproof Plastic Enclosure for Electrical Project, Hinged Grey Cover, Includes Mounting Plate and Wall Bracket 290×190×140mm (11.4"×7.5"×5.5") | $24.99 | 1 | $24.99 |
 | Mounting Hardware | Pole/wall mount kit | $30 | 1 | $30 |
-| **Hardware Subtotal** | | | | **$439** |
+| AI Camera extended cable | Official CSI FPC Flexible Cable Compatible with Raspberry Pi 5, 22Pin to 15Pin, Suitable for CSI Camera Modules, 500MM/50CM/1.64 FT | $9.79 | 1 | $9.79 |
+| **Hardware Subtotal** | | | | **$784.89** |
 
 ### Software & Development Costs
 
