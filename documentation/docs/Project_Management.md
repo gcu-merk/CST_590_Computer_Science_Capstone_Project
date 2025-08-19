@@ -84,7 +84,6 @@ This project follows an agile, milestone-based approach. The initial focus is on
 | Documentation | User training and documentation | 4 | $75 | $300 |
 | **Implementation Subtotal** | | | | **$1,650** |
 
-
 ### Total Project Cost
 
 - **Per Unit Hardware:** $804.89
