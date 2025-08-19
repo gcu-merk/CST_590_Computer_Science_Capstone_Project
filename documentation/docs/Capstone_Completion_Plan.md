@@ -27,11 +27,11 @@ This document lists all required capstone components grouped by milestone. For e
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed | Reference Link |
 |-----------|---------------|--------------------------------------|-----------------|------------------|---------------|
 | Project name, author, org, manager, date | In Progress | Accurate, up-to-date info |  |  | [Technical Design: Top](./Technical_Design.md) |
-| Project overview (problem, background, objectives, challenges, benefits) | In Progress | Clear, concise, addresses all prompts |  |  | [Technical Design: System Overview](./Technical_Design.md#1-system-overview) |
+| Project overview (problem, background, objectives, challenges, benefits) | In Progress | Clear, concise, addresses all prompts. Objectives: (1) Evaluate effectiveness of a Raspberry Pi-based speed detection system for accuracy, reliability, cost-effectiveness, and community impact. (2) Provide an accessible, low-cost alternative to traditional systems. |  |  | [Technical Design: System Overview](./Technical_Design.md#1-system-overview) |
 | Project scope & work breakdown | In Progress | Complete WBS, all tasks identified |  |  | [Project Management: Implementation Timeline](./Project_Management.md#1-implementation-timeline) |
-| Project completion criteria | Not Started | Explicit, measurable goals |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
-| Assumptions and constraints | Not Started | All relevant factors listed |  |  | [Technical Design: System Overview](./Technical_Design.md#1-system-overview) |
-| Risk management plan | In Progress | Risks, mitigation, contingency |  |  | [Project Management: Risk Management Matrix](./Project_Management.md#3-risk-management-matrix--contingency-planning) |
+| Project completion criteria | Not Started | 1. Accuracy: System detects vehicle speeds within ±5% of manual tools. 2. Cost-Effectiveness: At least 50% lower cost than traditional systems. 3. Reliability: Consistent operation under varied conditions. 4. Data Quality: Accurate, analyzable data logged. 5. Community Impact: Positive feedback and measurable safety improvements. |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
+| Assumptions and constraints | Not Started | Assumptions: Affordable/reliable components available; seamless integration; technical expertise available; community support; internet access. Constraints: Budget, timeline, resources, environmental conditions, regulatory compliance. |  |  | [Technical Design: System Overview](./Technical_Design.md#1-system-overview) |
+| Risk management plan | In Progress | Risks: Sensor accuracy, hardware incompatibility, algorithm performance, data loss, unauthorized access, privacy, budget, legal/IP compliance. Mitigation: Testing, backups, encryption, clear communication, budget monitoring, legal review. |  |  | [Project Management: Risk Management Matrix](./Project_Management.md#3-risk-management-matrix--contingency-planning) |
 | Change control log | Not Started | Track all changes/decisions |  |  | [Documentation TODO: Outstanding Tasks](./Documentation_TODO.md#1-outstanding-tasks) |
 | Roles and responsibilities | In Progress | All team roles defined |  |  | [Project Management: Executive Summary](./Project_Management.md#executive-summary) |
 | Project schedule & milestones | In Progress | Realistic, buffer time included |  |  | [Project Management: Implementation Timeline](./Project_Management.md#1-implementation-timeline) |
@@ -42,23 +42,23 @@ This document lists all required capstone components grouped by milestone. For e
 
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed | Reference Link |
 |-----------|---------------|--------------------------------------|-----------------|------------------|---------------|
-| Design planning summary | In Progress | Overview, rationale, issues addressed |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
+| Design planning summary | In Progress | Overview, rationale, issues addressed. Includes system context, design goals, and fit within overall project. |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
 | High-level design (narrative, mockups, flowcharts) | In Progress | All major flows and UI mocked |  |  | [Technical Design: System Architecture](./Technical_Design.md#2-system-architecture) |
-| Detailed solution architecture (UML, ERD, workflows) | In Progress | All diagrams complete and accurate |  |  | [Technical Design: Table of Contents](./Technical_Design.md#table-of-contents) |
-| Collaboration/sequence diagrams | Not Started | All key interactions diagrammed |  |  | [Technical Design: Sequence Diagram](./Technical_Design.md#5-sequence-diagram-typical-event-flow) |
-| Algorithm descriptions & performance analysis | In Progress | All core algorithms described |  |  | [Technical Design: Top-Down Approach](./Technical_Design.md#2x-top-down-approach) |
-| Detailed specs for screens, interfaces, integration | In Progress | All specs documented |  |  | [Technical Design: Detailed Specs](./Technical_Design.md#detailed-specs-for-screens-interfaces-integration) |
-| Packages, libraries, hardware/software listed | In Progress | All dependencies listed |  |  | [Technical Design: Packages, Libraries, Hardware/Software](./Technical_Design.md#packages-libraries-hardwaresoftware) |
-| Security approach and resources | In Progress | Security plan documented |  |  | [Technical Design: Security/Data Flow Diagram](./Technical_Design.md#9-securitydata-flow-diagram) |
+| Detailed solution architecture (UML, ERD, workflows) | In Progress | All diagrams complete and accurate. Includes object/data definitions, UML, ERD, workflow diagrams, database schema, and detailed flowcharts. |  |  | [Technical Design: Table of Contents](./Technical_Design.md#table-of-contents) |
+| Collaboration/sequence diagrams | Not Started | All key interactions diagrammed. Includes collaboration and/or sequence diagrams to show workflows of components/packages/classes. |  |  | [Technical Design: Sequence Diagram](./Technical_Design.md#5-sequence-diagram-typical-event-flow) |
+| Algorithm descriptions & performance analysis | In Progress | All core algorithms described, with detailed performance analysis and metrics. |  |  | [Technical Design: Top-Down Approach](./Technical_Design.md#2x-top-down-approach) |
+| Detailed specs for screens, interfaces, integration | In Progress | All specs documented. Includes all screens, interfaces, integration points, processes, conversion, and reports. |  |  | [Technical Design: Detailed Specs](./Technical_Design.md#detailed-specs-for-screens-interfaces-integration) |
+| Packages, libraries, hardware/software listed | In Progress | All dependencies listed. Includes all packages, software libraries, hardware, and software technologies used. |  |  | [Technical Design: Packages, Libraries, Hardware/Software](./Technical_Design.md#packages-libraries-hardwaresoftware) |
+| Security approach and resources | In Progress | Security plan documented. Describes approach and resources required to assure system security. |  |  | [Technical Design: Security/Data Flow Diagram](./Technical_Design.md#9-securitydata-flow-diagram) |
 
 ## Milestone 3: Implementation
 
 | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed | Reference Link |
 |-----------|---------------|--------------------------------------|-----------------|------------------|---------------|
-| Mapping of requirements to modules/functions | In Progress | All requirements mapped |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
-| Source code listing & class/file descriptions | In Progress | All code documented |  |  | [Technical Design: Component Interaction Diagram](./Technical_Design.md#4-component-interaction-diagram) |
-| Implementation plan (deployment, integration) | In Progress | All steps clear and testable |  |  | [Implementation & Deployment Guide](./Implementation_Deployment.md) |
-| Requirements review and updates | Ongoing | All changes tracked |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
+| Mapping of requirements to modules/functions | In Progress | All requirements mapped. Functional requirements mapped to modules/functions, with diagrams and descriptions. |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
+| Source code listing & class/file descriptions | In Progress | All code documented. Well-organized, commented code with descriptions of classes/files. |  |  | [Technical Design: Component Interaction Diagram](./Technical_Design.md#4-component-interaction-diagram) |
+| Implementation plan (deployment, integration) | In Progress | All steps clear and testable. Comprehensive description of software, deployment, integration, and operational strategy. |  |  | [Implementation & Deployment Guide](./Implementation_Deployment.md) |
+| Requirements review and updates | Ongoing | All changes tracked. Includes code review summary and feedback. |  |  | [Documentation TODO: Capstone Requirements Checklist](./Documentation_TODO.md#capstone-requirements-checklist-computer-science) |
 
 ## Milestone 4: Performance Analysis & Presentation
 
