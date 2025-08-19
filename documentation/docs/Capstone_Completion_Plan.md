@@ -18,6 +18,7 @@ This document lists all required capstone components grouped by milestone. For e
 - **Requirements for Desired Performance (if revision needed)**
 - **Completion Date**
 - **Resources Needed**
+- **Reference Link**
 
 ---
 
