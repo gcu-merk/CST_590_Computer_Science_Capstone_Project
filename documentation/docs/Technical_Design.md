@@ -201,6 +201,34 @@ This section describes the hardware components and their specifications for the 
 - **Power & Connectivity:** Official Raspberry Pi 5 PSU (5.1V, 5A, 25W), PoE+ HAT, WiFi/Ethernet, optional cellular backup, UPS for continuous operation
 - **Environmental Housing:** IP65/IP66 weatherproof enclosure (-40°C to +71°C)
 
+
+## 3.1 ML/AI Workflow and Component Status
+
+This section summarizes the ML/AI workflow, component status, and technical details for the traffic monitoring system. For full details, see `ml_ai_workflow_analysis.md` in the archive.
+
+### Component Status Legend
+- 🟢 **EXISTING**: Available in hardware/libraries, minimal development needed
+- 🟡 **PARTIAL**: Basic functionality exists, requires customization/integration
+- 🔴 **CUSTOM**: Must be developed specifically for this project
+
+### AI-Enabled Camera Hardware (Sony IMX500) - 🟢 EXISTING
+- On-chip neural network processing for real-time object detection and classification
+- Edge computing: runs lightweight models, reduces bandwidth by filtering irrelevant frames
+- Provides pre-processed data streams with detected objects and metadata
+- Hardware integration via standard camera interface; supports Sony-provided or custom models
+
+### Computer Vision Module (OpenCV + TensorFlow) - 🟡 PARTIAL
+- Analyzes video streams from the AI camera for vehicle detection, classification, and tracking
+- Supports custom and pre-trained models; requires integration and tuning for project needs
+
+### Project Requirements
+- Hardware integration (camera, radar, storage)
+- Model loading and configuration (Sony IMX500, TensorFlow)
+- Set up detection parameters, output formats, and data fusion logic
+
+**See also:** [ML/AI Workflow Analysis](../archive/ml_ai_workflow_analysis.md)
+
+---
 ### Edge Processing Layer (Software)
 
 - **Vehicle Detection Service:** TensorFlow + OpenCV + AI Camera processing
