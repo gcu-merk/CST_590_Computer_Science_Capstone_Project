@@ -499,7 +499,7 @@ EOF
 
 ### Figure 1: System Architecture Diagram
 
-![System Architecture Diagram](../archive/traffic_monitoring_architecture.png)
+![System Architecture Diagram](../archive/Traffic Monitoring System - Data Flow Architecture.png)
 
 ### Figure 2: Data Flow from Sensors to Analytics and Dashboards
 
