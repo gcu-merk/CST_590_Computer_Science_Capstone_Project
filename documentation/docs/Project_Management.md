@@ -487,19 +487,62 @@ EOF
 
 | **Aspect**                     | **Technical Design Document**                                                                 | **Traffic Monitoring System Design Document**                                                                 |
 |--------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| **Physical Sensing Layer**     | Raspberry Pi AI Camera (Sony IMX500), OPS243-C Radar, Raspberry Pi 5, External SSD          | Same components, but includes IP65/IP66 weatherproof enclosure (-40°C to +71°C)                             |
-| **Edge Processing Layer**      | TensorFlow + OpenCV, Radar data processing, SORT algorithm, Flask-SocketIO server           | Adds Kalman filtering for data fusion, anomaly detection, and weather integration                           |
-| **Network Layer**              | WebSocket Server, REST API, Data Compression, Network Resilience                            | Same features, but explicitly mentions TLS/SSL encryption and API authentication                            |
-| **Cloud Services Layer**       | Optional: Data Aggregation, Analytics Engine, Cloud UI, Alert Service                       | Same features, but adds ML model versioning and updates                                                     |
-| **Data Flow Architecture**     | Sensors → Edge Processing → Local Dashboard → Cloud Services                                | Adds explicit flow for Local Storage → Data Queue → Cloud Storage → Analytics/Alerts                       |
+| **Physical Sensing Layer**     | Raspberry Pi AI Camera (Sony IMX500), OPS243-C Radar, Raspberry Pi 5, External SSD          | Same components, but includes IP65/IP66 weatherproof enclosure (-40°C to +71°C) as shown in Figure 1 physical layer                             |
+| **Edge Processing Layer**      | TensorFlow + OpenCV, Radar data processing, SORT algorithm, Flask-SocketIO server           | Adds Kalman filtering for data fusion, anomaly detection, and weather integration (detailed in Figure 2 processing pipeline)                           |
+| **Network Layer**              | WebSocket Server, REST API, Data Compression, Network Resilience                            | Same features, but explicitly mentions TLS/SSL encryption and API authentication (see Figure 1 network layer)                            |
+| **Cloud Services Layer**       | Optional: Data Aggregation, Analytics Engine, Cloud UI, Alert Service                       | Same features, but adds ML model versioning and updates (illustrated in Figure 1 cloud layer)                                                     |
+| **Data Flow Architecture**     | Sensors → Edge Processing → Local Dashboard → Cloud Services                                | Adds explicit flow for Local Storage → Data Queue → Cloud Storage → Analytics/Alerts (see Figure 1 and Figure 2 below)                       |
 | **Hardware Specification**     | Raspberry Pi 5 (16GB RAM), Samsung T7 SSD, PoE, WiFi/Ethernet                               | Same components, but specifies 2TB SSD and UPS for continuous operation                                     |
 | **Sensor Hardware**            | AI Camera (Sony IMX500), OPS243-C Radar                                                     | Same components, but includes detailed specs like resolution, frequency, and power consumption              |
 | **Power and Connectivity**     | PoE, WiFi/Ethernet, optional cellular backup                                                | Same features, but adds UPS and official Raspberry Pi PSU                                                   |
 
-### Figure 1: System Architecture Diagram
+### Figure 1: High-Level System Architecture Overview
 
-![System Architecture Diagram](../archive/Traffic%20Monitoring%20System%20-%20Data%20Flow%20Architecture.png)
+![System Architecture Diagram - Four-layer architecture showing Physical Sensing Layer with AI Camera and Radar, Edge Processing Layer with Raspberry Pi 5, Network Layer with WiFi/Ethernet connectivity, and Cloud Services Layer with analytics and dashboards. Data flows from bottom sensors up through processing to cloud services, with bidirectional communication paths and optional cloud components.](../archive/Traffic%20Monitoring%20System%20-%20Data%20Flow%20Architecture.png)
+*Figure 1: Comprehensive system architecture showing the complete data flow from physical sensors through edge processing to cloud analytics and user interfaces.*
 
-### Figure 2: Data Flow from Sensors to Analytics and Dashboards
+**Figure 1 Description:**
+This high-level system architecture diagram illustrates the complete end-to-end data flow and component relationships in the Raspberry Pi 5 Edge ML Traffic Monitoring System. The diagram shows four primary layers:
 
-![Data Flow Diagram](../archive/traffic_algorithms_data_diagram.png)
+1. **Physical Sensing Layer** (Bottom): Features the Sony IMX500 AI Camera and OPS243-C Radar sensor mounted in weatherproof enclosures, connected to the Raspberry Pi 5 edge processing unit.
+
+2. **Edge Processing Layer** (Center): The Raspberry Pi 5 performs real-time data fusion, running TensorFlow/OpenCV for computer vision, radar data processing algorithms, and the SORT tracking algorithm. This layer includes local storage on external SSD and the Flask-SocketIO web server.
+
+3. **Network Layer** (Communication): Handles data transmission via WiFi/Ethernet with optional cellular backup, implementing WebSocket and REST API protocols with TLS/SSL encryption for secure data transfer.
+
+4. **Cloud Services Layer** (Top): Optional cloud components including data aggregation services, analytics engines, cloud-based dashboards, and alert management systems for historical analysis and remote monitoring.
+
+The architecture emphasizes edge-first processing to minimize latency and ensure system operation even during network outages, with cloud services providing enhanced analytics and multi-site management capabilities.
+
+### Figure 2: Detailed Algorithmic Data Flow and Processing Pipeline
+
+![Data Flow Diagram - Detailed algorithmic pipeline showing sensor data acquisition from camera and radar, preprocessing with noise reduction and temporal alignment, detection and tracking with YOLO and SORT algorithms, data fusion using Kalman filtering, analytics generation for traffic statistics, and output distribution to local dashboard and cloud storage with branching paths and processing modules connected by directional arrows.](../archive/traffic_algorithms_data_diagram.png)
+*Figure 2: Detailed algorithmic data flow showing specific processing steps, data fusion algorithms, and output generation from sensor inputs to dashboard analytics.*
+
+**Figure 2 Description:**
+This detailed data flow diagram drills down into the algorithmic processing pipeline shown at a high level in Figure 1. It specifically illustrates how raw sensor data is transformed into actionable traffic analytics through multiple processing stages:
+
+1. **Sensor Data Acquisition**: Raw video frames from the AI camera (1080p at 30fps) and velocity/range data from the radar sensor (24GHz FMCW) are captured simultaneously with synchronized timestamps.
+
+2. **Preprocessing Stage**: Video frames undergo noise reduction and normalization while radar data is filtered and calibrated. Both data streams are temporally aligned for fusion processing.
+
+3. **Detection and Tracking**: The AI camera runs YOLO-based vehicle detection with bounding box generation, while radar provides precise speed measurements. The SORT algorithm maintains vehicle tracking across frames.
+
+4. **Data Fusion Algorithm**: Kalman filtering combines camera detections with radar measurements to produce high-confidence vehicle events with accurate position, speed, and classification data.
+
+5. **Analytics Generation**: Processed events feed into traffic analytics engines that calculate volume counts, speed statistics, violation detection, and anomaly identification.
+
+6. **Output Distribution**: Results are simultaneously sent to the local dashboard for real-time monitoring, stored in local databases, and queued for cloud synchronization when network connectivity is available.
+
+**Integration Analysis:**
+Figure 2 provides the detailed algorithmic implementation of the "Edge Processing" layer shown in Figure 1. While Figure 1 shows the overall system architecture and component relationships, Figure 2 focuses specifically on the data transformation pipeline that occurs within the Raspberry Pi 5 processing unit. Together, these diagrams provide both strategic (Figure 1) and tactical (Figure 2) views of the system design.
+
+**Component Legend:**
+
+- **Rectangular Boxes**: Processing modules and algorithms
+- **Circular Nodes**: Data storage and queuing points  
+- **Diamond Shapes**: Decision points and conditional logic
+- **Arrows**: Data flow direction and dependencies
+- **Dashed Lines**: Optional or fallback data paths
+- **Bold Borders**: Real-time processing components
+- **Color Coding**: Blue (sensor input), Green (processing), Orange (storage), Red (output/alerts)
