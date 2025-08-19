@@ -43,6 +43,9 @@ This guide provides comprehensive instructions for installing, configuring, and 
 
 The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle detection, speed measurement, and traffic analytics at the edge. The system is designed for ease of use, reliability, and actionable insights for traffic monitoring and management.
 
+
+**For technical details on the ML/AI workflow and component status, see the [ML/AI Workflow and Component Status](./Technical_Design.md#31-mlai-workflow-and-component-status) section in the Technical Design Document.**
+
 ### Main Features
 - Real-time vehicle detection and classification using AI camera
 - Speed measurement using radar sensor

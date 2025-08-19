@@ -6,6 +6,9 @@ This document organizes use cases by implementation priority: MVP (Minimum Viabl
 
 ## MVP (Implement First)
 
+
+> **Note:** For technical details on the AI camera, ML/AI workflow, and component status, see the [ML/AI Workflow and Component Status](./Technical_Design.md#31-mlai-workflow-and-component-status) section in the Technical Design Document.
+
 ### 1. System Detects and Logs Speeding Vehicle
 
 **Sequence of Actions:**
@@ -560,6 +563,9 @@ Vehicle
 ```
 
 ---
+
+
+> **Note:** For more on model update workflow and inference, see the [ML/AI Workflow and Component Status](./Technical_Design.md#31-mlai-workflow-and-component-status) section in the Technical Design Document.
 
 ### 24. Edge Device Performs Local ML Model Update
 
