@@ -1,0 +1,8 @@
+Aaron Carlisle
+replied to
+Steven Merkling
+Aug 19, 2025, 8:23 PM
+
+Hello Steven,
+
+Thank you very much for your detailed project overview that you responded to my previous post with. What testing procedures have you thought of for the software side, and are there many differences in the hardware testing that you foresee?  Also the presentation could include the weather testing for the box as an interesting visual. And do you have any other security concerns? you may have already addressed that, but canvas cut off part of your tables.
