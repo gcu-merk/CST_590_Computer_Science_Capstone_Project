@@ -35,14 +35,6 @@ This project aims to deliver a robust, edge-based traffic monitoring system usin
 
 ## Phase-Milestone Relationship
 
-Phases:   |---- Phase 1 ----|---- Phase 2 ----|---- Phase 3 ----|---- Phase 4 ----|
-          |                 |                  |                  |                 |
-Milestones: M1               M2                 M3                 M4
-
-Phases:   |---- Phase 1 ----|---- Phase 2 ----|---- Phase 3 ----|---- Phase 4 ----|
-          |                 |                  |                  |                 |
-Milestones: M1               M2                 M3                 M4
-
 ```text
 Phases:   |---- Phase 1 ----|---- Phase 2 ----|---- Phase 3 ----|---- Phase 4 ----|
           |                 |                  |                  |                 |
