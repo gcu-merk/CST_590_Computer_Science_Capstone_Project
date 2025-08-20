@@ -35,7 +35,15 @@ This project aims to deliver a robust, edge-based traffic monitoring system usin
 
 ## Phase-Milestone Relationship
 
-```
+Phases:   |---- Phase 1 ----|---- Phase 2 ----|---- Phase 3 ----|---- Phase 4 ----|
+          |                 |                  |                  |                 |
+Milestones: M1               M2                 M3                 M4
+
+Phases:   |---- Phase 1 ----|---- Phase 2 ----|---- Phase 3 ----|---- Phase 4 ----|
+          |                 |                  |                  |                 |
+Milestones: M1               M2                 M3                 M4
+
+```text
 Phases:   |---- Phase 1 ----|---- Phase 2 ----|---- Phase 3 ----|---- Phase 4 ----|
           |                 |                  |                  |                 |
 Milestones: M1               M2                 M3                 M4
@@ -48,29 +56,33 @@ Milestones: M1               M2                 M3                 M4
 The project is delivered in four major phases, each building on the previous:
 
 ### Phase 1: Core Detection
+
 - Integrate Sony IMX500 camera and basic hardware
 - Deploy YOLOv8 object detection (pre-trained)
 - Implement basic object tracking (SORT/DeepSORT)
 - Simple speed calculation using radar FFT
 
 ### Phase 2: Advanced Processing
+
 - Custom motion analysis and vehicle velocity calculation
 - Lane detection and basic sensor fusion
 - Traffic analytics and pattern recognition
 
 ### Phase 3: Intelligent Systems
+
 - Advanced sensor fusion (ML-based)
 - Anomaly detection and predictive analytics
 - Adaptive learning and system self-improvement
 
 ### Phase 4: Optimization
+
 - Performance optimization for real-time processing
 - Environmental adaptation (weather, lighting)
 - Advanced calibration and meta-learning
 
 ## Project Timeline
 
-```
+```text
 Weeks:   |    1    |    2    |    3    |    4    |    5    |    6    |    7    |    8    |
          |         |         |         |         |         |         |         |         |
 M1       |=========|=========|         |         |         |         |         |         |
