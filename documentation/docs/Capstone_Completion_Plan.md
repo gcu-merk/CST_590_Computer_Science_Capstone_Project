@@ -1,6 +1,10 @@
 
 # Capstone Completion Plan
 
+## Executive Summary
+
+This project aims to deliver a robust, edge-based traffic monitoring system using a Raspberry Pi 5, AI camera, and radar sensor. The plan is structured in four phases, each mapped to clear milestones. As of now, Milestone 1 is 65% complete and on track for Week 2 delivery. Key risks include hardware integration and algorithm performance, both being actively mitigated. The following dashboard and sections provide a snapshot of progress, dependencies, and next steps.
+
 ## Phased Implementation Overview
 
 > **Note:**
@@ -112,3 +116,14 @@ This document lists all required capstone components grouped by milestone. For e
 |-----------|---------------|--------------------------------------|-----------------|------------------|
 | Academic integrity & plagiarism policy | Ongoing | All work original or cited | Ongoing |  |
 | References and sources cited | Ongoing | All sources properly cited | Ongoing |  |
+
+## Glossary
+
+- **YOLOv8**: You Only Look Once, version 8 - a machine learning model for object detection
+- **SORT/DeepSORT**: Simple Online and Realtime Tracking algorithms for object tracking
+- **Sensor Fusion**: Combining data from multiple sensors to improve accuracy
+- **FFT (Fast Fourier Transform)**: Algorithm to convert time-based data to frequency domain for analysis
+- **WBS**: Work Breakdown Structure
+- **ERD**: Entity-Relationship Diagram
+- **UML**: Unified Modeling Language
+- **MVP**: Minimal Viable Product
