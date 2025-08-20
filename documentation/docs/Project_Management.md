@@ -25,17 +25,54 @@
 
 The Raspberry Pi 5 Edge ML Traffic Monitoring System is a comprehensive, edge-based solution for real-time vehicle detection, speed measurement, and traffic analytics. Leveraging a Raspberry Pi 5, AI-enabled camera, and radar sensor, the system processes data locally to reduce bandwidth, enhance privacy, and enable rapid response to traffic events. This documentation provides a clear roadmap for implementation, risk management, and quality assurance, ensuring the project is delivered on time, robustly tested, and aligned with best practices for smart city and transportation applications.
 
+## 1. Phased Implementation Overview
+
+The project is delivered in four major phases, each building on the previous:
+
+### Phase 1: Core Detection (Weeks 1-2)
+
+- Project planning, hardware setup, software environment, and initial MVP features
+
+### Phase 2: Advanced Processing Timeline (Weeks 3-4)
+
+- Core development, basic analytics, and integration of advanced processing features
+
+### Phase 3: Intelligent Systems (Weeks 5-6)
+
+- Dashboard/API development, advanced analytics, and intelligent system features
+
+### Phase 4: Optimization & Deployment (Weeks 7-8)
+
+- Testing, validation, documentation, and optimization for deployment
+
+Each phase below lists the relevant milestones and their target completion dates, aligned with the Capstone Completion Plan.
+
 ## 1. Implementation Timeline
 
-Below is a milestone-based implementation timeline for the Raspberry Pi 5 Edge ML Traffic Monitoring System. Actual dates may vary based on project scope and resource availability.
+### Phase 1: Core Detection (Weeks 1-2)
 
 | Milestone | Description & Sub-Tasks | Target Completion |
 |-----------|-------------------------|------------------|
 | Project Planning | Define requirements, select hardware, finalize architecture, identify MVP, create detailed task lists | Week 1 |
 | Hardware Setup | Assemble Raspberry Pi, camera, radar sensor, storage; verify hardware; allocate buffer for hardware issues | Week 2 |
 | Software Environment | Install OS, Python, dependencies, database; set up version control; test environment; buffer for integration issues | Week 2 |
+
+### Phase 2: Advanced Processing (Weeks 3-4)
+
+| Milestone | Description & Sub-Tasks | Target Completion |
+|-----------|-------------------------|------------------|
 | Core Development | Implement vehicle detection, radar integration, data fusion; frequent testing; break into sub-tasks (e.g., camera, radar, fusion); prioritize MVP features | Weeks 3-4 |
+
+### Phase 3: Intelligent Systems Timeline (Weeks 5-6)
+
+| Milestone | Description & Sub-Tasks | Target Completion |
+|-----------|-------------------------|------------------|
 | Dashboard & API | Develop Edge UI, REST/WebSocket APIs, Cloud UI (if needed); incremental delivery; buffer for UI/API blockers | Weeks 5-6 |
+
+### Phase 4: Optimization (Weeks 7-8)
+
+| Milestone | Description & Sub-Tasks | Target Completion |
+|-----------|-------------------------|------------------|
 | Testing & Validation | System integration, field testing, bug fixes, contingency for simulated data if sensors unavailable; regular backups | Weeks 7-8 |
 | Documentation | Prepare technical docs, user guide, deployment instructions; update as features evolve; buffer for review | Week 8 |
 | Final Review & Deployment | Final QA, stakeholder review, production deployment, contingency for last-minute issues | Week 9 |
