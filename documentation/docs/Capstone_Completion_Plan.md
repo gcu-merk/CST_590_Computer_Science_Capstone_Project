@@ -2,6 +2,16 @@
 # Capstone Completion Plan
 
 ## Phased Implementation Overview
+> **Note:**
+> This plan is guided by a Minimal Viable Product (MVP)-first approach, emphasizing incremental development, future extensibility, and robust risk management. The project is structured so that Phase 1 delivers a working MVP, with subsequent phases designed for future implementation as time and resources allow. For full feedback and rationale, see [AI Feedback for Capstone Completion plan](../archive/AI%20Feedback%20for%20Capstone%20Completion%20plan.txt).
+
+## Phased Implementation Overview
+
+> **Note:**
+> This plan is guided by a Minimal Viable Product (MVP)-first approach, emphasizing incremental development, future extensibility, and robust risk management. The project is structured so that Phase 1 delivers a working MVP, with subsequent phases designed for future implementation as time and resources allow. For full feedback and rationale, see [AI Feedback for Capstone Completion plan](../archive/AI%20Feedback%20for%20Capstone%20Completion%20plan.txt).
+
+> **Note:**
+> This plan is guided by a Minimal Viable Product (MVP)-first approach, emphasizing incremental development, future extensibility, and robust risk management. The project is structured so that Phase 1 delivers a working MVP, with subsequent phases designed for future implementation as time and resources allow. For full feedback and rationale, see [AI Feedback for Capstone Completion plan](../archive/AI%20Feedback%20for%20Capstone%20Completion%20plan.txt).
 
 The project is delivered in four major phases, each building on the previous:
 
