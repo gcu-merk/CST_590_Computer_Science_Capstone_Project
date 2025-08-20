@@ -1,28 +1,31 @@
 
-
 # Capstone Completion Plan
 
 ## Phased Implementation Overview
 
 The project is delivered in four major phases, each building on the previous:
 
-**Phase 1: Core Detection**
+### Phase 1: Core Detection
+
 - Integrate Sony IMX500 camera and basic hardware
 - Deploy YOLOv8 object detection (pre-trained)
 - Implement basic object tracking (SORT/DeepSORT)
 - Simple speed calculation using radar FFT
 
-**Phase 2: Advanced Processing**
+### Phase 2: Advanced Processing
+
 - Custom motion analysis and vehicle velocity calculation
 - Lane detection and basic sensor fusion
 - Traffic analytics and pattern recognition
 
-**Phase 3: Intelligent Systems**
+### Phase 3: Intelligent Systems
+
 - Advanced sensor fusion (ML-based)
 - Anomaly detection and predictive analytics
 - Adaptive learning and system self-improvement
 
-**Phase 4: Optimization**
+### Phase 4: Optimization
+
 - Performance optimization for real-time processing
 - Environmental adaptation (weather, lighting)
 - Advanced calibration and meta-learning
@@ -53,7 +56,7 @@ This document lists all required capstone components grouped by milestone. For e
 ## Milestone 1: Project Proposal & Requirements Analysis
 
 | Phase | Component | Current Status | Requirements for Desired Performance | Completion Date | Resources Needed | Reference Link |
-|-----------|---------------|--------------------------------------|-----------------|------------------|---------------|
+|-------|-----------|---------------|--------------------------------------|-----------------|------------------|---------------|
 | Phase 1 | Project name, author, org, manager, date | In Progress | Accurate, up-to-date info | Week 1 |  | [Technical Design: Top](./Technical_Design.md) |
 | Phase 1 | Project overview (problem, background, objectives, challenges, benefits) | In Progress | Clear, concise, addresses all prompts. Objectives: (1) Evaluate effectiveness of a Raspberry Pi-based speed detection system for accuracy, reliability, cost-effectiveness, and community impact. (2) Provide an accessible, low-cost alternative to traditional systems. | Week 1 |  | [Technical Design: System Overview](./Technical_Design.md#1-system-overview) |
 | Phase 1 | Project scope & work breakdown | In Progress | Complete WBS, all tasks identified | Week 1 |  | [Project Management: Implementation Timeline](./Project_Management.md#1-implementation-timeline) |
