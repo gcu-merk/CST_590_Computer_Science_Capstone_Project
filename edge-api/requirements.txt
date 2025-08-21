@@ -1,0 +1,9 @@
+# Edge API Requirements
+# Dependencies for the Edge API Gateway
+
+flask>=2.3.0
+flask-socketio>=5.3.0
+flask-cors>=4.0.0
+python-socketio>=5.8.0
+gunicorn>=21.2.0
+eventlet>=0.33.0

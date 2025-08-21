@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  traffic-monitor:
+    build: .
+    container_name: traffic-monitoring-edge
+    restart: unless-stopped
+    
+    # Device access for camera and GPIO
+    devices:
+      - /dev/video0:/dev/video0    # Camera access
+      - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access
+      - /dev/gpiomem:/dev/gpiomem  # GPIO access
+    
+    # Privileged mode for hardware access
+    privileged: true
+    
+    # Network configuration
+    ports:
+      - "5000:5000"  # API gateway
+    
+    # Volume mounts for persistent data
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+      - /opt/vc:/opt/vc  # VideoCore libraries
+    
+    # Environment variables
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=:0  # For GUI debugging if needed
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Optional: Add database service for more complex setups
+  # database:
+  #   image: postgres:15-alpine
+  #   container_name: traffic-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: traffic_monitor
+  #     POSTGRES_USER: traffic_user
+  #     POSTGRES_PASSWORD: secure_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+  #   ports:
+  #     - "5432:5432"
+
+# Optional: Add cloud connector service
+  # cloud-connector:
+  #   build: ./cloud-connector
+  #   container_name: cloud-connector
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - traffic-monitor
+  #   environment:
+  #     - EDGE_API_URL=http://traffic-monitor:5000
+  #     - CLOUD_ENDPOINT=https://your-cloud-service.com
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: traffic-monitoring-network
