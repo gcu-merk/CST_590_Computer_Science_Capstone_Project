@@ -31,53 +31,58 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System is a comprehensive, edge-ba
 
 The project is delivered in four major phases, each building on the previous:
 
-### Phase 1: Core Detection (Weeks 1-2)
+### Phase 1 (Weeks 1-2): Get Basic Detection Working
 
-- Project planning, hardware setup, software environment, and initial MVP features
+- Project planning, hardware setup, software environment, and basic vehicle detection implementation
 
-### Phase 2: Advanced Processing Timeline (Weeks 3-4)
+### Phase 2 (Weeks 3-4): Add Radar Integration and Simple Correlation
 
-- Core development, basic analytics, and integration of advanced processing features
+- Radar sensor integration, data fusion development, and speed correlation algorithms
 
-### Phase 3: Intelligent Systems (Weeks 5-6)
+### Phase 3 (Weeks 5-6): Build Web Interface and API
 
-- Dashboard/API development, advanced analytics, and intelligent system features
+- API development, web dashboard creation, and real-time communication implementation
 
-### Phase 4: Optimization & Deployment (Weeks 7-8)
+### Phase 4 (Weeks 7-8): Integration Testing, Documentation and Basic Optimization
 
-- Testing, validation, documentation, and optimization for deployment
+- System testing, performance optimization, documentation completion, and deployment preparation
 
 Each phase below lists the relevant milestones and their target completion dates, aligned with the Capstone Completion Plan.
 
 ## 1. Implementation Timeline
 
-### Phase 1 Milestones: Core Detection (Weeks 1-2)
+### Phase 1 Milestones: Get Basic Detection Working (Weeks 1-2)
 
 | Milestone | Description & Sub-Tasks | Target Completion |
 |-----------|-------------------------|------------------|
-| Project Planning | Define requirements, select hardware, finalize architecture, identify MVP, create detailed task lists | Week 1 |
-| Hardware Setup | Assemble Raspberry Pi, camera, radar sensor, storage; verify hardware; allocate buffer for hardware issues | Week 2 |
-| Software Environment | Install OS, Python, dependencies, database; set up version control; test environment; buffer for integration issues | Week 2 |
+| Hardware Setup | Assemble Raspberry Pi 5, Sony IMX500 AI camera, storage; verify hardware connectivity; allocate buffer for hardware issues | Week 1 |
+| Software Environment | Install Raspberry Pi OS, Python 3.11+, TensorFlow Lite, OpenCV; set up development environment; test camera interface | Week 1 |
+| Basic Vehicle Detection | Implement TensorFlow Lite inference, configure picamera2 interface, basic object detection pipeline, initial testing | Week 2 |
+| Data Storage Foundation | Set up SQLite database, basic data persistence, system health monitoring, logging infrastructure | Week 2 |
 
-### Phase 2: Advanced Processing (Weeks 3-4)
-
-| Milestone | Description & Sub-Tasks | Target Completion |
-|-----------|-------------------------|------------------|
-| Core Development | Implement vehicle detection, radar integration, data fusion; frequent testing; break into sub-tasks (e.g., camera, radar, fusion); prioritize MVP features | Weeks 3-4 |
-
-### Phase 3: Intelligent Systems Timeline (Weeks 5-6)
+### Phase 2: Add Radar Integration and Simple Correlation (Weeks 3-4)
 
 | Milestone | Description & Sub-Tasks | Target Completion |
 |-----------|-------------------------|------------------|
-| Dashboard & API | Develop Edge UI, REST/WebSocket APIs, Cloud UI (if needed); incremental delivery; buffer for UI/API blockers | Weeks 5-6 |
+| Radar Integration | Install OPS243-C radar sensor, configure GPIO/UART communication, test radar data acquisition, calibration | Week 3 |
+| Data Fusion Development | Implement basic correlation algorithms, synchronize camera and radar data, Kalman filtering foundation | Week 4 |
+| Speed Correlation | Develop speed calculation from radar data, correlate with camera detections, basic accuracy validation | Week 4 |
 
-### Phase 4: Optimization (Weeks 7-8)
+### Phase 3: Build Web Interface and API (Weeks 5-6)
 
 | Milestone | Description & Sub-Tasks | Target Completion |
 |-----------|-------------------------|------------------|
-| Testing & Validation | System integration, field testing, bug fixes, contingency for simulated data if sensors unavailable; regular backups | Weeks 7-8 |
-| Documentation | Prepare technical docs, user guide, deployment instructions; update as features evolve; buffer for review | Week 8 |
-| Final Review & Deployment | Final QA, stakeholder review, production deployment, contingency for last-minute issues | Week 9 |
+| API Gateway Development | Implement Flask-SocketIO server, REST endpoints, WebSocket communication, CORS configuration | Week 5 |
+| Web Dashboard | Create real-time monitoring interface, data visualization, system status display, responsive design | Week 6 |
+| Real-time Communication | Implement live data streaming, event broadcasting, API documentation, integration testing | Week 6 |
+
+### Phase 4: Integration Testing, Documentation and Basic Optimization (Weeks 7-8)
+
+| Milestone | Description & Sub-Tasks | Target Completion |
+|-----------|-------------------------|------------------|
+| System Integration Testing | End-to-end testing, performance validation, bug fixes, system reliability testing | Week 7 |
+| Performance Optimization | Edge inference optimization, memory management, CPU/GPU utilization, Docker containerization | Week 7 |
+| Documentation & Deployment | Complete technical documentation, user guides, deployment scripts, final system validation | Week 8 |
 
 **Iterative Development & MVP:**
 This project follows an agile, milestone-based approach. The initial focus is on delivering a Minimal Viable Product (MVP) with core features, followed by iterative improvements based on feedback and testing. Each milestone includes buffer time for unforeseen issues and is broken into actionable sub-tasks to ensure steady progress and risk mitigation.

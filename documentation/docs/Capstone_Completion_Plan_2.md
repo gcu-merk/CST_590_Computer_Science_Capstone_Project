@@ -47,30 +47,37 @@ Milestones: M1               M2                 M3                 M4
 
 The project is delivered in four major phases, each building on the previous:
 
-### Phase 1: Core Detection
+### Phase 1 (Weeks 1-2): Get Basic Detection Working
 
-- Integrate Sony IMX500 camera and basic hardware
-- Deploy YOLOv8 object detection (pre-trained)
-- Implement basic object tracking (SORT/DeepSORT)
-- Simple speed calculation using radar FFT
+- Set up Raspberry Pi 5 hardware environment
+- Install and configure Sony IMX500 AI camera
+- Implement basic vehicle detection using TensorFlow Lite
+- Establish data collection and storage foundation
+- Create initial system health monitoring
 
-### Phase 2: Advanced Processing
+### Phase 2 (Weeks 3-4): Add Radar Integration and Simple Correlation
 
-- Custom motion analysis and vehicle velocity calculation
-- Lane detection and basic sensor fusion
-- Traffic analytics and pattern recognition
+- Integrate OPS243-C FMCW Doppler radar sensor
+- Implement GPIO/UART communication for radar data
+- Develop basic data fusion between camera and radar
+- Create simple speed correlation algorithms
+- Establish real-time data processing pipeline
 
-### Phase 3: Intelligent Systems
+### Phase 3 (Weeks 5-6): Build Web Interface and API
 
-- Advanced sensor fusion (ML-based)
-- Anomaly detection and predictive analytics
-- Adaptive learning and system self-improvement
+- Develop Flask-SocketIO API gateway
+- Create real-time WebSocket communication
+- Build web-based dashboard for monitoring
+- Implement REST endpoints for data access
+- Add system configuration management
 
-### Phase 4: Optimization
+### Phase 4 (Weeks 7-8): Integration Testing, Documentation and Basic Optimization
 
-- Performance optimization for real-time processing
-- Environmental adaptation (weather, lighting)
-- Advanced calibration and meta-learning
+- Conduct comprehensive system integration testing
+- Optimize performance for edge deployment
+- Complete technical documentation and user guides
+- Implement Docker containerization
+- Perform final validation and deployment preparation
 
 ## Project Timeline
 
