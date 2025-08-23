@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ci-docker-deploy
 
 jobs:
   build-and-push:
@@ -26,5 +27,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: gcu-merk/cst-590-computer-science-capstone-project:latest
+          tags: gcu-merk/cst590-capstone:latest
           platforms: linux/arm64
