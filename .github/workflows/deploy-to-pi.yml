@@ -10,19 +10,13 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Set up SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.PI_SSH_KEY }}
 
-      - name: Copy code to Raspberry Pi
+      - name: Deploy Docker container to Raspberry Pi
         run: |
-          rsync -avz --delete --exclude='.git*' ./ merk@100.121.231.16:/mnt/ssd/cst_590_computer_science_capstone_project/
-
-      - name: Restart Raspberry Pi
-        run: |
-          ssh merk@100.121.231.16 'sudo reboot'
+          ssh merk@100.121.231.16 'cd /mnt/storage/cst_590_computer_science_capstone_project && docker compose pull && docker compose up -d'
