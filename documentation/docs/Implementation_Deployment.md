@@ -9,8 +9,9 @@
 
 1. [Prerequisites](#1-prerequisites)
 2. [Installation Steps](#2-installation-steps)
-3. [Integration](#3-integration)
-4. [Troubleshooting & Maintenance](#4-troubleshooting--maintenance)
+3. [Automated CI/CD Deployment](#3-automated-cicd-deployment)
+4. [Integration](#4-integration)
+5. [Troubleshooting & Maintenance](#4-troubleshooting--maintenance)
 
 **See also:**
 
@@ -262,7 +263,122 @@ range_filter_min = 1.0
 range_filter_max = 200.0
 ```
 
-### 2.5. Application Deployment (Systemd/Docker)
+---
+
+## 3. Automated CI/CD Deployment
+
+The system includes an automated CI/CD pipeline using GitHub Actions for containerized deployment with Docker. This provides consistent, reliable deployments to your Raspberry Pi.
+
+### 3.1. Pipeline Overview
+
+The CI/CD pipeline consists of two GitHub Actions workflows:
+
+1. **Build and Push Docker Image** - Builds a Docker image and pushes it to Docker Hub
+2. **Deploy to Raspberry Pi** - Pulls the latest image and updates the running container on the Pi
+
+### 3.2. Prerequisites for Automated Deployment
+
+#### Docker Hub Setup
+
+1. Create a Docker Hub account at <https://hub.docker.com>
+2. Create a new repository: `<your-username>/cst-590-computer-science-capstone-project`
+3. Generate an access token with "Read, Write, Delete" permissions:
+   - Go to Account Settings → Security → New Access Token
+   - Save the token securely
+
+#### GitHub Secrets Configuration
+
+Add the following secrets to your GitHub repository (Settings → Secrets and variables → Actions):
+
+- `DOCKERHUB_USERNAME`: Your Docker Hub username
+- `DOCKERHUB_TOKEN`: Your Docker Hub access token
+- `PI_SSH_KEY`: Your SSH private key for connecting to the Raspberry Pi
+
+#### Raspberry Pi Preparation
+
+1. Install Docker on your Raspberry Pi:
+
+   ```bash
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+2. Create the project directory:
+
+   ```bash
+   mkdir -p /mnt/storage/cst_590_computer_science_capstone_project
+   cd /mnt/storage/cst_590_computer_science_capstone_project
+   ```
+
+3. Create a `docker-compose.yml` file:
+
+   ```yaml
+   services:
+     app:
+       image: <your-dockerhub-username>/cst-590-computer-science-capstone-project:latest
+       restart: unless-stopped
+       ports:
+         - "5000:5000"
+       volumes:
+         - /dev:/dev
+         - ./data:/app/data
+         - ./logs:/app/logs
+       privileged: true
+       environment:
+         - PYTHONUNBUFFERED=1
+   ```
+
+### 3.3. How the Pipeline Works
+
+#### Automatic Deployment Process
+
+1. **Code Changes**: Push code changes to the `main` branch
+2. **Build Stage**: GitHub Actions builds a Docker image for ARM64 architecture
+3. **Push Stage**: The image is tagged and pushed to your Docker Hub repository
+4. **Deploy Stage**: Upon successful build, the deploy workflow:
+   - SSHs into your Raspberry Pi
+   - Pulls the latest Docker image
+   - Restarts the container with the new image
+   - Installs Pi-specific packages (picamera2, gpiozero, RPi.GPIO) in the running container
+
+#### Package Management Strategy
+
+The pipeline uses a two-stage package installation approach:
+
+- **Cloud Build**: Installs general packages compatible with cloud build environments
+- **Pi Runtime**: Installs Pi-specific hardware packages directly on the running container
+
+### 3.4. Manual Deployment Commands
+
+If you need to manually deploy or troubleshoot:
+
+```bash
+# On your Raspberry Pi
+cd /mnt/storage/cst_590_computer_science_capstone_project
+
+# Pull latest image and restart
+docker compose pull
+docker compose up -d
+
+# Install Pi-specific packages (if needed)
+docker exec <container_name> pip install picamera2 gpiozero RPi.GPIO gpustat
+
+# Check container status
+docker ps
+docker logs <container_name>
+```
+
+### 3.5. Monitoring Deployments
+
+- **GitHub Actions**: Monitor workflow runs in your repository's Actions tab
+- **Docker Hub**: Check image push status and download counts
+- **Raspberry Pi**: Use `docker ps` and `docker logs` to monitor container health
+
+---
+
+## 4. Integration
 
 1. **Clone project repository**
 
