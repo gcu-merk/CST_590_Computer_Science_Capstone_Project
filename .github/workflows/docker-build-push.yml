@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
-      - ci-docker-deploy
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
   build-and-push:
