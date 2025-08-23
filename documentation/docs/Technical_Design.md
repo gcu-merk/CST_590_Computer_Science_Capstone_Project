@@ -14,10 +14,11 @@
 5. [Component Interaction Diagram](#4-component-interaction-diagram)
 6. [Sequence Diagram (Typical Event Flow)](#5-sequence-diagram-typical-event-flow)
 7. [Deployment Diagram (Physical/Virtual Placement)](#6-deployment-diagram-physicalvirtual-placement)
-8. [Database Entity-Relationship Diagram (ERD)](#7-database-entity-relationship-diagram-erd)
-9. [API Endpoint Map](#8-api-endpoint-map)
-10. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
-11. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
+8. [CI/CD Deployment Architecture](#7-cicd-deployment-architecture)
+9. [Database Entity-Relationship Diagram (ERD)](#8-database-entity-relationship-diagram-erd)
+10. [API Endpoint Map](#8-api-endpoint-map)
+11. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
+12. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
 
 **See also:**
 
@@ -313,7 +314,53 @@ Vehicle Detected
 +-------------------+         +-------------------+         +-------------------+
 ```
 
-## 7. Database Entity-Relationship Diagram (ERD)
+## 7. CI/CD Deployment Architecture
+
+The system uses an automated CI/CD pipeline for consistent, reliable deployments:
+
+```text
++-------------------+      +-------------------+      +-------------------+
+|   Developer       |      | GitHub Actions   |      | Docker Hub        |
+|   Workstation     |      | CI/CD Pipeline    |      | Container Registry|
++-------------------+      +-------------------+      +-------------------+
+         |                          |                          |
+         | git push                 | build & push             | pull image
+         |                          |                          |
+         v                          v                          v
++-------------------+      +-------------------+      +-------------------+
+|   GitHub Repo     |----->| Build Workflow    |----->| Docker Image      |
+|   (Source Code)   |      | (ARM64 Build)     |      | (ARM64/Pi Ready)  |
++-------------------+      +-------------------+      +-------------------+
+                                   |
+                                   | trigger deploy
+                                   |
+                                   v
+                          +-------------------+      +-------------------+
+                          | Deploy Workflow   |----->| Raspberry Pi      |
+                          | (SSH + Docker)    |      | (Production)      |
+                          +-------------------+      +-------------------+
+```
+
+### CI/CD Pipeline Components
+
+1. **Build Workflow** (`docker-build-push.yml`)
+   - Triggered on push to main branch
+   - Builds Docker image for ARM64 architecture
+   - Pushes image to Docker Hub registry
+   - Uses cloud-compatible package requirements
+
+2. **Deploy Workflow** (`deploy-to-pi.yml`)
+   - Triggered after successful build completion
+   - Connects to Raspberry Pi via SSH
+   - Pulls latest Docker image
+   - Restarts container with new image
+   - Installs Pi-specific packages at runtime
+
+3. **Package Management Strategy**
+   - **Cloud Build**: General packages (tensorflow, opencv, flask, etc.)
+   - **Pi Runtime**: Hardware-specific packages (picamera2, gpiozero, RPi.GPIO)
+
+## 8. Database Entity-Relationship Diagram (ERD)
 
 ```text
 +-------------------+      +-------------------+      +-------------------+

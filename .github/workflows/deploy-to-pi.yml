@@ -1,6 +1,5 @@
 name: Deploy to Raspberry Pi
 
-
 on:
   workflow_run:
     workflows: ["Build and Push Docker Image"]
@@ -9,18 +8,16 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+    # Only deploy from main branch to production Pi
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     steps:
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PI_SSH_KEY }}
-
       - name: Deploy Docker container to Raspberry Pi
         run: |
-          ssh merk@100.121.231.16 'cd /mnt/storage/cst_590_computer_science_capstone_project && docker compose pull && docker compose up -d'
+          cd /mnt/storage/cst_590_computer_science_capstone_project
+          docker compose pull
+          docker compose up -d
           
       - name: Install Pi-specific packages in container
         run: |
-          ssh merk@100.121.231.16 'docker exec $(docker compose -f /mnt/storage/cst_590_computer_science_capstone_project/docker-compose.yml ps -q app) pip install picamera2 gpiozero RPi.GPIO gpustat'
+          docker exec traffic-monitoring-edge pip install picamera2 gpiozero RPi.GPIO gpustat

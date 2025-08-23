@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
   build-and-push:
@@ -26,5 +31,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: gcu-merk/cst-590-computer-science-capstone-project:latest
+          tags: gcumerk/cst590-capstone:latest
           platforms: linux/arm64

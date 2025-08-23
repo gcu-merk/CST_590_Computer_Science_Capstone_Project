@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   traffic-monitor:
-    build: .
+    image: gcumerk/cst590-capstone:latest
     container_name: traffic-monitoring-edge
     restart: unless-stopped
     
