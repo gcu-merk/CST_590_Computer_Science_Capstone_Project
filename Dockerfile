@@ -31,11 +31,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Raspberry Pi specific packages
-RUN pip install --no-cache-dir \
-    picamera2 \
-    gpiozero \
-    RPi.GPIO
+
+# Raspberry Pi specific packages (picamera2, gpiozero, RPi.GPIO) should be installed on the Pi itself or in the running container, not during cloud build.
+# See deployment instructions for details.
 
 # Copy requirements first for better caching
 COPY edge-processing/requirements.txt /app/edge-processing/
