@@ -10,6 +10,12 @@
 1. [Prerequisites](#1-prerequisites)
 2. [Installation Steps](#2-installation-steps)
 3. [Automated CI/CD Deployment](#3-automated-cicd-deployment)
+   - [Pipeline Overview](#31-pipeline-overview)
+   - [Branching Strategy](#32-branching-strategy)
+   - [Prerequisites for Automated Deployment](#34-prerequisites-for-automated-deployment)
+   - [How the Pipeline Works](#35-how-the-pipeline-works)
+   - [Manual Deployment Commands](#36-manual-deployment-commands)
+   - [Monitoring Deployments](#37-monitoring-deployments)
 4. [Integration](#4-integration)
 5. [Troubleshooting & Maintenance](#4-troubleshooting--maintenance)
 
@@ -276,7 +282,205 @@ The CI/CD pipeline consists of two GitHub Actions workflows:
 1. **Build and Push Docker Image** - Builds a Docker image and pushes it to Docker Hub
 2. **Deploy to Raspberry Pi** - Pulls the latest image and updates the running container on the Pi
 
-### 3.2. Prerequisites for Automated Deployment
+### 3.2. Branching Strategy
+
+The project uses a **Feature Branch + Main Strategy** for organized development and safe production deployments:
+
+#### Branch Structure
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     BRANCHING STRATEGY                         │
+└─────────────────────────────────────────────────────────────────┘
+
+main        ──●────●────────●────────●──► 🚀 DEPLOY TO PI
+              │    │        │        │
+              │    │        │        │
+develop    ───┼────●────●───●────────┼──► 🔨 BUILD ONLY
+              │    │    │   │        │
+              │    │    │   │        │
+feature/A  ───●────●────●───┘        │    🧪 BUILD & TEST
+              │                      │
+feature/B  ───●──────────────────────●    🧪 BUILD & TEST
+
+Legend:
+● = Commit/Merge Point
+🚀 = Automatic Deployment to Raspberry Pi
+🔨 = Build & Test (No Deployment)
+🧪 = Feature Development & Testing
+```
+
+- **`main`** - Production-ready code that automatically deploys to the Raspberry Pi
+- **`develop`** - Integration branch for testing features together
+- **Feature branches** - Individual features (e.g., `feature/camera-integration`, `feature/speed-detection`)
+
+#### Workflow Process
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    DEVELOPMENT WORKFLOW                        │
+└─────────────────────────────────────────────────────────────────┘
+
+1. Feature Development:
+   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+   │   develop   │───►│ feature/new │───►│    P.R.     │
+   │   (start)   │    │ (create)    │    │ (develop)   │
+   └─────────────┘    └─────────────┘    └─────────────┘
+
+2. Integration Testing:
+   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+   │   feature   │───►│   develop   │───►│   🔨 BUILD  │
+   │  (merge)    │    │ (integrate) │    │ (no deploy) │
+   └─────────────┘    └─────────────┘    └─────────────┘
+
+3. Production Release:
+   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+   │   develop   │───►│    main     │───►│ 🚀 DEPLOY   │
+   │  (merge)    │    │ (production)│    │ (to Pi)     │
+   └─────────────┘    └─────────────┘    └─────────────┘
+```
+
+1. **Feature Development**:
+
+   ```bash
+   # Create feature branch from develop
+   git checkout develop
+   git checkout -b feature/new-feature
+   # Make changes and commit
+   git push -u origin feature/new-feature
+   # Create Pull Request: feature/new-feature → develop
+   ```
+
+2. **Integration Testing**:
+   - Features are merged into `develop` via Pull Requests
+   - `develop` branch triggers builds but **does not deploy** to production
+   - Multiple features can be tested together in `develop`
+
+3. **Production Release**:
+
+   ```bash
+   # When ready for production
+   git checkout main
+   git merge develop
+   git push  # This triggers deployment to Raspberry Pi
+   ```
+
+#### CI/CD Pipeline Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    CI/CD PIPELINE FLOW                         │
+└─────────────────────────────────────────────────────────────────┘
+
+GitHub Repository                 Docker Hub              Raspberry Pi
+┌─────────────────┐               ┌─────────────┐         ┌─────────────┐
+│                 │               │             │         │             │
+│  git push main  │──────────────►│             │         │             │
+│                 │               │             │         │             │
+└─────────────────┘               └─────────────┘         └─────────────┘
+         │                                │                       ▲
+         ▼                                │                       │
+┌─────────────────┐               ┌─────────────┐         ┌─────────────┐
+│  GitHub Actions │               │             │         │             │
+│                 │               │  Container  │         │ Self-hosted │
+│ 1. Build ARM64  │──────────────►│   Image     │────────►│   Runner    │
+│ 2. Push Image   │               │  (latest)   │         │             │
+│                 │               │             │         │             │
+└─────────────────┘               └─────────────┘         └─────────────┘
+                                                                   │
+                                                                   ▼
+                                                          ┌─────────────┐
+                                                          │             │
+                                                          │docker pull  │
+                                                          │docker up -d │
+                                                          │             │
+                                                          └─────────────┘
+
+Flow:
+1. Developer pushes to 'main' branch
+2. GitHub Actions triggers build workflow
+3. ARM64 Docker image built and pushed to Docker Hub  
+4. Deploy workflow triggers on self-hosted runner (Pi)
+5. Pi pulls latest image and restarts container
+```
+
+#### CI/CD Behavior by Branch
+
+| Branch | Build | Test | Deploy to Pi |
+|--------|-------|------|--------------|
+| `main` | ✅ | ✅ | ✅ |
+| `develop` | ✅ | ✅ | ❌ |
+| Feature branches | ✅ | ✅ | ❌ |
+
+**Safety Features**:
+
+- Only `main` branch deploys to production hardware
+- Failed builds prevent deployment
+- Self-hosted runner ensures secure, local deployment
+
+#### Quick Reference Commands
+
+```bash
+# Current branch status
+git branch -a
+
+# Switch between branches
+git checkout main        # Production branch
+git checkout develop     # Integration branch
+
+# Create new feature branch
+git checkout develop
+git checkout -b feature/your-feature-name
+
+# Merge workflow for production release
+git checkout main
+git merge develop
+git push  # Triggers deployment to Pi
+
+# Check deployment status
+# Visit: https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/actions
+```
+
+### 3.3. Prerequisites for Automated Deployment
+
+### 3.4. Prerequisites for Automated Deployment
+
+#### Self-Hosted Runner Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                 SELF-HOSTED RUNNER SETUP                       │
+└─────────────────────────────────────────────────────────────────┘
+
+GitHub Cloud                              Raspberry Pi (Local Network)
+┌─────────────────┐                      ┌─────────────────────────────┐
+│                 │                      │                             │
+│ GitHub Actions  │                      │     📱 Self-hosted Runner   │
+│                 │                      │                             │
+│  Workflow:      │       HTTPS          │  ┌─────────────────────────┐ │
+│  Deploy to Pi   │◄────Secure Tunnel───►│  │  ./run.sh               │ │
+│                 │                      │  │  Listening for Jobs...  │ │
+│  Status: ✅     │                      │  └─────────────────────────┘ │
+└─────────────────┘                      │              │              │
+                                         │              ▼              │
+                                         │  ┌─────────────────────────┐ │
+                                         │  │  Docker Engine          │ │
+                                         │  │                         │ │
+         Internet/Cloud                  │  │  docker compose pull    │ │
+    ┌─────────────────────┐             │  │  docker compose up -d   │ │
+    │                     │             │  │                         │ │
+    │     Docker Hub      │◄────────────┤  └─────────────────────────┘ │
+    │                     │             │                             │
+    │ gcumerk/cst590-     │             │  🏠 Home Network           │
+    │ capstone:latest     │             │  IP: 100.121.231.16        │
+    └─────────────────────┘             └─────────────────────────────┘
+
+Benefits:
+✅ No SSH connectivity issues
+✅ Runs locally on target hardware  
+✅ Secure GitHub authentication
+✅ Direct hardware access
+```
 
 #### Docker Hub Setup
 
@@ -330,7 +534,7 @@ Add the following secrets to your GitHub repository (Settings → Secrets and va
          - PYTHONUNBUFFERED=1
    ```
 
-### 3.3. How the Pipeline Works
+### 3.5. How the Pipeline Works
 
 #### Automatic Deployment Process
 
@@ -350,7 +554,7 @@ The pipeline uses a two-stage package installation approach:
 - **Cloud Build**: Installs general packages compatible with cloud build environments
 - **Pi Runtime**: Installs Pi-specific hardware packages directly on the running container
 
-### 3.4. Manual Deployment Commands
+### 3.6. Manual Deployment Commands
 
 If you need to manually deploy or troubleshoot:
 
@@ -370,7 +574,7 @@ docker ps
 docker logs <container_name>
 ```
 
-### 3.5. Monitoring Deployments
+### 3.7. Monitoring Deployments
 
 - **GitHub Actions**: Monitor workflow runs in your repository's Actions tab
 - **Docker Hub**: Check image push status and download counts
