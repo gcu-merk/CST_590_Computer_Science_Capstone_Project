@@ -36,12 +36,12 @@ RUN apt-get update && apt-get install -y \
 # See deployment instructions for details.
 
 # Copy requirements first for better caching
-COPY edge-processing/requirements-cloud.txt /app/edge-processing/
-COPY edge-api/requirements.txt /app/edge-api/
+COPY edge_processing/requirements-cloud.txt /app/edge_processing/
+COPY edge_api/requirements.txt /app/edge_api/
 
 # Install Python dependencies (cloud-compatible only)
-RUN pip install --no-cache-dir -r edge-processing/requirements-cloud.txt
-RUN pip install --no-cache-dir -r edge-api/requirements.txt
+RUN pip install --no-cache-dir -r edge_processing/requirements-cloud.txt
+RUN pip install --no-cache-dir -r edge_api/requirements.txt
 
 # Copy application code
 COPY . /app/

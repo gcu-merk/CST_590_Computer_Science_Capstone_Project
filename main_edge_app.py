@@ -12,8 +12,8 @@ import threading
 from pathlib import Path
 
 # Add edge processing modules to path
-sys.path.append(str(Path(__file__).parent / "edge-processing"))
-sys.path.append(str(Path(__file__).parent / "edge-api"))
+sys.path.append(str(Path(__file__).parent / "edge_processing"))
+sys.path.append(str(Path(__file__).parent / "edge_api"))
 
 from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService
 from edge_processing.speed_analysis.speed_analysis_service import SpeedAnalysisService

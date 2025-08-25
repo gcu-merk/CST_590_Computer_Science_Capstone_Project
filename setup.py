@@ -61,8 +61,8 @@ def install_python_dependencies():
     commands = [
         (f"{pip_command} install --upgrade pip", "Upgrading pip"),
         (f"{pip_command} install wheel setuptools", "Installing build tools"),
-        (f"{pip_command} install -r edge-processing/requirements.txt", "Installing edge processing dependencies"),
-        (f"{pip_command} install -r edge-api/requirements.txt", "Installing edge API dependencies")
+        (f"{pip_command} install -r edge_processing/requirements.txt", "Installing edge processing dependencies"),
+        (f"{pip_command} install -r edge_api/requirements.txt", "Installing edge API dependencies")
     ]
     
     for command, description in commands:
