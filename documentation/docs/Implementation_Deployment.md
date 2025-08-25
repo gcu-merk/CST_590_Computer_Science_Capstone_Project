@@ -1,7 +1,7 @@
 # Implementation & Deployment Guide
 
-**Document Version:** 1.0  
-**Last Updated:** August 7, 2025  
+**Document Version:** 2.0  
+**Last Updated:** August 24, 2025  
 **Project:** Raspberry Pi 5 Edge ML Traffic Monitoring System  
 **Authors:** Implementation Team  
 
@@ -12,12 +12,15 @@
 3. [Automated CI/CD Deployment](#3-automated-cicd-deployment)
    - [Pipeline Overview](#31-pipeline-overview)
    - [Branching Strategy](#32-branching-strategy)
+   - [Automation Tools](#33-automation-tools)
    - [Prerequisites for Automated Deployment](#34-prerequisites-for-automated-deployment)
    - [How the Pipeline Works](#35-how-the-pipeline-works)
    - [Manual Deployment Commands](#36-manual-deployment-commands)
    - [Monitoring Deployments](#37-monitoring-deployments)
-4. [Integration](#4-integration)
-5. [Troubleshooting & Maintenance](#4-troubleshooting--maintenance)
+4. [Git Workflow Automation](#4-git-workflow-automation)
+5. [Raspberry Pi Deployment](#5-raspberry-pi-deployment)
+6. [Integration](#6-integration)
+7. [Troubleshooting & Maintenance](#7-troubleshooting--maintenance)
 
 **See also:**
 
@@ -25,6 +28,7 @@
 - [User Guide](./User_Guide.md)
 - [Project Management Summary](./Project_Management.md)
 - [References & Appendices](./References_Appendices.md)
+- [Raspberry Pi Deployment Guide](../../PI_DEPLOYMENT_GUIDE.md)
 
 ## 1. Prerequisites
 
@@ -314,6 +318,70 @@ Legend:
 - **`develop`** - Integration branch for testing features together
 - **Feature branches** - Individual features (e.g., `feature/camera-integration`, `feature/speed-detection`)
 
+### 3.3. Automation Tools
+
+The project includes several automation tools to streamline development workflow:
+
+#### Smart Push Script (`smart-push.cmd`)
+
+Intelligent Git commit and push automation with automatic branch creation:
+
+```bash
+# Basic usage - auto-detects changes and creates appropriate commit message
+smart-push
+
+# Preview what would be done without executing
+smart-push -dry
+
+# Use custom branch name
+smart-push -b "feature/new-api"
+
+# Custom commit message
+smart-push -m "feat: add new API endpoints"
+
+# Stage all changes before committing
+smart-push -all
+```
+
+**Features:**
+- **Automatic Branch Creation**: Creates feature branches when working on main/master
+- **Intelligent Commit Messages**: Generates conventional commit messages based on file changes
+- **File Analysis**: Detects commit type (feat, fix, docs, etc.) from modified files
+- **Interactive Mode**: Options to edit commit messages and branch names
+- **Dry Run Mode**: Preview all actions without executing
+
+#### Branch Cleanup Script (`branch-cleanup.cmd`)
+
+Automated cleanup of merged Git branches:
+
+```bash
+# Clean up merged branches
+branch-cleanup
+
+# Preview cleanup without executing
+branch-cleanup -dry
+
+# Force cleanup without confirmation
+branch-cleanup -force
+```
+
+**Features:**
+- **Smart Detection**: Identifies branches merged into main
+- **Safe Operation**: Confirms before deleting branches
+- **Remote Cleanup**: Removes both local and remote merged branches
+- **Status Reporting**: Shows before/after repository state
+
+#### Command Examples
+
+```bash
+# Typical development workflow
+smart-push -b "feature/radar-integration"    # Create feature branch and commit
+# ... work on feature ...
+smart-push -m "feat: add radar sensor support"   # Commit changes
+# ... create PR, merge to main ...
+branch-cleanup                              # Clean up merged branches
+```
+
 #### Workflow Process
 
 ```text
@@ -579,6 +647,279 @@ docker logs <container_name>
 - **GitHub Actions**: Monitor workflow runs in your repository's Actions tab
 - **Docker Hub**: Check image push status and download counts
 - **Raspberry Pi**: Use `docker ps` and `docker logs` to monitor container health
+
+---
+
+## 4. Git Workflow Automation
+
+The project includes comprehensive Git workflow automation tools to streamline development processes and maintain code quality.
+
+### 4.1. Smart Push Workflow
+
+The smart push script provides intelligent automation for the entire commit and push process:
+
+#### Features
+
+- **Automatic Branch Management**: Creates feature branches when working on main/master
+- **Intelligent Commit Messages**: Analyzes file changes to generate conventional commit messages
+- **File Type Detection**: Determines commit type (feat, fix, docs, refactor, etc.) based on modified files
+- **Interactive Confirmation**: Allows editing of auto-generated messages
+- **Dry Run Mode**: Preview all actions without executing
+
+#### Usage Examples
+
+```bash
+# Start working on a new feature (auto-creates branch)
+smart-push -b "feature/camera-integration"
+
+# Make changes and commit with auto-generated message
+smart-push
+
+# Preview changes without committing
+smart-push -dry
+
+# Force a specific commit type
+smart-push -m "feat: add camera module support"
+```
+
+#### Commit Message Generation
+
+The script analyzes file changes to suggest appropriate commit types:
+
+| File Pattern | Suggested Type | Example |
+|--------------|----------------|---------|
+| `*.md`, `docs/` | `docs` | `docs: update API documentation` |
+| `test_*.py`, `*_test.py` | `test` | `test: add camera integration tests` |
+| `*.py`, `*.js` in src/ | `feat` | `feat: implement speed detection` |
+| `requirements.txt`, `package.json` | `deps` | `deps: update opencv dependencies` |
+| `Dockerfile`, `docker-compose.yml` | `ci` | `ci: update Docker configuration` |
+
+### 4.2. Branch Cleanup Automation
+
+Automated cleanup of merged branches maintains a clean repository:
+
+#### Features
+
+- **Merged Branch Detection**: Identifies branches that have been merged into main
+- **Safe Deletion**: Confirms before removing branches
+- **Remote Synchronization**: Cleans up both local and remote branches
+- **Status Reporting**: Shows repository state before and after cleanup
+
+#### Cleanup Process
+
+```bash
+# Review and clean up merged branches
+branch-cleanup
+
+# See what would be cleaned without doing it
+branch-cleanup -dry
+
+# Force cleanup without confirmation (use with caution)
+branch-cleanup -force
+```
+
+### 4.3. Development Workflow Integration
+
+The automation tools integrate seamlessly with the standard development workflow:
+
+#### Typical Development Cycle
+
+```bash
+# 1. Start new feature
+smart-push -b "feature/radar-integration"
+
+# 2. Make changes and commit
+# Edit files...
+smart-push  # Auto-detects changes and creates commit message
+
+# 3. Continue development
+# More changes...
+smart-push -m "feat: add radar calibration"
+
+# 4. Create Pull Request (via GitHub web interface)
+# 5. After merge to main, cleanup
+branch-cleanup
+```
+
+#### Best Practices
+
+- **Use descriptive branch names**: `feature/component-description` or `fix/issue-description`
+- **Let smart-push generate commit messages**: Review and edit if needed
+- **Regular cleanup**: Run `branch-cleanup` after merging PRs
+- **Use dry run for testing**: Always test with `-dry` flag first
+
+---
+
+## 5. Raspberry Pi Deployment
+
+Comprehensive deployment solution for Raspberry Pi with multiple deployment options and robust troubleshooting.
+
+### 5.1. Deployment Options
+
+#### Option 1: Automated GitHub Actions
+
+Fully automated deployment triggered by successful builds on the main branch.
+
+**Requirements:**
+- Self-hosted GitHub runner on Raspberry Pi
+- Docker and Docker Compose installed
+- Repository secrets configured
+
+**Setup:**
+1. Configure self-hosted runner on Pi
+2. Set up repository secrets (if needed)
+3. Push to main branch triggers automatic deployment
+
+#### Option 2: Manual Script Deployment
+
+Use the provided deployment script for manual or testing deployments.
+
+```bash
+# Clone repository
+git clone https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project.git
+cd CST_590_Computer_Science_Capstone_Project
+
+# Make scripts executable
+chmod +x scripts/deploy-to-pi.sh scripts/pi-troubleshoot.sh
+
+# Run deployment
+bash scripts/deploy-to-pi.sh
+```
+
+**Script Features:**
+- Environment validation
+- Docker image management
+- Container lifecycle management
+- Pi-specific package installation
+- Health checks and verification
+
+#### Option 3: Direct Docker Compose
+
+Minimal deployment using only Docker Compose.
+
+```bash
+# Create deployment directory
+mkdir -p ~/traffic-monitor-deploy
+cd ~/traffic-monitor-deploy
+
+# Download docker-compose.yml
+wget https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/docker-compose.yml
+
+# Create required directories
+mkdir -p data logs config
+
+# Deploy
+docker-compose up -d
+```
+
+### 5.2. Deployment Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    RASPBERRY PI DEPLOYMENT                     │
+└─────────────────────────────────────────────────────────────────┘
+
+GitHub Repository
+       │
+       │ push to main
+       ▼
+GitHub Actions CI/CD
+       │
+       │ build & push
+       ▼
+Docker Hub Registry
+       │
+       │ pull latest
+       ▼
+┌─────────────────────────────┐
+│     Raspberry Pi Host       │
+│                             │
+│  ┌─────────────────────────┐│
+│  │   Docker Container      ││
+│  │                         ││
+│  │  ├── Flask API         ││
+│  │  ├── ML Models         ││
+│  │  ├── Camera Interface  ││
+│  │  ├── Radar Interface   ││
+│  │  └── Data Processing   ││
+│  │                         ││
+│  └─────────────────────────┘│
+│                             │
+│  Hardware Interfaces:       │
+│  ├── /dev/video0 (Camera)   │
+│  ├── /dev/ttyACM0 (Radar)   │
+│  └── /dev/gpiomem (GPIO)    │
+└─────────────────────────────┘
+```
+
+### 5.3. Troubleshooting Tools
+
+#### Pi Troubleshooting Script
+
+Comprehensive diagnostic tool for deployment issues:
+
+```bash
+# Run full diagnostics
+bash scripts/pi-troubleshoot.sh
+```
+
+**Diagnostic Areas:**
+- System information and hardware detection
+- Docker installation and configuration
+- Container status and health
+- Network connectivity and API endpoints
+- Hardware device access
+- Disk space and resource usage
+
+#### Common Issues and Solutions
+
+| Issue | Diagnostic Command | Solution |
+|-------|-------------------|----------|
+| Container won't start | `docker-compose logs traffic-monitor` | Check image pull, fix configuration |
+| API not responding | `curl http://localhost:5000/api/health` | Verify container networking |
+| Hardware access denied | `ls -la /dev/video* /dev/ttyACM*` | Check device permissions |
+| Docker permission denied | `groups \| grep docker` | Add user to docker group |
+
+### 5.4. Monitoring and Maintenance
+
+#### Health Monitoring
+
+```bash
+# Check container status
+cd ~/traffic-monitor-deploy
+docker-compose ps
+
+# View real-time logs
+docker-compose logs -f
+
+# Test API health
+curl http://localhost:5000/api/health
+```
+
+#### Updates and Maintenance
+
+```bash
+# Update to latest version
+cd ~/traffic-monitor-deploy
+docker-compose pull
+docker-compose up -d
+
+# Clean up old resources
+docker system prune -f
+```
+
+#### Performance Monitoring
+
+```bash
+# Monitor resource usage
+docker stats
+
+# Check disk usage
+df -h
+docker system df
+```
+
+For detailed deployment instructions, see the [Raspberry Pi Deployment Guide](../../PI_DEPLOYMENT_GUIDE.md).
 
 ---
 

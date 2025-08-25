@@ -5,29 +5,31 @@
 
 ## Raspberry Pi 5 Edge ML Traffic Monitoring System - User Guide
 
-**Version:** 1.0  
-**Date:** August 7, 2025  
+**Version:** 2.0  
+**Date:** August 24, 2025  
 **Copyright:** © 2025 gcu-merk. All rights reserved.  
 **Preface:**  
-This guide provides comprehensive instructions for installing, configuring, and using the Raspberry Pi 5 Edge ML Traffic Monitoring System. It is intended for both technical and non-technical users.
+This guide provides comprehensive instructions for installing, configuring, and using the Raspberry Pi 5 Edge ML Traffic Monitoring System. It includes new automation tools and deployment options for both technical and non-technical users.
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** August 7, 2025  
+**Document Version:** 2.0  
+**Last Updated:** August 24, 2025  
 **Project:** Raspberry Pi 5 Edge ML Traffic Monitoring System  
 **Authors:** Documentation Team  
 
 ## Table of Contents
 
 1. [System Features Overview](#1-system-features-overview)
-2. [Web Dashboard](#2-web-dashboard)
-3. [Mobile App (if applicable)](#3-mobile-app-if-applicable)
-4. [Example Use Cases](#4-example-use-cases)
-5. [Frequently Asked Questions](#5-frequently-asked-questions)
-6. [Support](#6-support)
-7. [Glossary](#7-glossary)  
-8. [Appendices](#8-appendices)
+2. [Quick Start Guide](#2-quick-start-guide)
+3. [Development Tools](#3-development-tools)
+4. [Web Dashboard](#4-web-dashboard)
+5. [Mobile App (if applicable)](#5-mobile-app-if-applicable)
+6. [Example Use Cases](#6-example-use-cases)
+7. [Frequently Asked Questions](#7-frequently-asked-questions)
+8. [Support](#8-support)
+9. [Glossary](#9-glossary)  
+10. [Appendices](#10-appendices)
 
 **See also:**
 
@@ -35,6 +37,7 @@ This guide provides comprehensive instructions for installing, configuring, and 
 - [Implementation & Deployment Guide](./Implementation_Deployment.md)
 - [Project Management Summary](./Project_Management.md)
 - [References & Appendices](./References_Appendices.md)
+- [Raspberry Pi Deployment Guide](../../PI_DEPLOYMENT_GUIDE.md)
 
 ## 1. System Features Overview
 
@@ -62,6 +65,166 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle 
 - **Operator:** Installs, configures, and maintains the system on-site
 - **Traffic Analyst:** Reviews real-time and historical data, generates reports
 - **Administrator:** Manages user access, system configuration, and cloud integration
+
+## 2. Quick Start Guide
+
+### For End Users (Non-Technical)
+
+If the system is already installed and configured, you can access it immediately:
+
+1. **Access the Dashboard**
+   - Open a web browser
+   - Navigate to `http://[raspberry-pi-ip]:5000`
+   - You should see the traffic monitoring dashboard
+
+2. **View Live Traffic**
+   - The main dashboard shows real-time vehicle detection
+   - Speed readings appear as vehicles are detected
+   - Recent events are listed in the event table
+
+3. **Check System Status**
+   - Green indicators show the system is working properly
+   - Red indicators suggest issues that may need attention
+
+### For System Administrators
+
+If you need to deploy or maintain the system:
+
+1. **Quick Deployment**
+   ```bash
+   # Clone the repository
+   git clone https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project.git
+   cd CST_590_Computer_Science_Capstone_Project
+   
+   # Run automated deployment
+   bash scripts/deploy-to-pi.sh
+   ```
+
+2. **Verify Installation**
+   ```bash
+   # Check system health
+   bash scripts/pi-troubleshoot.sh
+   
+   # Test API endpoint
+   curl http://localhost:5000/api/health
+   ```
+
+3. **Access Logs**
+   ```bash
+   # View container logs
+   cd ~/traffic-monitor-deploy
+   docker-compose logs -f
+   ```
+
+## 3. Development Tools
+
+The project includes powerful automation tools to streamline development and deployment workflows.
+
+### 3.1. Smart Push Tool
+
+Intelligent Git workflow automation for developers:
+
+#### Basic Usage
+
+```bash
+# Auto-commit and push with intelligent message generation
+smart-push
+
+# Preview what would be done (dry run)
+smart-push -dry
+
+# Create a custom feature branch
+smart-push -b "feature/speed-detection"
+
+# Use a custom commit message
+smart-push -m "feat: implement radar speed detection"
+```
+
+#### Features
+
+- **Automatic Branch Creation**: Creates feature branches when working on main
+- **Intelligent Commit Messages**: Analyzes file changes to suggest commit types
+- **Conventional Commits**: Follows conventional commit format (feat:, fix:, docs:, etc.)
+- **Interactive Mode**: Allows editing of auto-generated messages
+- **File Analysis**: Detects commit scope based on modified files
+
+#### Commit Message Examples
+
+The tool analyzes your changes and suggests appropriate commit messages:
+
+- Modified documentation files → `docs: update API documentation`
+- Added test files → `test: add camera integration tests`
+- Updated Python modules → `feat: implement speed detection algorithm`
+- Changed Docker configuration → `ci: update container deployment`
+
+### 3.2. Branch Cleanup Tool
+
+Automated cleanup of merged Git branches:
+
+```bash
+# Clean up merged branches (interactive)
+branch-cleanup
+
+# Preview cleanup without executing
+branch-cleanup -dry
+
+# Force cleanup without confirmation
+branch-cleanup -force
+```
+
+#### Features
+
+- **Safe Operation**: Confirms before deleting branches
+- **Smart Detection**: Identifies branches merged into main
+- **Remote Sync**: Cleans up both local and remote branches
+- **Status Reporting**: Shows repository state before/after cleanup
+
+### 3.3. Development Workflow
+
+#### Typical Development Cycle
+
+```bash
+# 1. Start new feature
+smart-push -b "feature/camera-integration"
+
+# 2. Make changes and commit with auto-generated message
+# Edit files...
+smart-push
+
+# 3. Continue development
+# More changes...
+smart-push -m "feat: add camera calibration"
+
+# 4. Create Pull Request (via GitHub)
+# 5. After merge, cleanup
+branch-cleanup
+```
+
+#### Best Practices
+
+- **Use descriptive branch names**: `feature/component-description`
+- **Let automation help**: Review auto-generated commit messages
+- **Regular cleanup**: Run `branch-cleanup` after merging PRs
+- **Test first**: Use `-dry` flag to preview actions
+
+### 3.4. Deployment Automation
+
+#### Raspberry Pi Deployment
+
+```bash
+# Automated deployment script
+bash scripts/deploy-to-pi.sh
+
+# Troubleshooting and diagnostics
+bash scripts/pi-troubleshoot.sh
+```
+
+#### GitHub Actions CI/CD
+
+- **Automatic builds**: Triggered on push to feature branches
+- **Automatic deployment**: Triggered on merge to main branch
+- **Docker integration**: Builds and pushes images to Docker Hub
+- **Pi deployment**: Pulls latest images and updates running containers
 
 ## 2. Web Dashboard
 

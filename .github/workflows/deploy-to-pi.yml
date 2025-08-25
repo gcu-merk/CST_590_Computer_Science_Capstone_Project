@@ -11,13 +11,172 @@ jobs:
     runs-on: self-hosted
     # Only deploy from main branch to production Pi
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    
     steps:
-      - name: Deploy Docker container to Raspberry Pi
-        run: |
-          cd /mnt/storage/cst_590_computer_science_capstone_project
-          docker compose pull
-          docker compose up -d
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+        with:
+          ref: main
           
-      - name: Install Pi-specific packages in container
+      - name: Verify deployment environment
         run: |
-          docker exec traffic-monitoring-edge pip install picamera2 gpiozero RPi.GPIO gpustat
+          echo "🔍 Verifying Raspberry Pi deployment environment..."
+          
+          # Check if we're on a Raspberry Pi
+          if ! grep -q "BCM" /proc/cpuinfo; then
+            echo "⚠️  Warning: Not running on Raspberry Pi hardware"
+          fi
+          
+          # Check Docker installation
+          if ! command -v docker &> /dev/null; then
+            echo "❌ Docker is not installed"
+            exit 1
+          fi
+          
+          # Check Docker Compose installation
+          if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+            echo "❌ Docker Compose is not installed"
+            exit 1
+          fi
+          
+          # Check if deployment directory exists, create if not
+          DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+          if [ ! -d "$DEPLOY_DIR" ]; then
+            echo "📁 Creating deployment directory: $DEPLOY_DIR"
+            mkdir -p "$DEPLOY_DIR"
+          fi
+          
+          echo "✅ Environment verification complete"
+          
+      - name: Setup deployment directory
+        run: |
+          DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+          cd "$DEPLOY_DIR"
+          
+          echo "📁 Setting up deployment directory..."
+          
+          # Copy necessary files
+          cp "${GITHUB_WORKSPACE}/docker-compose.yml" .
+          
+          # Create required directories
+          mkdir -p data logs config
+          
+          # Set proper permissions
+          chmod 755 data logs config
+          
+          echo "✅ Deployment directory setup complete"
+          
+      - name: Stop existing containers
+        run: |
+          DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+          cd "$DEPLOY_DIR"
+          
+          echo "🛑 Stopping existing containers..."
+          
+          # Stop and remove existing containers gracefully
+          if [ -f docker-compose.yml ]; then
+            docker-compose down || true
+          fi
+          
+          # Clean up any orphaned containers
+          docker container prune -f || true
+          
+          echo "✅ Existing containers stopped"
+          
+      - name: Pull latest Docker image
+        run: |
+          echo "📥 Pulling latest Docker image..."
+          
+          # Pull the latest image
+          docker pull gcumerk/cst590-capstone:latest
+          
+          # Remove old/unused images to save space
+          docker image prune -f || true
+          
+          echo "✅ Latest image pulled successfully"
+          
+      - name: Deploy new containers
+        run: |
+          DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+          cd "$DEPLOY_DIR"
+          
+          echo "🚀 Deploying new containers..."
+          
+          # Start the containers
+          docker-compose up -d
+          
+          echo "✅ Containers deployed successfully"
+          
+      - name: Install Pi-specific packages
+        run: |
+          echo "📦 Installing Raspberry Pi specific packages..."
+          
+          # Wait for container to be ready
+          sleep 10
+          
+          # Get the actual container name
+          CONTAINER_NAME=$(docker-compose ps -q traffic-monitor)
+          
+          if [ -n "$CONTAINER_NAME" ]; then
+            # Install Pi-specific packages
+            docker exec "$CONTAINER_NAME" pip install --no-cache-dir \
+              picamera2 \
+              gpiozero \
+              RPi.GPIO \
+              gpustat || echo "⚠️  Some packages may not be available"
+          else
+            echo "❌ Container not found or not running"
+            exit 1
+          fi
+          
+          echo "✅ Pi-specific packages installed"
+          
+      - name: Verify deployment
+        run: |
+          DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+          cd "$DEPLOY_DIR"
+          
+          echo "🔍 Verifying deployment..."
+          
+          # Check container status
+          docker-compose ps
+          
+          # Get container name
+          CONTAINER_NAME=$(docker-compose ps -q traffic-monitor)
+          
+          if [ -n "$CONTAINER_NAME" ]; then
+            # Check container health
+            echo "📊 Container status:"
+            docker inspect "$CONTAINER_NAME" --format='{{.State.Status}}'
+            
+            # Check if API is responding (with timeout)
+            echo "🌐 Testing API endpoint..."
+            for i in {1..10}; do
+              if curl -f -s --max-time 5 http://localhost:5000/api/health >/dev/null 2>&1; then
+                echo "✅ API is responding"
+                break
+              else
+                echo "⏳ Waiting for API... (attempt $i/10)"
+                sleep 6
+              fi
+            done
+            
+            # Show container logs for debugging
+            echo "📝 Recent container logs:"
+            docker logs --tail 20 "$CONTAINER_NAME"
+          else
+            echo "❌ Container verification failed"
+            exit 1
+          fi
+          
+          echo "✅ Deployment verification complete"
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Performing cleanup..."
+          
+          # Remove unused Docker resources
+          docker system prune -f --volumes || true
+          
+          echo "✅ Cleanup complete"
