@@ -106,7 +106,9 @@ jobs:
         run: |
           echo "=== Deployment Summary ==="
           echo "✅ Deployment completed successfully"
-          echo "📍 Deployment directory: /home/$(whoami)/traffic-monitor-deploy"
-          echo "🐳 Containers:"
-          docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}"
+          DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
+          echo "� Deployment directory: $DEPLOY_DIR"
+          echo "�🐳 Containers:"
+          cd "$DEPLOY_DIR"
+          docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}" || echo "Container status unavailable"
           echo "🌐 Access dashboard at: http://$(hostname -I | awk '{print $1}'):5000"
