@@ -19,8 +19,6 @@
    - [Monitoring Deployments](#37-monitoring-deployments)
 4. [Git Workflow Automation](#4-git-workflow-automation)
 5. [Raspberry Pi Deployment](#5-raspberry-pi-deployment)
-6. [Integration](#6-integration)
-7. [Troubleshooting & Maintenance](#7-troubleshooting--maintenance)
 
 **See also:**
 
@@ -344,6 +342,7 @@ smart-push -all
 ```
 
 **Features:**
+
 - **Automatic Branch Creation**: Creates feature branches when working on main/master
 - **Intelligent Commit Messages**: Generates conventional commit messages based on file changes
 - **File Analysis**: Detects commit type (feat, fix, docs, etc.) from modified files
@@ -366,6 +365,7 @@ branch-cleanup -force
 ```
 
 **Features:**
+
 - **Smart Detection**: Identifies branches merged into main
 - **Safe Operation**: Confirms before deleting branches
 - **Remote Cleanup**: Removes both local and remote merged branches
@@ -698,7 +698,7 @@ The script analyzes file changes to suggest appropriate commit types:
 
 Automated cleanup of merged branches maintains a clean repository:
 
-#### Features
+#### Key Features
 
 - **Merged Branch Detection**: Identifies branches that have been merged into main
 - **Safe Deletion**: Confirms before removing branches
@@ -761,11 +761,13 @@ Comprehensive deployment solution for Raspberry Pi with multiple deployment opti
 Fully automated deployment triggered by successful builds on the main branch.
 
 **Requirements:**
+
 - Self-hosted GitHub runner on Raspberry Pi
 - Docker and Docker Compose installed
 - Repository secrets configured
 
 **Setup:**
+
 1. Configure self-hosted runner on Pi
 2. Set up repository secrets (if needed)
 3. Push to main branch triggers automatic deployment
@@ -787,6 +789,7 @@ bash scripts/deploy-to-pi.sh
 ```
 
 **Script Features:**
+
 - Environment validation
 - Docker image management
 - Container lifecycle management
@@ -864,6 +867,7 @@ bash scripts/pi-troubleshoot.sh
 ```
 
 **Diagnostic Areas:**
+
 - System information and hardware detection
 - Docker installation and configuration
 - Container status and health

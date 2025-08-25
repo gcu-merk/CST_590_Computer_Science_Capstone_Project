@@ -181,7 +181,7 @@ branch-cleanup
 # Do you want to proceed with cleanup? (y/N): y
 ```
 
-#### Advanced Options
+#### Command Options
 
 ```bash
 # Preview cleanup without executing
@@ -238,10 +238,12 @@ Feature Branch Push
 ### 4.2. Build Workflow (`docker-build-push.yml`)
 
 **Triggers:**
+
 - Push to `main` or `develop` branches
 - Pull requests to `main` or `develop`
 
 **Actions:**
+
 1. Checkout code
 2. Set up Docker Buildx
 3. Login to Docker Hub
@@ -251,9 +253,11 @@ Feature Branch Push
 ### 4.3. Deploy Workflow (`deploy-to-pi.yml`)
 
 **Triggers:**
+
 - Successful completion of build workflow on `main` branch
 
 **Actions:**
+
 1. Verify deployment environment
 2. Setup deployment directory
 3. Stop existing containers
@@ -268,6 +272,7 @@ Feature Branch Push
 #### GitHub Actions Dashboard
 
 Monitor workflow runs in your repository's Actions tab:
+
 - Build status and logs
 - Deployment success/failure
 - Error details and diagnostics
@@ -275,6 +280,7 @@ Monitor workflow runs in your repository's Actions tab:
 #### Docker Hub Integration
 
 Track image builds and deployments:
+
 - Image push timestamps
 - Download statistics
 - Tag management
@@ -376,11 +382,13 @@ docker inspect traffic-monitoring-edge
 #### Recommended Development Cycle
 
 1. **Start Feature Development**
+
    ```bash
    smart-push -b "feature/descriptive-name"
    ```
 
 2. **Iterative Development**
+
    ```bash
    # Make changes
    smart-push  # Auto-commit with intelligent message
@@ -392,6 +400,7 @@ docker inspect traffic-monitoring-edge
    - Request code review
 
 4. **Post-Merge Cleanup**
+
    ```bash
    branch-cleanup  # Remove merged branches
    ```
@@ -406,6 +415,7 @@ docker inspect traffic-monitoring-edge
 #### Commit Message Guidelines
 
 Follow conventional commit format:
+
 - **feat**: New features
 - **fix**: Bug fixes
 - **docs**: Documentation updates

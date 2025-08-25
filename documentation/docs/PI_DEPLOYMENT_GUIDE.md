@@ -120,6 +120,7 @@ docker-compose up -d
 ## 🔄 Updates and Maintenance
 
 ### Update to Latest Version
+
 ```bash
 cd ~/traffic-monitor-deploy
 
@@ -131,6 +132,7 @@ docker-compose up -d
 ```
 
 ### Cleanup Old Resources
+
 ```bash
 # Remove unused Docker resources
 docker system prune -f
@@ -142,6 +144,7 @@ docker image prune -f
 ## 🚨 Troubleshooting Common Issues
 
 ### Issue 1: Container Won't Start
+
 ```bash
 # Check logs
 docker-compose logs traffic-monitor
@@ -154,6 +157,7 @@ docker pull gcumerk/cst590-capstone:latest
 ```
 
 ### Issue 2: Hardware Access Problems
+
 ```bash
 # Check device permissions
 ls -la /dev/video* /dev/ttyACM* /dev/gpiomem
@@ -163,6 +167,7 @@ ls -la /dev/video* /dev/ttyACM* /dev/gpiomem
 ```
 
 ### Issue 3: API Not Responding
+
 ```bash
 # Check port binding
 netstat -tlnp | grep 5000
@@ -175,6 +180,7 @@ sudo ufw status
 ```
 
 ### Issue 4: Permission Denied
+
 ```bash
 # Add user to docker group
 sudo usermod -aG docker $USER
@@ -186,6 +192,7 @@ docker ps
 ## 📋 Deployment Script Options
 
 ### deploy-to-pi.sh Options
+
 ```bash
 # Normal deployment
 bash scripts/deploy-to-pi.sh

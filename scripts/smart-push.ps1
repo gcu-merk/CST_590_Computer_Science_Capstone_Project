@@ -192,20 +192,47 @@ function Get-AutoCommitMessage {
     
     if ($fileCount -eq 1) {
         $file = $filesToAnalyze[0]
-        $fileName = Split-Path $file -Leaf
-        if ($file -match '\.(md|txt)$') {
+        
+        # Handle renamed files - use the new path
+        $cleanFile = $file
+        if ($file -match "(.+)\s*->\s*(.+)") {
+            $cleanFile = $matches[2].Trim()
+        }
+        # Remove any leading status characters
+        $cleanFile = $cleanFile -replace '^[AMDRC?!\s]+', ''
+        
+        $fileName = Split-Path $cleanFile -Leaf
+        if ($cleanFile -match '\.(md|txt)$') {
             $description = "update $fileName documentation"
-        } elseif ($file -match 'test') {
+        } elseif ($cleanFile -match 'test') {
             $description = "add tests for $fileName"
-        } elseif ($file -match '\.(js|ts|py|cs|java)$') {
+        } elseif ($cleanFile -match '\.(js|ts|py|cs|java)$') {
             $description = "implement $fileName functionality"
         } else {
             $description = "update $fileName"
         }
     } elseif ($fileCount -le 5) {
         $fileTypes = $filesToAnalyze | ForEach-Object { 
-            $ext = [System.IO.Path]::GetExtension($_)
-            if ($ext) { $ext.TrimStart('.') } else { "file" }
+            # Handle git status entries that may contain special characters or renames
+            $cleanPath = $_
+            if ($cleanPath -match "(.+)\s*->\s*(.+)") {
+                # Handle renamed files - use the new path
+                $cleanPath = $matches[2].Trim()
+            }
+            # Remove any leading status characters (A, M, D, etc.)
+            $cleanPath = $cleanPath -replace '^[AMDRC?!\s]+', ''
+            
+            try {
+                $ext = [System.IO.Path]::GetExtension($cleanPath)
+                if ($ext) { $ext.TrimStart('.') } else { "file" }
+            } catch {
+                # If path extraction fails, try to get extension from filename
+                if ($cleanPath -match '\.([^.]+)$') {
+                    $matches[1]
+                } else {
+                    "file"
+                }
+            }
         } | Group-Object | Sort-Object Count -Descending
         
         if ($fileTypes -and $fileTypes.Count -gt 0) {

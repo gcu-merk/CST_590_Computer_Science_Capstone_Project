@@ -23,13 +23,6 @@ This guide provides comprehensive instructions for installing, configuring, and 
 1. [System Features Overview](#1-system-features-overview)
 2. [Quick Start Guide](#2-quick-start-guide)
 3. [Development Tools](#3-development-tools)
-4. [Web Dashboard](#4-web-dashboard)
-5. [Mobile App (if applicable)](#5-mobile-app-if-applicable)
-6. [Example Use Cases](#6-example-use-cases)
-7. [Frequently Asked Questions](#7-frequently-asked-questions)
-8. [Support](#8-support)
-9. [Glossary](#9-glossary)  
-10. [Appendices](#10-appendices)
 
 **See also:**
 
@@ -91,6 +84,7 @@ If the system is already installed and configured, you can access it immediately
 If you need to deploy or maintain the system:
 
 1. **Quick Deployment**
+
    ```bash
    # Clone the repository
    git clone https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project.git
@@ -101,6 +95,7 @@ If you need to deploy or maintain the system:
    ```
 
 2. **Verify Installation**
+
    ```bash
    # Check system health
    bash scripts/pi-troubleshoot.sh
@@ -110,6 +105,7 @@ If you need to deploy or maintain the system:
    ```
 
 3. **Access Logs**
+
    ```bash
    # View container logs
    cd ~/traffic-monitor-deploy
@@ -172,7 +168,7 @@ branch-cleanup -dry
 branch-cleanup -force
 ```
 
-#### Features
+#### Key Capabilities
 
 - **Safe Operation**: Confirms before deleting branches
 - **Smart Detection**: Identifies branches merged into main
