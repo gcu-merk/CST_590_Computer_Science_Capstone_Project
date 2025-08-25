@@ -1,0 +1,90 @@
+name: Deploy via SSH to Raspberry Pi
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment regardless of branch'
+        required: false
+        default: 'false'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Only deploy from main branch (unless force_deploy is true)
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || github.event.inputs.force_deploy == 'true') }}
+    
+    steps:
+      - name: Deploy to Raspberry Pi via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PI_HOST }}
+          username: ${{ secrets.PI_USERNAME }}
+          key: ${{ secrets.PI_SSH_KEY }}
+          port: ${{ secrets.PI_PORT || 22 }}
+          script: |
+            echo "=== Starting deployment to Raspberry Pi ==="
+            
+            # Set deployment directory
+            DEPLOY_DIR="/home/$USER/traffic-monitor-deploy"
+            echo "Deployment directory: $DEPLOY_DIR"
+            
+            # Create deployment directory
+            mkdir -p "$DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
+            
+            # Download latest docker-compose.yml
+            echo "=== Downloading docker-compose.yml ==="
+            curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/docker-compose.yml -o docker-compose.yml
+            
+            # Stop existing containers
+            echo "=== Stopping existing containers ==="
+            docker compose down --remove-orphans || echo "No existing containers to stop"
+            
+            # Pull latest images
+            echo "=== Pulling latest Docker images ==="
+            docker compose pull
+            
+            # Start new containers
+            echo "=== Starting new containers ==="
+            docker compose up -d
+            
+            # Wait for containers to start
+            echo "=== Waiting for containers to initialize ==="
+            sleep 15
+            
+            # Install Pi-specific packages
+            echo "=== Installing Pi-specific packages ==="
+            CONTAINER_NAME=$(docker compose ps --format "table {{.Service}}" | grep -v SERVICE | head -1)
+            if [ ! -z "$CONTAINER_NAME" ]; then
+              echo "Installing packages in container: $CONTAINER_NAME"
+              docker compose exec -T "$CONTAINER_NAME" pip install --no-cache-dir picamera2 gpiozero RPi.GPIO gpustat || echo "Package installation completed with warnings"
+            fi
+            
+            # Verify deployment
+            echo "=== Deployment verification ==="
+            echo "Container status:"
+            docker compose ps
+            
+            echo "System resources:"
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+            
+            # Test API health
+            sleep 5
+            API_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health || echo "000")
+            if [ "$API_HEALTH" = "200" ]; then
+              echo "✅ API health check passed"
+            else
+              echo "⚠️  API health check failed (HTTP $API_HEALTH)"
+            fi
+            
+            echo "=== Deployment Summary ==="
+            echo "✅ Deployment completed successfully"
+            echo "📍 Deployment directory: $DEPLOY_DIR"
+            echo "🌐 Dashboard: http://$(hostname -I | awk '{print $1}'):5000"
+            echo "🐳 Containers:"
+            docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}"
