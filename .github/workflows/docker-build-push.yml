@@ -5,10 +5,18 @@ on:
     branches:
       - main
       - develop
+      - ci-github-0825
   pull_request:
     branches:
       - main
       - develop
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build regardless of branch'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-push:
