@@ -1,6 +1,6 @@
 services:
   traffic-monitor:
-    image: gcu-merk/cst590-capstone:latest
+    image: gcumerk/cst590-capstone:latest
     container_name: traffic-monitoring-edge
     restart: unless-stopped
     
