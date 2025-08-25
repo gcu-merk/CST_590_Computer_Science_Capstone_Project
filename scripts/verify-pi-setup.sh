@@ -286,7 +286,7 @@ fi
 # Test Docker image pull (if Docker works)
 if command -v docker &> /dev/null && docker ps &> /dev/null; then
     print_info "Testing Docker image pull..."
-    if timeout 30 docker pull gcumerk/cst590-capstone:latest &> /dev/null; then
+    if timeout 30 docker pull gcumerk/cst590-capstone-public:latest &> /dev/null; then
         print_status 0 "Can pull Docker image from Docker Hub"
     else
         print_warning "Could not pull Docker image (may be normal if image doesn't exist yet)"

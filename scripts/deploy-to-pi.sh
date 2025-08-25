@@ -15,7 +15,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-DOCKER_IMAGE="gcumerk/cst590-capstone:latest"
+DOCKER_IMAGE="gcumerk/cst590-capstone-public:latest"
 DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
 COMPOSE_PROJECT_NAME="traffic-monitor"
 

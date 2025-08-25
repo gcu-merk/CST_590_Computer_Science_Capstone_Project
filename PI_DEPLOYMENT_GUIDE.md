@@ -153,7 +153,7 @@ docker-compose logs traffic-monitor
 docker images | grep cst590-capstone
 
 # Try pulling image manually
-docker pull gcumerk/cst590-capstone:latest
+docker pull gcumerk/cst590-capstone-public:latest
 ```
 
 ### Issue 2: Hardware Access Problems

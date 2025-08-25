@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
-DOCKER_IMAGE="gcumerk/cst590-capstone:latest"
+DOCKER_IMAGE="gcumerk/cst590-capstone-public:latest"
 
 print_header() {
     echo -e "${BLUE}=================================================================${NC}"
@@ -161,10 +161,10 @@ check_docker_image() {
     
     print_check "Checking Docker image: $DOCKER_IMAGE"
     
-    if docker images | grep -q "gcumerk/cst590-capstone"; then
+    if docker images | grep -q "gcumerk/cst590-capstone-public"; then
         print_ok "Docker image found locally"
         echo "Local images:"
-        docker images | grep "gcumerk/cst590-capstone"
+        docker images | grep "gcumerk/cst590-capstone-public"
     else
         print_warning "Docker image not found locally"
         print_info "Pull with: docker pull $DOCKER_IMAGE"

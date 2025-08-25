@@ -39,5 +39,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: gcumerk/cst590-capstone:latest
+          tags: gcumerk/cst590-capstone-public:latest
           platforms: linux/arm64

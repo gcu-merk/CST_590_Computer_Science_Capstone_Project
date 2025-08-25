@@ -248,7 +248,7 @@ Feature Branch Push
 2. Set up Docker Buildx
 3. Login to Docker Hub
 4. Build ARM64 image for Raspberry Pi
-5. Push to `gcumerk/cst590-capstone:latest`
+5. Push to `gcumerk/cst590-capstone-public:latest`
 
 ### 4.3. Deploy Workflow (`deploy-to-pi.yml`)
 
