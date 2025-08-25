@@ -31,7 +31,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: smerkling
+          username: gcu-merk
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image (arm64)
@@ -39,5 +39,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: smerkling/cst590-capstone:latest
+          tags: gcu-merk/cst590-capstone:latest
           platforms: linux/arm64
