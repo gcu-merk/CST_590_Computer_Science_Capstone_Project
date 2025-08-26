@@ -13,9 +13,8 @@ services:
     # Privileged mode for hardware access
     privileged: true
     
-    # Network configuration
-    ports:
-      - "5000:5000"  # API gateway
+    # Network configuration - use host network for Tailscale access
+    network_mode: host
     
     # Volume mounts for persistent data
     volumes:
