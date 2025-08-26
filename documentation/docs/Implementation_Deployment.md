@@ -1,4 +1,119 @@
+
 # Implementation & Deployment Guide
+
+## 🚀 Modern Automated Deployment (2025+)
+
+**This section documents the current, fully automated deployment process using GitHub Actions, Docker, and Tailscale for secure remote access.**
+
+### Overview
+
+The system now uses a CI/CD pipeline for seamless, zero-touch deployment to the Raspberry Pi. All code changes pushed to the `main` branch are automatically built, containerized, and deployed to the Pi. Tailscale enables secure remote access to the dashboard and API from anywhere.
+
+---
+
+### 1. Prerequisites
+
+- Raspberry Pi 4/5 with Raspberry Pi OS 64-bit
+- Camera module and (optionally) radar sensor connected
+- Docker installed (`curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh`)
+- Tailscale installed and authenticated (`curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up`)
+- Self-hosted GitHub Actions runner registered on the Pi
+- Project repository cloned and configured
+
+---
+
+### 2. How Automated Deployment Works
+
+1. **Push code to `main` branch**
+2. **GitHub Actions builds and pushes a new Docker image** for ARM64 to Docker Hub
+3. **Self-hosted runner on the Pi pulls the new image** and restarts the container using Docker Compose
+4. **Container uses `network_mode: host`** so the app is accessible on all Pi interfaces, including Tailscale
+5. **Health checks and logs** are reported in the Actions workflow summary
+
+---
+
+### 3. Initial Setup (One-Time)
+
+```bash
+# On the Raspberry Pi:
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+
+# Register the GitHub Actions runner (see repo Settings > Actions > Runners)
+# Clone the project repo if not already present
+```
+
+---
+
+### 4. Ongoing Deployment (Fully Automated)
+
+1. **Edit code and push to `main` branch**
+2. **Wait for GitHub Actions to complete** (see Actions tab for status)
+3. **The Pi automatically pulls and runs the new container**
+4. **Access the dashboard/API:**
+    - Local: `http://<pi-lan-ip>:5000`
+    - Remote (Tailscale): `http://<pi-tailscale-ip>:5000`
+
+---
+
+### 5. Docker Compose Configuration (Key Change)
+
+The service now uses host networking for Tailscale access:
+
+```yaml
+services:
+   traffic-monitor:
+      image: gcumerk/cst590-capstone-public:latest
+      container_name: traffic-monitoring-edge
+      network_mode: host  # Enables Tailscale and LAN access
+      privileged: true
+      devices:
+         - /dev/video0:/dev/video0
+         - /dev/ttyACM0:/dev/ttyACM0
+         - /dev/gpiomem:/dev/gpiomem
+      environment:
+         - PYTHONPATH=/app
+         - PYTHONUNBUFFERED=1
+         - DISPLAY=:0
+      volumes:
+         - ./data:/app/data
+         - ./logs:/app/logs
+         - ./config:/app/config
+         - /opt/vc:/opt/vc
+      healthcheck:
+         test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+         interval: 30s
+         timeout: 10s
+         retries: 3
+         start_period: 60s
+```
+
+---
+
+### 6. Remote Access via Tailscale
+
+- Find your Pi's Tailscale IP: `tailscale ip`
+- Access the dashboard from any device on your Tailscale network:
+   - `http://<tailscale-ip>:5000`
+- No port forwarding or VPN required!
+
+---
+
+### 7. Troubleshooting
+
+- **Check deployment logs:** GitHub Actions > deploy-to-pi workflow
+- **Check container status:** `docker ps` and `docker logs traffic-monitoring-edge`
+- **Check Tailscale status:** `tailscale status`
+- **Health endpoint:** `curl http://localhost:5000/api/health` (on Pi)
+
+---
+
+**Legacy/manual deployment and advanced configuration details are preserved below for reference.**
 
 **Document Version:** 1.0  
 **Last Updated:** August 7, 2025  
