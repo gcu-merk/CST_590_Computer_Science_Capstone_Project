@@ -186,14 +186,58 @@ services:
 
 ## 1. System Prerequisites
 
-### Hardware Requirements
+### Hardware & Network Details
 
-- Raspberry Pi 5 (16GB RAM recommended)
+- **Raspberry Pi 5 (16GB RAM recommended)**
+   - MAC Address: `2c:cf:67:ee:a9:70`
+   - IPv4 Address / Name: `192.168.1.75 / raspberrypi`
+   - Connection Type: Ethernet LAN-5
+   - Connection Speed: 10000Mbps fullduplex
+   - IPv6 Address: `2600:1700:c6c1:6b50::35`, `fe80::87f9:7b2d:8afc:7163`
 - Raspberry Pi AI Camera (Sony IMX500)
 - OmniPreSense OPS243-C Radar Sensor
 - Samsung T7 SSD (or similar), 256GB MicroSD card
 - Power supply (PoE or USB-C)
 - Ethernet or WiFi network access
+
+---
+
+## System Health & Settings Verification Scripts
+
+Use these scripts to verify that Docker, the SSD, and the GitHub Actions runner are configured and running correctly on your Raspberry Pi.
+
+```sh
+# 1. Confirm Docker Storage Location
+docker info | grep "Docker Root Dir"
+
+# 2. Check SSD Disk Usage
+df -h /mnt/storage
+
+# 3. List Docker Data on SSD
+sudo ls -lh /mnt/storage/docker
+sudo du -sh /mnt/storage/docker
+
+# 4. Confirm SD Card (root) Has Free Space
+df -h /
+
+# 5. Check Docker Functionality
+docker images
+docker ps -a
+docker run --rm hello-world
+
+# 6. Confirm /etc/docker/daemon.json Setting
+cat /etc/docker/daemon.json
+
+# 7. Ensure SSD is Mounted at Boot
+cat /etc/fstab
+
+# 8. Check Docker service status
+sudo systemctl status docker
+
+# 9. Check GitHub Actions runner service status
+cd ~/actions-runner
+sudo ./svc.sh status
+```
 
 ### Software Requirements
 
