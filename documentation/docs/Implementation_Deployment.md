@@ -1,17 +1,21 @@
-### Secure Remote HTTPS Access via Tailscale Funnel
+# Implementation & Deployment
+
+## Secure Remote HTTPS Access via Tailscale Funnel
+
 If you have enabled Tailscale Funnel, your API is also accessible securely over HTTPS from anywhere using your Tailscale Funnel public URL. With your device hostname set to `edge-traffic-monitoring`, your Funnel URL will look like:
-   https://edge-traffic-monitoring.ts.net/api/health
+   <https://edge-traffic-monitoring.ts.net/api/health>
 or (if your tailnet uses a unique suffix):
-   https://edge-traffic-monitoring.tailXXXXXX.ts.net/api/health
+   <https://edge-traffic-monitoring.tailXXXXXX.ts.net/api/health>
 Replace `XXXXXX` with your actual tailnet suffix if shown in your Funnel output.
 **Benefits:**
+
 - End-to-end encrypted HTTPS access to your API
 - No need to expose ports or manage certificates manually
 - Works from anywhere on the internet (if Funnel is enabled)
 **Note:**
 If you want to restrict access to only HTTPS via Funnel, ensure your Docker Compose configuration binds the API to `127.0.0.1` only (see above for details).
 
-# Implementation & Deployment Guide
+## Implementation & Deployment Guide
 
 ## 🚀 Modern Automated Deployment (2025+)
 
@@ -111,7 +115,7 @@ services:
 
 - Find your Pi's Tailscale IP: `tailscale ip`
 - Access the dashboard from any device on your Tailscale network:
-   - `http://<tailscale-ip>:5000`
+  - `http://<tailscale-ip>:5000`
 - No port forwarding or VPN required!
 
 ---
@@ -153,7 +157,7 @@ services:
 - [Project Management Summary](./Project_Management.md)
 - [References & Appendices](./References_Appendices.md)
 
-## 1. Prerequisites
+## 1. System Prerequisites
 
 ### Hardware Requirements
 
