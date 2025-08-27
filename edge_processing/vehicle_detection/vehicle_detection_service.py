@@ -5,6 +5,7 @@ Uses TensorFlow/OpenCV with Sony IMX500 AI Camera for real-time vehicle detectio
 Optimized for Raspberry Pi 5 with native camera interface
 """
 
+
 import cv2
 import numpy as np
 import time
@@ -15,6 +16,14 @@ import threading
 import logging
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
+
+# IMX500 on-sensor AI import
+try:
+    from picamera2.devices.imx500 import IMX500 as IMX500Device
+    IMX500_AVAILABLE = True
+except ImportError:
+    IMX500_AVAILABLE = False
+    logging.warning("IMX500 API not available; on-sensor AI will be disabled.")
 
 # Raspberry Pi specific imports
 try:
@@ -59,18 +68,21 @@ class VehicleDetectionService:
     Optimized for Raspberry Pi 5 with native camera interface and edge inference
     """
     
-    def __init__(self, camera_index=0, model_path=None, use_tflite=True):
+
+    def __init__(self, camera_index=0, model_path=None, use_tflite=True, use_imx500_ai=True, imx500_model_path=None):
         self.camera_index = camera_index
         self.model_path = model_path
         self.use_tflite = use_tflite and TFLITE_AVAILABLE
+        self.use_imx500_ai = use_imx500_ai and IMX500_AVAILABLE
+        self.imx500_model_path = imx500_model_path or "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk"
         self.camera = None
         self.picamera2 = None
         self.model = None
         self.interpreter = None
+        self.imx500 = None
         self.is_running = False
         self.detection_buffer = deque(maxlen=100)
         self.frame_count = 0
-        
         # Performance optimization settings
         self.input_size = (640, 640)  # Optimized for edge inference
         self.confidence_threshold = 0.5
@@ -80,9 +92,7 @@ class VehicleDetectionService:
         """Initialize Sony IMX500 AI Camera using optimal interface"""
         try:
             if PI_CAMERA_AVAILABLE:
-                # Use native Pi camera interface (preferred)
                 self.picamera2 = Picamera2()
-                
                 # Configure for optimal performance
                 camera_config = self.picamera2.create_still_configuration(
                     main={"size": (1920, 1080)},
@@ -90,8 +100,11 @@ class VehicleDetectionService:
                 )
                 self.picamera2.configure(camera_config)
                 self.picamera2.start()
-                
                 logger.info("Sony IMX500 AI Camera initialized with picamera2")
+                # If using IMX500 on-sensor AI, initialize model
+                if self.use_imx500_ai:
+                    self.imx500 = IMX500Device(self.imx500_model_path)
+                    logger.info(f"IMX500 on-sensor AI model loaded: {self.imx500_model_path}")
                 return True
             else:
                 # Fallback to OpenCV
@@ -99,10 +112,8 @@ class VehicleDetectionService:
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
                 self.camera.set(cv2.CAP_PROP_FPS, 30)
-                
                 logger.info("Camera initialized with OpenCV (fallback)")
                 return True
-                
         except Exception as e:
             logger.error(f"Failed to initialize camera: {e}")
             return False
@@ -157,29 +168,44 @@ class VehicleDetectionService:
     
     def detect_vehicles(self, frame):
         """
-        Detect vehicles in a single frame with edge-optimized inference
+        Detect vehicles in a single frame using IMX500 on-sensor AI if enabled, otherwise edge-optimized inference
         Returns list of VehicleDetection objects
         """
         detections = []
-        
         try:
-            # Preprocess frame for model input
-            processed_frame = self._preprocess_frame(frame)
             timestamp = time.time()
-            
-            if self.interpreter:
+            if self.use_imx500_ai and self.imx500 and self.picamera2:
+                # Use IMX500 on-sensor AI
+                request = self.picamera2.capture_request()
+                outputs = self.imx500.get_outputs(request.get_metadata())
+                # Parse outputs to VehicleDetection objects
+                for i, det in enumerate(outputs or []):
+                    # det: dict with keys 'bbox', 'label', 'score'
+                    bbox = det.get('bbox', [0,0,0,0])
+                    x, y, w, h = bbox if len(bbox) == 4 else (0,0,0,0)
+                    detection = VehicleDetection(
+                        detection_id=f"imx500_{self.frame_count}_{i}",
+                        timestamp=timestamp,
+                        bbox=(int(x), int(y), int(w), int(h)),
+                        confidence=float(det.get('score', 0.0)),
+                        vehicle_type=det.get('label', 'vehicle'),
+                        frame_id=self.frame_count
+                    )
+                    detections.append(detection)
+                request.release()
+            elif self.interpreter:
                 # TensorFlow Lite inference (preferred for edge)
+                processed_frame = self._preprocess_frame(frame)
                 detections = self._run_tflite_inference(processed_frame, timestamp)
             elif self.model:
                 # Standard TensorFlow inference
+                processed_frame = self._preprocess_frame(frame)
                 detections = self._run_tf_inference(processed_frame, timestamp)
             else:
                 # Mock detection for development/testing
                 detections = self._run_mock_detection(frame, timestamp)
-                
         except Exception as e:
             logger.error(f"Detection error: {e}")
-            
         return detections
     
     def _preprocess_frame(self, frame):
