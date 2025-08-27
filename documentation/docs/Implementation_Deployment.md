@@ -46,6 +46,33 @@ The system now uses a CI/CD pipeline for seamless, zero-touch deployment to the 
 4. **Container uses `network_mode: host`** so the app is accessible on all Pi interfaces, including Tailscale
 5. **Health checks and logs** are reported in the Actions workflow summary
 
+#### CI/CD Branching & Deployment Process (ASCII Diagram)
+
+```text
+Feature Branches:    develop:                main:                GitHub Actions:         Raspberry Pi (Edge):
+
+feature/A ──●──┐
+             │  └─▶●───┐
+feature/B ──●──┘      │
+                    ●───▶●───▶●───▶●──▶ [CI/CD] ──▶ Build & Push Docker Image ──▶ Pull & Deploy ──▶ App Live
+                    ^    ^    ^    ^
+                    │    │    │    │
+                 (merge PRs)
+
+Legend:
+● = Commit/Merge Point
+[CI/CD] = Automated pipeline triggers on push to main
+
+Process:
+1. Develop features in feature branches (feature/A, feature/B, ...)
+2. Merge feature branches into develop for integration/testing
+3. When ready, merge develop into main for production
+4. Push to main triggers CI/CD pipeline:
+   - Build & push Docker image
+   - Deploy to Raspberry Pi
+   - App is live on the edge device
+```
+
 ---
 
 ### 3. Initial Setup (One-Time)
@@ -512,9 +539,9 @@ GitHub Repository                 Docker Hub              Raspberry Pi
          │                                │                       ▲
          ▼                                │                       │
 ┌─────────────────┐               ┌─────────────┐         ┌─────────────┐
-│  GitHub Actions │               │             │         │             │
-│                 │               │  Container  │         │ Self-hosted │
-│ 1. Build ARM64  │──────────────►│   Image     │────────►│   Runner    │
+│  GitHub Actions │               │             │         │ Self-hosted │
+│                 │               │  Container  │         │   Runner    │
+│ 1. Build ARM64  │──────────────►│   Image     │────────►│             │
 │ 2. Push Image   │               │  (latest)   │         │             │
 │                 │               │             │         │             │
 └─────────────────┘               └─────────────┘         └─────────────┘
