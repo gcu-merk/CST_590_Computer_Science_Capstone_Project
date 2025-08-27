@@ -49,15 +49,15 @@ The system now uses a CI/CD pipeline for seamless, zero-touch deployment to the 
 #### CI/CD Branching & Deployment Process (ASCII Diagram)
 
 ```text
-Feature Branches:    develop:                main:                GitHub Actions:         Raspberry Pi (Edge):
+Feature Branches:           develop:          main:          GitHub Actions:             Raspberry Pi (Edge):
 
 feature/A ──●──┐
-             │  └─▶●───┐
-feature/B ──●──┘      │
-                    ●───▶●───▶●───▶●──▶ [CI/CD] ──▶ Build & Push Docker Image ──▶ Pull & Deploy ──▶ App Live
-                    ^    ^    ^    ^
-                    │    │    │    │
-                 (merge PRs)
+               │─▶●───┐
+feature/B ──●──┘       │
+                       ●───▶●───▶●───▶●──▶ [CI/CD] ──▶ Build & Push Docker Image ──▶ Pull & Deploy ──▶ App Live
+                       ^    ^    ^    ^
+                       │    │    │    │
+                       (merge PRs)
 
 Legend:
 ● = Commit/Merge Point
