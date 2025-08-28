@@ -87,8 +87,6 @@ Teams/Stakeholders: Technical Team, Project Team, Documentation Team, Research T
 
 ## Project Completion
 
-The student comprehensively describes what measures will be used to calculate project success and how they were made; information and justifications are accurate and appropriate. The student examines account completion criteria, assumptions and constraints (including their reasons, sources, and impact on implementation), as well as explicit goals that must be attained, including their relative importance and how to assess them. Extensive evidence, details and examples are provided.
-
 **Completion Criteria:**
 
 1. **Accuracy**: The system consistently and accurately detects and measures vehicle speeds within a specified tolerance (±5%).
@@ -114,8 +112,6 @@ The student comprehensively describes what measures will be used to calculate pr
 - Regulatory Compliance: The project must comply with local traffic and surveillance laws.
 
 ## Project Controls
-
-The student comprehensively defines any project risks and preventative steps regarding alternative solutions to reduce the impact of the risks; information and justifications are accurate and appropriate. The student examines management changes/issues that are anticipated, planned, or unexpected, and describes how end users are involved in software development. Extensive evidence, details and examples are provided.
 
 **Risk Management Table:**
 
@@ -307,7 +303,6 @@ TODO: See Documentation_TODO.md for outstanding tasks and issue log template. Is
 
 ## Requirements Analysis: Use Cases
 
-The student comprehensively presents all of the use cases, listing the sequence of actions in each case, and uses diagrams or images to explain each. Information and justifications are accurate and appropriate.
 See Use_Cases.md for full list and diagrams. Example use cases:
 
 1. System detects and logs speeding vehicle (camera/radar fusion, event logging, alert generation)
@@ -322,7 +317,6 @@ See Use_Cases.md for full sequences and ASCII diagrams.
 
 ## Requirements Analysis: System Design
 
-The student provides a detailed, in-depth top-down design of the system, with a diagram similar to a flowchart. The student explains each component and the reason for its inclusion.
 See Technical_Design.md for top-down design and architecture diagrams. The system is organized in layers:
 
 - Cloud Services Layer (optional): Aggregation, analytics, long-term storage
@@ -333,7 +327,6 @@ Each component is included for modularity, reliability, and real-time analytics 
 
 ## Requirements Analysis: Technical Requirements
 
-The student comprehensively explains all of the technical requirements for the system (to include concrete examples), as well as the software and/or hardware that is necessary to meet the requirements; information and justifications are accurate and appropriate.
 Technical requirements:
 
 - Hardware: Raspberry Pi 5 (16GB RAM), Sony IMX500 AI camera, OmniPreSense OPS243-C radar, Samsung T7 SSD, PoE/UPS, IP65 housing
@@ -345,7 +338,10 @@ See Technical_Design.md for full details.
 ## Requirements Analysis: System Logical Model
 
 The student provides a detailed, in-depth diagram of the logical architecture of the system. The diagram accurately reflects the functional requirements of the application, and illustrates the flow of information through the system.
-See Technical_Design.md and References_Appendices.md for logical architecture diagrams and data flow diagrams. The system flows from sensors (camera/radar) to edge processing (detection, fusion, storage) to cloud (optional) and user dashboards.
+
+See Technical_Design.md and References_Appendices.md for logical architecture diagrams and data flow diagrams. 
+
+The system flows from sensors (camera/radar) to edge processing (detection, fusion, storage) to cloud (optional) and user dashboards.
 
 ## Requirements Analysis: Reports
 
