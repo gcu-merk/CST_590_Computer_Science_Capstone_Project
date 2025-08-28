@@ -305,22 +305,40 @@ The Sony IMX500 AI camera performs inference using a pre-trained model deployed 
 
 ## 4. Component Interaction Diagram
 
+
 ```text
-+-------------------+      +-------------------+      +-------------------+
-| Vehicle Detection |----->| Data Fusion Engine|----->| Local Storage     |
-|  (TensorFlow,     |      | (Python)          |      |  (SSD, tmpfs)     |
-|   OpenCV, AI Cam) |      +-------------------+      +-------------------+
-+-------------------+               |                        ^
-        |                           v                        |
-        |                +-------------------+               |
-        +--------------->| Edge API Gateway  |---------------+
-                         | (Flask-SocketIO)  |
-                         +-------------------+
-                                 |
-                                 v
-                         +-------------------+
-                         | Edge UI (Web Dash)|
-                         +-------------------+
+  +-------------------+
+  | Sony IMX500 AI    |
+  | Camera (on-chip   |
+  | inference,        |
+  | real-time object  |
+  | detection)        |
+  +---------+---------+
+         |
+         v
+  +-------------------+
+  | Detection Results |
+  | (bounding boxes,  |
+  | class labels,     |
+  | confidence scores)|
+  +---------+---------+
+         |
+         v
+ +-------------------+      +-------------------+      +-------------------+
+ | Vehicle Detection |----->| Data Fusion Engine|----->| Local Storage     |
+ |  (Raspberry Pi:   |      |   (Python)        |      |  (SSD, tmpfs)     |
+ |   TensorFlow,     |      +-------------------+      +-------------------+
+ |   OpenCV,         |               |                        ^
+ |   AI Cam input)   |               v                        |
+ +-------------------+      +-------------------+             |
+        |                | Edge API Gateway  |-------------+
+        |                | (Flask-SocketIO)  |
+        |                +-------------------+
+        |                        |
+        v                        v
+   (Optional)              +-------------------+
+   Cloud Sync <------------| Edge UI (Web Dash)|
+                   +-------------------+
 ```
 
 ## 5. Sequence Diagram (Typical Event Flow)
