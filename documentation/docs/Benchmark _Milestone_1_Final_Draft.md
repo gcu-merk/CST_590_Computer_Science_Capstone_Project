@@ -133,43 +133,6 @@ Change management: Track all changes/decisions in a change log (see Documentatio
 
 With the use of AI coding tools, a solid MVP (basic vehicle detection, speed logging, SQLite storage, REST API, Docker, simple dashboard) is achievable in 8 weeks. However, advanced features such as robust multi-object tracking, accurate camera-radar fusion, and production-level optimization will require additional time and significant hands-on problem-solving. AI tools excel at basic integrations, API endpoints, and configuration, but real-time optimization and complex sensor fusion will require more manual effort.
 
-## OPS243-C Radar Integration Details
-
-**Basic UART Wiring:**
-
-- VCC (OPS243-C) → 5V (Pin 2 on Pi)
-- GND (OPS243-C) → Pi Ground
-- TX (OPS243-C) → Pi RXD (Pin 10)
-- RX (OPS243-C) → Pi TXD (Pin 8)
-
-**Raspberry Pi UART Configuration:**
-
-1. Enable UART via `sudo raspi-config` (enable serial interface, disable serial console)
-2. Edit `/boot/config.txt` to add:
-   - `enable_uart=1`
-   - `dtoverlay=disable-bt`
-3. Remove `console=serial0,115200` from `/boot/cmdline.txt` if present
-4. Reboot the Pi
-
-**Communication Settings:**
-
-- Baud rate: 9600 bps
-- Data bits: 8
-- Parity: None
-- Stop bits: 1
-- Device: `/dev/serial0` or `/dev/ttyAMA0`
-
-**OPS243-C Basic Commands:**
-
-- `??` - List all commands
-- `?A` - Get current settings
-- `?D` - Get detection status
-- `G<value>` - Set gain (0-255)
-- `M<mode>` - Set measurement mode (S=speed, M=magnitude, D=direction)
-- `S<units>` - Set speed units (US=mph, UK=kph, MPS=m/s)
-
-Refer to the sensor manual for additional configuration and advanced usage.
-
 ## Testing and Peer Feedback
 
 - Software testing should include unit, integration, and system tests.
