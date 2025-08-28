@@ -212,12 +212,44 @@ This section summarizes the ML/AI workflow, component status, and technical deta
 - 🟡 **PARTIAL**: Basic functionality exists, requires customization/integration
 - 🔴 **CUSTOM**: Must be developed specifically for this project
 
+
 ### AI-Enabled Camera Hardware (Sony IMX500) - 🟢 EXISTING
 
 - On-chip neural network processing for real-time object detection and classification
 - Edge computing: runs lightweight models, reduces bandwidth by filtering irrelevant frames
 - Provides pre-processed data streams with detected objects and metadata
 - Hardware integration via standard camera interface; supports Sony-provided or custom models
+
+#### Model Training and Deployment Workflow for IMX500
+
+The Sony IMX500 AI camera performs inference using a pre-trained model deployed to the device. The typical workflow is as follows:
+
+1. **Data Collection & Annotation:**
+  - Gather a dataset of images containing vehicles in various environments and lighting conditions.
+  - Annotate each image with bounding boxes and class labels (e.g., “car”, “truck”, “bus”) using tools like LabelImg or CVAT.
+
+2. **Model Training (Off-Camera):**
+  - Choose an object detection architecture (e.g., YOLOv5, MobileNet-SSD, EfficientDet).
+  - Use a machine learning framework (TensorFlow, PyTorch, or ONNX) to train the model on your annotated dataset.
+  - Train the model until it achieves satisfactory accuracy on a validation set.
+
+3. **Model Conversion:**
+  - Convert the trained model to a format supported by the IMX500 camera, typically ONNX.
+  - Optimize the model for edge inference (quantization, pruning, etc.) if required by the camera’s SDK.
+
+4. **Model Deployment to IMX500:**
+  - Use Sony’s AITRIOS SDK or the IMX500 camera’s deployment tools to upload the ONNX model to the camera.
+  - Configure the camera to use the new model for real-time inference.
+
+5. **Inference on the Camera:**
+  - The camera processes video frames internally, running the deployed model to detect vehicles.
+  - The camera outputs detection results (bounding boxes, class labels, confidence scores) as metadata, which can be read by the Raspberry Pi or another host device.
+
+**Note:** The IMX500 does not perform model training on-device; all training is done off-camera, and only inference is performed on the camera hardware.
+
+**References:**
+- [Sony AITRIOS SDK documentation](https://developer.sony.com/develop/cameras/)
+- [IMX500 product page](https://www.sony-semicon.com/en/products/IS/imx500.html)
 
 ### Computer Vision Module (OpenCV + TensorFlow) - 🟡 PARTIAL
 
