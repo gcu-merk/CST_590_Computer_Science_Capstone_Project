@@ -149,22 +149,8 @@ class VehicleDetectionService:
     
     def capture_frame(self):
         """Capture frame using optimal camera interface"""
-        try:
-            if self.picamera2:
-                # Use picamera2 for better performance
-                frame = self.picamera2.capture_array()
-                # Convert from YUV to RGB if needed
-                if len(frame.shape) == 3 and frame.shape[2] == 3:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB)
-                return True, frame
-            elif self.camera:
-                # Fallback to OpenCV
-                return self.camera.read()
-            else:
-                return False, None
-        except Exception as e:
-            logger.error(f"Error capturing frame: {e}")
-            return False, None
+    # Temporarily disabled image capture from Pi
+    return False, None
     
     def detect_vehicles(self, frame):
         """
