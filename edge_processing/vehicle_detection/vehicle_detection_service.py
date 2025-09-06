@@ -63,6 +63,8 @@ class VehicleDetection:
     frame_id: int
     
 class VehicleDetectionService:
+    # TEMP: Suppress camera capture warnings
+    suppress_camera_warning = True
     """
     Core vehicle detection service using Sony IMX500 AI Camera
     Optimized for Raspberry Pi 5 with native camera interface and edge inference
@@ -309,7 +311,8 @@ class VehicleDetectionService:
             try:
                 ret, frame = self.capture_frame()
                 if not ret or frame is None:
-                    logger.warning("Failed to capture frame from camera")
+                    if not self.suppress_camera_warning:
+                        logger.warning("Failed to capture frame from camera")
                     continue
                 
                 self.frame_count += 1
