@@ -33,9 +33,10 @@ class EdgeOrchestrator:
     Main orchestrator for all edge processing services
     """
     
-    def __init__(self):
+    def __init__(self, sensors_enabled=True):
         self.services = {}
         self.is_running = False
+        self.sensors_enabled = sensors_enabled
         
         # Initialize services
         self._initialize_services()
@@ -52,22 +53,23 @@ class EdgeOrchestrator:
             # 1. System Health Monitor (start first to monitor everything)
             self.services['health_monitor'] = SystemHealthMonitor(update_interval=10.0)
             
-            # 2. Vehicle Detection Service
-            self.services['vehicle_detection'] = VehicleDetectionService(
-                camera_index=0,  # Sony IMX500 AI Camera
-                model_path=None  # Use default model
-            )
-            
-            # 3. Speed Analysis Service
-            self.services['speed_analysis'] = SpeedAnalysisService(
-                radar_port='/dev/ttyACM0'  # OPS243-C Radar
-            )
-            
-            # 4. Data Fusion Engine
-            self.services['data_fusion'] = DataFusionEngine(
-                vehicle_detection_service=self.services['vehicle_detection'],
-                speed_analysis_service=self.services['speed_analysis']
-            )
+            if self.sensors_enabled:
+                # 2. Vehicle Detection Service
+                self.services['vehicle_detection'] = VehicleDetectionService(
+                    camera_index=0,  # Sony IMX500 AI Camera
+                    model_path=None  # Use default model
+                )
+                
+                # 3. Speed Analysis Service
+                self.services['speed_analysis'] = SpeedAnalysisService(
+                    radar_port='/dev/ttyACM0'  # OPS243-C Radar
+                )
+                
+                # 4. Data Fusion Engine
+                self.services['data_fusion'] = DataFusionEngine(
+                    vehicle_detection_service=self.services['vehicle_detection'],
+                    speed_analysis_service=self.services['speed_analysis']
+                )
             
             # 5. Edge API Gateway
             self.services['api_gateway'] = EdgeAPIGateway(
@@ -77,9 +79,9 @@ class EdgeOrchestrator:
             
             # Set service references in API gateway
             self.services['api_gateway'].set_services(
-                vehicle_detection=self.services['vehicle_detection'],
-                speed_analysis=self.services['speed_analysis'],
-                data_fusion=self.services['data_fusion'],
+                vehicle_detection=self.services.get('vehicle_detection'),
+                speed_analysis=self.services.get('speed_analysis'),
+                data_fusion=self.services.get('data_fusion'),
                 system_health=self.services['health_monitor']
             )
             
@@ -101,34 +103,35 @@ class EdgeOrchestrator:
             
             # Register services with health monitor
             health_monitor = self.services['health_monitor']
-            health_monitor.register_service('vehicle_detection')
-            health_monitor.register_service('speed_analysis')
-            health_monitor.register_service('data_fusion')
             health_monitor.register_service('api_gateway')
-            
-            # Start vehicle detection service
-            logger.info("Starting vehicle detection service...")
-            if self.services['vehicle_detection'].start_detection():
-                health_monitor.update_service_status('vehicle_detection', True)
-                logger.info("✓ Vehicle detection service started")
-            else:
-                logger.error("✗ Failed to start vehicle detection service")
-                health_monitor.update_service_status('vehicle_detection', False)
-            
-            # Start speed analysis service
-            logger.info("Starting speed analysis service...")
-            if self.services['speed_analysis'].start_analysis():
-                health_monitor.update_service_status('speed_analysis', True)
-                logger.info("✓ Speed analysis service started")
-            else:
-                logger.error("✗ Failed to start speed analysis service")
-                health_monitor.update_service_status('speed_analysis', False)
-            
-            # Start data fusion engine
-            logger.info("Starting data fusion engine...")
-            self.services['data_fusion'].start_fusion()
-            health_monitor.update_service_status('data_fusion', True)
-            logger.info("✓ Data fusion engine started")
+            if self.sensors_enabled:
+                health_monitor.register_service('vehicle_detection')
+                health_monitor.register_service('speed_analysis')
+                health_monitor.register_service('data_fusion')
+                
+                # Start vehicle detection service
+                logger.info("Starting vehicle detection service...")
+                if self.services['vehicle_detection'].start_detection():
+                    health_monitor.update_service_status('vehicle_detection', True)
+                    logger.info("✓ Vehicle detection service started")
+                else:
+                    logger.error("✗ Failed to start vehicle detection service")
+                    health_monitor.update_service_status('vehicle_detection', False)
+                
+                # Start speed analysis service
+                logger.info("Starting speed analysis service...")
+                if self.services['speed_analysis'].start_analysis():
+                    health_monitor.update_service_status('speed_analysis', True)
+                    logger.info("✓ Speed analysis service started")
+                else:
+                    logger.error("✗ Failed to start speed analysis service")
+                    health_monitor.update_service_status('speed_analysis', False)
+                
+                # Start data fusion engine
+                logger.info("Starting data fusion engine...")
+                self.services['data_fusion'].start_fusion()
+                health_monitor.update_service_status('data_fusion', True)
+                logger.info("✓ Data fusion engine started")
             
             # Start API gateway (this will block)
             logger.info("Starting Edge API Gateway...")
@@ -238,7 +241,7 @@ def main():
     logger.info("Starting Raspberry Pi 5 Edge ML Traffic Monitoring System")
     logger.info("=" * 60)
     
-    orchestrator = EdgeOrchestrator()
+    orchestrator = EdgeOrchestrator(sensors_enabled=False)
     
     try:
         orchestrator.start_all_services()
