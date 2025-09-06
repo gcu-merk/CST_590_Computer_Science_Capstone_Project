@@ -164,7 +164,8 @@ class SpeedAnalysisService:
     """
     
     def __init__(self, radar_port='/dev/ttyACM0'):
-        self.radar = OPS243CRadar(radar_port)
+        # Radar disabled for troubleshooting IMX500 only
+        self.radar = None
         self.is_running = False
         self.raw_readings = deque(maxlen=1000)
         self.speed_detections = deque(maxlen=100)
@@ -173,8 +174,8 @@ class SpeedAnalysisService:
         
     def start_analysis(self):
         """Start speed analysis service"""
-        if not self.radar.connect():
-            return False
+    # Radar connection disabled for troubleshooting IMX500 only
+    return False
             
         self.is_running = True
         analysis_thread = threading.Thread(target=self._analysis_loop)
