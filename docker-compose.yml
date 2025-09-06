@@ -16,7 +16,7 @@ services:
 
     # Restrict API to localhost only
     ports:
-      - "127.0.0.1:5000:5000"
+      - "5000:5000"
     
     # Volume mounts for persistent data
     volumes:
