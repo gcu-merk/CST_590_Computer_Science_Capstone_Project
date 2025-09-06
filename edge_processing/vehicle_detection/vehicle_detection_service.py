@@ -148,9 +148,9 @@ class VehicleDetectionService:
             return False
     
     def capture_frame(self):
-        """Capture frame using optimal camera interface"""
-    # Temporarily disabled image capture from Pi
-    return False, None
+            """Capture frame using optimal camera interface"""
+            # Temporarily disabled image capture from Pi
+            return False, None
     
     def detect_vehicles(self, frame):
         """
