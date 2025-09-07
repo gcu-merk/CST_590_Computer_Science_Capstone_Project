@@ -4,6 +4,10 @@ FROM arm64v8/python:3.11-slim-bookworm
 # Set working directory
 WORKDIR /app
 
+# Add Raspberry Pi OS repositories for camera packages
+RUN echo "deb http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list && \
+    wget -qO - http://archive.raspberrypi.org/debian/raspberrypi.gpg.key | apt-key add -
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3-pip \
@@ -31,26 +35,20 @@ RUN apt-get update && apt-get install -y \
     curl \
     # Camera and video processing libraries
     python3-opencv \
-    python3-picamera2 \
     libcamera-dev \
-    libcamera-apps \
     libcamera-tools \
     v4l-utils \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Install Raspberry Pi specific packages for camera support
-# These are needed for the IMX500 camera to work in Docker
-RUN apt-get update && apt-get install -y \
-    python3-picamera2 \
-    python3-opencv \
-    python3-munkres \
-    libcamera-dev \
-    libcamera-apps \
-    libcamera-tools \
-    v4l-utils \
-    imx500-all \
-    && rm -rf /var/lib/apt/lists/*
+# Try to install Raspberry Pi specific packages (may not be available in all environments)
+RUN apt-get update && ( \
+    apt-get install -y \
+        python3-picamera2 \
+        libcamera-apps \
+        imx500-all \
+    || echo "Raspberry Pi specific packages not available, continuing without them" \
+    ) && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY edge_processing/requirements-cloud.txt /app/edge_processing/
