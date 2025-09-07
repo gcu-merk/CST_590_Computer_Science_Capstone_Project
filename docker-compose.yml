@@ -1,8 +1,6 @@
 services:
   traffic-monitor:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: gcumerk/cst590-capstone-public:latest
     container_name: traffic-monitoring-edge
     restart: unless-stopped
     
