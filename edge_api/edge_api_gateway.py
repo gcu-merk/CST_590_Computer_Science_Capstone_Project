@@ -68,9 +68,9 @@ class EdgeAPIGateway:
         temp_data = perf_summary['temperature']
         converted = perf_summary.copy()
         converted['temperature'] = {
-            'avg_fahrenheit': round((temp_data['avg'] * 9/5) + 32, 1),
-            'max_fahrenheit': round((temp_data['max'] * 9/5) + 32, 1),
-            'min_fahrenheit': round((temp_data['min'] * 9/5) + 32, 1),
+            'avg': round((temp_data['avg'] * 9/5) + 32, 1),
+            'max': round((temp_data['max'] * 9/5) + 32, 1),
+            'min': round((temp_data['min'] * 9/5) + 32, 1),
             'avg_celsius': temp_data['avg'],
             'max_celsius': temp_data['max'],
             'min_celsius': temp_data['min']
@@ -103,8 +103,10 @@ class EdgeAPIGateway:
                     
                     # Convert temperature from Celsius to Fahrenheit
                     if 'temperature' in basic_metrics and basic_metrics['temperature'] is not None:
-                        basic_metrics['temperature_fahrenheit'] = round((basic_metrics['temperature'] * 9/5) + 32, 1)
-                        basic_metrics['temperature_celsius'] = basic_metrics['temperature']  # Keep original for reference
+                        celsius_temp = basic_metrics['temperature']
+                        fahrenheit_temp = round((celsius_temp * 9/5) + 32, 1)
+                        basic_metrics['temperature'] = fahrenheit_temp  # Replace with Fahrenheit
+                        basic_metrics['temperature_celsius'] = celsius_temp  # Keep Celsius for reference
                     
                     health_data.update(basic_metrics)
                     
