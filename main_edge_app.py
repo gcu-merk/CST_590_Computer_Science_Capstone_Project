@@ -9,6 +9,7 @@ import logging
 import signal
 import sys
 import threading
+import argparse
 from pathlib import Path
 
 # Add edge processing modules to path
@@ -238,6 +239,37 @@ class EdgeOrchestrator:
 
 def main():
     """Main entry point"""
+    parser = argparse.ArgumentParser(description='Raspberry Pi Edge Traffic Monitoring System')
+    parser.add_argument('--api-only', action='store_true', help='Run API server only (no sensors)')
+    args = parser.parse_args()
+    
+    if args.api_only:
+        # API-only mode for local testing
+        logger.info("Starting API-only mode for local testing")
+        logger.info("=" * 60)
+        
+        # Initialize only health monitor and API
+        health_monitor = SystemHealthMonitor(update_interval=10.0)
+        api_gateway = EdgeAPIGateway(host='0.0.0.0', port=5000)
+        api_gateway.set_services(system_health=health_monitor)
+        
+        # Start health monitor
+        health_monitor.start_monitoring()
+        
+        try:
+            # Start API server (this will block)
+            logger.info("API available at: http://0.0.0.0:5000")
+            logger.info("Health check: http://0.0.0.0:5000/api/health")
+            api_gateway.start_server()
+        except KeyboardInterrupt:
+            logger.info("Shutdown requested by user")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+        finally:
+            health_monitor.stop_monitoring()
+        return
+    
+    # Full orchestrator mode
     logger.info("Starting Raspberry Pi 5 Edge ML Traffic Monitoring System")
     logger.info("=" * 60)
     
