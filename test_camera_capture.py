@@ -17,14 +17,17 @@ def test_camera_capture():
     """Test the camera capture functionality"""
     print("Testing camera capture functionality...")
 
-    # Create service instance with image saving enabled
+    # Create service instance with periodic snapshots enabled
     service = VehicleDetectionService(
         save_detections=True,
         save_path="/mnt/storage/ai_camera_images",
         save_confidence_threshold=0.5,  # Lower threshold for testing
-        max_saved_images=50
+        max_saved_images=50,
+        periodic_snapshots=True,  # Enable periodic snapshots
+        snapshot_interval_minutes=5,  # Every 5 minutes
+        periodic_snapshot_path="/mnt/storage/periodic_snapshots"
     )
-
+    
     # Initialize camera
     print("Initializing camera...")
     if not service.initialize_camera():

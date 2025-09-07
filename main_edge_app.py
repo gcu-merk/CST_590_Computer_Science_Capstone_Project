@@ -58,7 +58,10 @@ class EdgeOrchestrator:
                 # 2. Vehicle Detection Service
                 self.services['vehicle_detection'] = VehicleDetectionService(
                     camera_index=0,  # Sony IMX500 AI Camera
-                    model_path=None  # Use default model
+                    model_path=None,  # Use default model
+                    periodic_snapshots=True,  # Enable periodic snapshots
+                    snapshot_interval_minutes=5,  # Take snapshot every 5 minutes
+                    periodic_snapshot_path="/mnt/storage/periodic_snapshots"  # Save to SSD
                 )
                 
                 # 3. Speed Analysis Service

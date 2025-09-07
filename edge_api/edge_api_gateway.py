@@ -121,7 +121,8 @@ class EdgeAPIGateway:
                             'python_version': __import__('sys').version.split()[0],
                             'platform': __import__('platform').platform(),
                             'uptime': basic_metrics.get('uptime_seconds', 0)
-                        }
+                        },
+                        'camera_snapshot': self._get_latest_camera_snapshot()
                     })
                 
                 return jsonify(health_data)
@@ -260,6 +261,29 @@ class EdgeAPIGateway:
             except Exception as e:
                 logger.error(f"Analytics endpoint error: {e}")
                 return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/api/camera/snapshot/<filename>', methods=['GET'])
+        def get_camera_snapshot(filename):
+            """Serve camera snapshot images"""
+            try:
+                import os
+                from flask import send_file
+                
+                snapshot_path = "/mnt/storage/periodic_snapshots"
+                file_path = os.path.join(snapshot_path, filename)
+                
+                # Security check - only allow access to snapshot files
+                if not filename.startswith('periodic_snapshot_') or not filename.endswith('.jpg'):
+                    return jsonify({'error': 'Invalid filename'}), 400
+                
+                if not os.path.exists(file_path):
+                    return jsonify({'error': 'Snapshot not found'}), 404
+                
+                return send_file(file_path, mimetype='image/jpeg')
+                
+            except Exception as e:
+                logger.error(f"Camera snapshot endpoint error: {e}")
+                return jsonify({'error': str(e)}), 500
     
     def _setup_websocket_events(self):
         """Setup WebSocket event handlers"""
@@ -370,6 +394,69 @@ class EdgeAPIGateway:
         """Stop the API server"""
         self.is_running = False
         logger.info("Edge API Gateway stopped")
+    
+    def _get_latest_camera_snapshot(self):
+        """Get information about the latest periodic camera snapshot"""
+        try:
+            import os
+            snapshot_path = "/mnt/storage/periodic_snapshots"
+            
+            if not os.path.exists(snapshot_path):
+                return {
+                    'available': False,
+                    'message': 'No snapshots directory found'
+                }
+            
+            # Find the latest snapshot
+            snapshot_files = [f for f in os.listdir(snapshot_path) 
+                            if f.startswith('periodic_snapshot_') and f.endswith('.jpg')]
+            
+            if not snapshot_files:
+                return {
+                    'available': False,
+                    'message': 'No snapshots found'
+                }
+            
+            # Get the most recent snapshot
+            latest_snapshot = max(snapshot_files, 
+                                key=lambda x: os.path.getmtime(os.path.join(snapshot_path, x)))
+            
+            snapshot_full_path = os.path.join(snapshot_path, latest_snapshot)
+            mod_time = os.path.getmtime(snapshot_full_path)
+            file_size = os.path.getsize(snapshot_full_path)
+            
+            return {
+                'available': True,
+                'filename': latest_snapshot,
+                'timestamp': datetime.fromtimestamp(mod_time).isoformat(),
+                'file_size_bytes': file_size,
+                'url': f'/api/camera/snapshot/{latest_snapshot}'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting latest camera snapshot: {e}")
+            return {
+                'available': False,
+                'message': f'Error: {str(e)}'
+            }
+    
+    def _convert_performance_temps(self, performance_data):
+        """Convert temperature values in performance data to Fahrenheit"""
+        if not performance_data:
+            return performance_data
+            
+        # Convert temperature fields to Fahrenheit
+        temp_fields = ['cpu_temp', 'gpu_temp', 'temperature']
+        
+        for entry in performance_data:
+            for field in temp_fields:
+                if field in entry and entry[field] is not None:
+                    celsius = entry[field]
+                    fahrenheit = round((celsius * 9/5) + 32, 1)
+                    entry[field] = fahrenheit
+                    entry[f'{field}_celsius'] = celsius  # Keep original Celsius value
+        
+        return performance_data
 
 if __name__ == "__main__":
     # Test the API gateway

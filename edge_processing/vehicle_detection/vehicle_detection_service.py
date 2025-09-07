@@ -7,6 +7,7 @@ Optimized for Raspberry Pi 5 with native camera interface
 Features:
 - Real-time vehicle detection using IMX500 AI camera
 - Automatic image saving to external SSD for high-confidence detections
+- Periodic snapshots every 5 minutes for monitoring
 - Configurable detection thresholds and storage management
 - Support for both IMX500 on-sensor AI and TensorFlow Lite inference
 """
@@ -79,7 +80,8 @@ class VehicleDetectionService:
     
 
     def __init__(self, camera_index=0, model_path=None, use_tflite=True, use_imx500_ai=True, imx500_model_path=None, 
-                 save_detections=True, save_path="/mnt/storage/ai_camera_images", save_confidence_threshold=0.7, max_saved_images=1000):
+                 save_detections=True, save_path="/mnt/storage/ai_camera_images", save_confidence_threshold=0.7, max_saved_images=1000,
+                 periodic_snapshots=True, snapshot_interval_minutes=5, periodic_snapshot_path="/mnt/storage/periodic_snapshots"):
         self.camera_index = camera_index
         self.model_path = model_path
         self.use_tflite = use_tflite and TFLITE_AVAILABLE
@@ -91,6 +93,13 @@ class VehicleDetectionService:
         self.save_path = save_path
         self.save_confidence_threshold = save_confidence_threshold
         self.max_saved_images = max_saved_images
+        
+        # Periodic snapshot configuration
+        self.periodic_snapshots = periodic_snapshots
+        self.snapshot_interval_minutes = snapshot_interval_minutes
+        self.periodic_snapshot_path = periodic_snapshot_path
+        self.last_snapshot_time = 0
+        self.snapshot_interval_seconds = snapshot_interval_minutes * 60
         
         self.camera = None
         self.picamera2 = None
@@ -316,6 +325,65 @@ class VehicleDetectionService:
         except Exception as e:
             logger.error(f"Failed to cleanup old images: {e}")
     
+    def take_periodic_snapshot(self, frame):
+        """
+        Take a periodic snapshot every N minutes and save to SSD
+        """
+        if not self.periodic_snapshots:
+            return
+            
+        current_time = time.time()
+        if current_time - self.last_snapshot_time >= self.snapshot_interval_seconds:
+            try:
+                # Ensure periodic snapshot directory exists
+                os.makedirs(self.periodic_snapshot_path, exist_ok=True)
+                
+                # Create timestamp for filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"periodic_snapshot_{timestamp}.jpg"
+                filepath = os.path.join(self.periodic_snapshot_path, filename)
+                
+                # Save the frame
+                cv2.imwrite(filepath, frame)
+                
+                # Update last snapshot time
+                self.last_snapshot_time = current_time
+                
+                logger.info(f"Saved periodic snapshot: {filename}")
+                
+                # Keep only the latest snapshot (cleanup old ones)
+                self._cleanup_old_periodic_snapshots()
+                
+            except Exception as e:
+                logger.error(f"Failed to take periodic snapshot: {e}")
+    
+    def _cleanup_old_periodic_snapshots(self):
+        """Keep only the most recent periodic snapshot"""
+        try:
+            if not os.path.exists(self.periodic_snapshot_path):
+                return
+                
+            # Get all periodic snapshot files
+            snapshot_files = [f for f in os.listdir(self.periodic_snapshot_path) 
+                            if f.startswith('periodic_snapshot_') and f.endswith('.jpg')]
+            
+            if len(snapshot_files) > 1:
+                # Sort by modification time (oldest first)
+                snapshot_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.periodic_snapshot_path, x)))
+                
+                # Remove all but the most recent
+                files_to_remove = snapshot_files[:-1]
+                
+                for filename in files_to_remove:
+                    try:
+                        os.remove(os.path.join(self.periodic_snapshot_path, filename))
+                        logger.info(f"Cleaned up old periodic snapshot: {filename}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove old periodic snapshot {filename}: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Failed to cleanup old periodic snapshots: {e}")
+    
     def _preprocess_frame(self, frame):
         """Preprocess frame for model input"""
         # Resize to model input size
@@ -444,6 +512,9 @@ class VehicleDetectionService:
                 
                 # Save detection snapshots to SSD if vehicles detected
                 self.save_detection_snapshots(frame, detections)
+                
+                # Take periodic snapshot every 5 minutes
+                self.take_periodic_snapshot(frame)
                 
                 # Adaptive frame rate based on processing load
                 # Maintain ~30 FPS but allow dynamic adjustment
