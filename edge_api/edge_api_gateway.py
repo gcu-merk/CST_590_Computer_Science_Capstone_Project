@@ -65,7 +65,7 @@ class EdgeAPIGateway:
         
         @self.app.route('/api/health', methods=['GET'])
         def health_check():
-            """System health check endpoint"""
+            """Enhanced system health check endpoint"""
             try:
                 health_data = {
                     'status': 'healthy',
@@ -80,7 +80,23 @@ class EdgeAPIGateway:
                 }
                 
                 if self.system_health_monitor:
-                    health_data.update(self.system_health_monitor.get_system_metrics())
+                    # Basic system metrics
+                    basic_metrics = self.system_health_monitor.get_system_metrics()
+                    health_data.update(basic_metrics)
+                    
+                    # Enhanced health information
+                    health_data.update({
+                        'health_score': self.system_health_monitor.get_health_score(),
+                        'service_details': self.system_health_monitor.get_service_statuses(),
+                        'recent_alerts': self.system_health_monitor.get_recent_alerts(30),  # Last 30 minutes
+                        'performance_summary': self.system_health_monitor.get_performance_summary(30),  # Last 30 minutes
+                        'system_info': {
+                            'hostname': __import__('socket').gethostname(),
+                            'python_version': __import__('sys').version.split()[0],
+                            'platform': __import__('platform').platform(),
+                            'uptime': basic_metrics.get('uptime_seconds', 0)
+                        }
+                    })
                 
                 return jsonify(health_data)
             except Exception as e:
