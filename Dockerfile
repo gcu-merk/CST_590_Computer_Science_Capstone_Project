@@ -6,8 +6,9 @@ WORKDIR /app
 
 # Add Raspberry Pi OS repositories for camera packages
 RUN apt-get update && apt-get install -y wget gnupg && \
-    echo "deb http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list && \
-    wget -qO - http://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor > /usr/share/keyrings/raspberrypi-archive-keyring.gpg
+    mkdir -p /usr/share/keyrings && \
+    wget -qO - http://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor > /usr/share/keyrings/raspberrypi-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
