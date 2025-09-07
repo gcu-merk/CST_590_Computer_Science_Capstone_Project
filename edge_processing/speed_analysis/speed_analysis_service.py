@@ -173,15 +173,9 @@ class SpeedAnalysisService:
         self.detection_timeout = 3.0  # seconds
         
     def start_analysis(self):
-        """Start speed analysis service"""
-    # Radar connection disabled for troubleshooting IMX500 only
-    return False
-            
-        self.is_running = True
-        analysis_thread = threading.Thread(target=self._analysis_loop)
-        analysis_thread.start()
-        logger.info("Speed analysis service started")
-        return True
+        """Start speed analysis service (disabled during IMX500 troubleshooting)"""
+        logger.info("Speed analysis disabled; skipping start.")
+        return False
     
     def _analysis_loop(self):
         """Main analysis loop"""
@@ -297,7 +291,11 @@ class SpeedAnalysisService:
     def stop_analysis(self):
         """Stop speed analysis service"""
         self.is_running = False
-        self.radar.disconnect()
+        if getattr(self, 'radar', None):
+            try:
+                self.radar.disconnect()
+            except Exception:
+                pass
         logger.info("Speed analysis service stopped")
     
     def get_recent_detections(self, seconds=60):
