@@ -48,7 +48,15 @@ RUN apt-get update && ( \
         libcamera-apps \
         imx500-all \
     || echo "Raspberry Pi specific packages not available, continuing without them" \
-    ) && rm -rf /var/lib/apt/lists/*
+    ) ; rm -rf /var/lib/apt/lists/*
+
+# Install Python camera packages via pip as fallback
+RUN pip install --no-cache-dir \
+    picamera2 \
+    opencv-python \
+    numpy \
+    pillow \
+    || echo "Some Python packages may not be available"
 
 # Copy requirements first for better caching
 COPY edge_processing/requirements-cloud.txt /app/edge_processing/
