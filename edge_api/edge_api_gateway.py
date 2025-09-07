@@ -99,31 +99,35 @@ class EdgeAPIGateway:
                 
                 if self.system_health_monitor:
                     # Basic system metrics
-                    basic_metrics = self.system_health_monitor.get_system_metrics()
-                    
-                    # Convert temperature from Celsius to Fahrenheit
-                    if 'temperature' in basic_metrics and basic_metrics['temperature'] is not None:
-                        celsius_temp = basic_metrics['temperature']
-                        fahrenheit_temp = round((celsius_temp * 9/5) + 32, 1)
-                        basic_metrics['temperature'] = fahrenheit_temp  # Replace with Fahrenheit
-                        basic_metrics['temperature_celsius'] = celsius_temp  # Keep Celsius for reference
-                    
-                    health_data.update(basic_metrics)
-                    
-                    # Enhanced health information
-                    health_data.update({
-                        'health_score': self.system_health_monitor.get_health_score(),
-                        'service_details': self.system_health_monitor.get_service_statuses(),
-                        'recent_alerts': self.system_health_monitor.get_recent_alerts(30),  # Last 30 minutes
-                        'performance_summary': self._convert_performance_temps(self.system_health_monitor.get_performance_summary(30)),  # Last 30 minutes
-                        'system_info': {
-                            'hostname': __import__('socket').gethostname(),
-                            'python_version': __import__('sys').version.split()[0],
-                            'platform': __import__('platform').platform(),
-                            'uptime': basic_metrics.get('uptime_seconds', 0)
-                        },
-                        'camera_snapshot': self._get_latest_camera_snapshot()
-                    })
+                    try:
+                        basic_metrics = self.system_health_monitor.get_system_metrics()
+                        
+                        # Convert temperature from Celsius to Fahrenheit
+                        if 'temperature' in basic_metrics and basic_metrics['temperature'] is not None:
+                            celsius_temp = basic_metrics['temperature']
+                            fahrenheit_temp = round((celsius_temp * 9/5) + 32, 1)
+                            basic_metrics['temperature'] = fahrenheit_temp  # Replace with Fahrenheit
+                            basic_metrics['temperature_celsius'] = celsius_temp  # Keep Celsius for reference
+                        
+                        health_data.update(basic_metrics)
+                        
+                        # Enhanced health information
+                        health_data.update({
+                            'health_score': self.system_health_monitor.get_health_score(),
+                            'service_details': self.system_health_monitor.get_service_statuses(),
+                            'recent_alerts': self.system_health_monitor.get_recent_alerts(30),  # Last 30 minutes
+                            'performance_summary': self._convert_performance_temps(self.system_health_monitor.get_performance_summary(30)),  # Last 30 minutes
+                            'system_info': {
+                                'hostname': __import__('socket').gethostname(),
+                                'python_version': __import__('sys').version.split()[0],
+                                'platform': __import__('platform').platform(),
+                                'uptime': basic_metrics.get('uptime_seconds', 0)
+                            },
+                            'camera_snapshot': self._get_latest_camera_snapshot()
+                        })
+                    except Exception as e:
+                        logger.error(f"Error getting system health data: {e}")
+                        health_data['system_health_error'] = str(e)
                 
                 return jsonify(health_data)
             except Exception as e:
@@ -408,8 +412,14 @@ class EdgeAPIGateway:
                 }
             
             # Find the latest snapshot
-            snapshot_files = [f for f in os.listdir(snapshot_path) 
-                            if f.startswith('periodic_snapshot_') and f.endswith('.jpg')]
+            try:
+                snapshot_files = [f for f in os.listdir(snapshot_path) 
+                                if f.startswith('periodic_snapshot_') and f.endswith('.jpg')]
+            except OSError as e:
+                return {
+                    'available': False,
+                    'message': f'Error accessing snapshot directory: {str(e)}'
+                }
             
             if not snapshot_files:
                 return {
@@ -418,20 +428,26 @@ class EdgeAPIGateway:
                 }
             
             # Get the most recent snapshot
-            latest_snapshot = max(snapshot_files, 
-                                key=lambda x: os.path.getmtime(os.path.join(snapshot_path, x)))
-            
-            snapshot_full_path = os.path.join(snapshot_path, latest_snapshot)
-            mod_time = os.path.getmtime(snapshot_full_path)
-            file_size = os.path.getsize(snapshot_full_path)
-            
-            return {
-                'available': True,
-                'filename': latest_snapshot,
-                'timestamp': datetime.fromtimestamp(mod_time).isoformat(),
-                'file_size_bytes': file_size,
-                'url': f'/api/camera/snapshot/{latest_snapshot}'
-            }
+            try:
+                latest_snapshot = max(snapshot_files, 
+                                    key=lambda x: os.path.getmtime(os.path.join(snapshot_path, x)))
+                
+                snapshot_full_path = os.path.join(snapshot_path, latest_snapshot)
+                mod_time = os.path.getmtime(snapshot_full_path)
+                file_size = os.path.getsize(snapshot_full_path)
+                
+                return {
+                    'available': True,
+                    'filename': latest_snapshot,
+                    'timestamp': datetime.fromtimestamp(mod_time).isoformat(),
+                    'file_size_bytes': file_size,
+                    'url': f'/api/camera/snapshot/{latest_snapshot}'
+                }
+            except (OSError, ValueError) as e:
+                return {
+                    'available': False,
+                    'message': f'Error accessing snapshot file: {str(e)}'
+                }
             
         except Exception as e:
             logger.error(f"Error getting latest camera snapshot: {e}")
@@ -442,19 +458,20 @@ class EdgeAPIGateway:
     
     def _convert_performance_temps(self, performance_data):
         """Convert temperature values in performance data to Fahrenheit"""
-        if not performance_data:
+        if not performance_data or not isinstance(performance_data, (list, tuple)):
             return performance_data
             
         # Convert temperature fields to Fahrenheit
         temp_fields = ['cpu_temp', 'gpu_temp', 'temperature']
         
         for entry in performance_data:
-            for field in temp_fields:
-                if field in entry and entry[field] is not None:
-                    celsius = entry[field]
-                    fahrenheit = round((celsius * 9/5) + 32, 1)
-                    entry[field] = fahrenheit
-                    entry[f'{field}_celsius'] = celsius  # Keep original Celsius value
+            if isinstance(entry, dict):
+                for field in temp_fields:
+                    if field in entry and entry[field] is not None:
+                        celsius = entry[field]
+                        fahrenheit = round((celsius * 9/5) + 32, 1)
+                        entry[field] = fahrenheit
+                        entry[f'{field}_celsius'] = celsius  # Keep original Celsius value
         
         return performance_data
 
