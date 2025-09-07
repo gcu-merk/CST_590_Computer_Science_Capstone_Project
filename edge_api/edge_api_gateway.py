@@ -62,21 +62,42 @@ class EdgeAPIGateway:
     
     def _convert_performance_temps(self, perf_summary):
         """Convert temperature values in performance summary from Celsius to Fahrenheit"""
-        if not perf_summary or 'temperature' not in perf_summary or perf_summary['temperature'] is None:
+        try:
+            # Check if perf_summary is a valid dictionary
+            if not isinstance(perf_summary, dict):
+                logger.warning(f"Performance summary is not a dictionary: {type(perf_summary)}")
+                return perf_summary
+            
+            if not perf_summary or 'temperature' not in perf_summary or perf_summary['temperature'] is None:
+                return perf_summary
+            
+            temp_data = perf_summary['temperature']
+            
+            # Check if temp_data is a valid dictionary
+            if not isinstance(temp_data, dict):
+                logger.warning(f"Temperature data is not a dictionary: {type(temp_data)}")
+                return perf_summary
+            
+            # Check if required temperature keys exist
+            required_keys = ['avg', 'max', 'min']
+            if not all(key in temp_data for key in required_keys):
+                logger.warning(f"Temperature data missing required keys: {temp_data.keys()}")
+                return perf_summary
+            
+            converted = perf_summary.copy()
+            converted['temperature'] = {
+                'avg': round((temp_data['avg'] * 9/5) + 32, 1),
+                'max': round((temp_data['max'] * 9/5) + 32, 1),
+                'min': round((temp_data['min'] * 9/5) + 32, 1),
+                'avg_celsius': temp_data['avg'],
+                'max_celsius': temp_data['max'],
+                'min_celsius': temp_data['min']
+            }
+            
+            return converted
+        except Exception as e:
+            logger.error(f"Error converting performance temperatures: {e}")
             return perf_summary
-        
-        temp_data = perf_summary['temperature']
-        converted = perf_summary.copy()
-        converted['temperature'] = {
-            'avg': round((temp_data['avg'] * 9/5) + 32, 1),
-            'max': round((temp_data['max'] * 9/5) + 32, 1),
-            'min': round((temp_data['min'] * 9/5) + 32, 1),
-            'avg_celsius': temp_data['avg'],
-            'max_celsius': temp_data['max'],
-            'min_celsius': temp_data['min']
-        }
-        
-        return converted
     
     def _setup_routes(self):
         """Setup REST API routes"""
@@ -103,25 +124,50 @@ class EdgeAPIGateway:
                         basic_metrics = self.system_health_monitor.get_system_metrics()
                         
                         # Convert temperature from Celsius to Fahrenheit
-                        if 'temperature' in basic_metrics and basic_metrics['temperature'] is not None:
+                        if isinstance(basic_metrics, dict) and 'temperature' in basic_metrics and basic_metrics['temperature'] is not None:
                             celsius_temp = basic_metrics['temperature']
-                            fahrenheit_temp = round((celsius_temp * 9/5) + 32, 1)
-                            basic_metrics['temperature'] = fahrenheit_temp  # Replace with Fahrenheit
-                            basic_metrics['temperature_celsius'] = celsius_temp  # Keep Celsius for reference
+                            if isinstance(celsius_temp, (int, float)):
+                                fahrenheit_temp = round((celsius_temp * 9/5) + 32, 1)
+                                basic_metrics['temperature'] = fahrenheit_temp  # Replace with Fahrenheit
+                                basic_metrics['temperature_celsius'] = celsius_temp  # Keep Celsius for reference
                         
-                        health_data.update(basic_metrics)
+                        health_data.update(basic_metrics if isinstance(basic_metrics, dict) else {})
                         
-                        # Enhanced health information
+                        # Enhanced health information with error handling
+                        try:
+                            health_score = self.system_health_monitor.get_health_score()
+                            health_data['health_score'] = health_score if isinstance(health_score, (int, float)) else None
+                        except Exception as e:
+                            logger.warning(f"Error getting health score: {e}")
+                            health_data['health_score'] = None
+                        
+                        try:
+                            service_details = self.system_health_monitor.get_service_statuses()
+                            health_data['service_details'] = service_details if isinstance(service_details, dict) else {}
+                        except Exception as e:
+                            logger.warning(f"Error getting service details: {e}")
+                            health_data['service_details'] = {}
+                        
+                        try:
+                            recent_alerts = self.system_health_monitor.get_recent_alerts(30)
+                            health_data['recent_alerts'] = recent_alerts if isinstance(recent_alerts, list) else []
+                        except Exception as e:
+                            logger.warning(f"Error getting recent alerts: {e}")
+                            health_data['recent_alerts'] = []
+                        
+                        try:
+                            performance_summary = self.system_health_monitor.get_performance_summary(30)
+                            health_data['performance_summary'] = self._convert_performance_temps(performance_summary) if isinstance(performance_summary, dict) else {}
+                        except Exception as e:
+                            logger.warning(f"Error getting performance summary: {e}")
+                            health_data['performance_summary'] = {}
+                        
                         health_data.update({
-                            'health_score': self.system_health_monitor.get_health_score(),
-                            'service_details': self.system_health_monitor.get_service_statuses(),
-                            'recent_alerts': self.system_health_monitor.get_recent_alerts(30),  # Last 30 minutes
-                            'performance_summary': self._convert_performance_temps(self.system_health_monitor.get_performance_summary(30)),  # Last 30 minutes
                             'system_info': {
                                 'hostname': __import__('socket').gethostname(),
                                 'python_version': __import__('sys').version.split()[0],
                                 'platform': __import__('platform').platform(),
-                                'uptime': basic_metrics.get('uptime_seconds', 0)
+                                'uptime': basic_metrics.get('uptime_seconds', 0) if isinstance(basic_metrics, dict) else 0
                             },
                             'camera_snapshot': self._get_latest_camera_snapshot()
                         })
