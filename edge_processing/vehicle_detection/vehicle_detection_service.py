@@ -333,9 +333,17 @@ class VehicleDetectionService:
             return
             
         current_time = time.time()
-        if current_time - self.last_snapshot_time >= self.snapshot_interval_seconds:
+        time_since_last = current_time - self.last_snapshot_time
+        
+        # Debug logging
+        if time_since_last >= 60:  # Log every minute
+            logger.debug(f"Periodic snapshot check: {time_since_last:.0f}s since last snapshot (interval: {self.snapshot_interval_seconds}s)")
+        
+        if time_since_last >= self.snapshot_interval_seconds:
+            logger.info(f"Taking periodic snapshot (every {self.snapshot_interval_minutes} minutes)")
             try:
                 # Ensure periodic snapshot directory exists (create parent directories too)
+                logger.debug(f"Creating snapshot directory: {self.periodic_snapshot_path}")
                 os.makedirs(self.periodic_snapshot_path, exist_ok=True)
                 
                 # Create timestamp for filename
@@ -344,12 +352,18 @@ class VehicleDetectionService:
                 filepath = os.path.join(self.periodic_snapshot_path, filename)
                 
                 # Save the frame
+                logger.debug(f"Saving snapshot to: {filepath}")
                 cv2.imwrite(filepath, frame)
+                
+                # Verify file was created
+                if os.path.exists(filepath):
+                    file_size = os.path.getsize(filepath)
+                    logger.info(f"✅ Periodic snapshot saved: {filename} ({file_size} bytes)")
+                else:
+                    logger.error(f"❌ Failed to verify snapshot file: {filepath}")
                 
                 # Update last snapshot time
                 self.last_snapshot_time = current_time
-                
-                logger.info(f"Saved periodic snapshot: {filename}")
                 
                 # Keep only the latest snapshot (cleanup old ones)
                 self._cleanup_old_periodic_snapshots()
@@ -364,6 +378,43 @@ class VehicleDetectionService:
                 self._try_fallback_snapshot_directory(frame)
             except Exception as e:
                 logger.error(f"Failed to take periodic snapshot: {e}")
+    
+    def _try_fallback_snapshot_directory(self, frame):
+        """Try to save snapshot to a fallback directory if primary fails"""
+        try:
+            # Try /tmp as fallback
+            fallback_path = "/tmp/periodic_snapshots"
+            logger.info(f"Trying fallback directory: {fallback_path}")
+            os.makedirs(fallback_path, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"periodic_snapshot_{timestamp}.jpg"
+            filepath = os.path.join(fallback_path, filename)
+            
+            cv2.imwrite(filepath, frame)
+            logger.info(f"✅ Saved periodic snapshot to fallback location: {filename}")
+            
+            # Update the path for future use
+            self.periodic_snapshot_path = fallback_path
+            
+        except Exception as e:
+            logger.error(f"Failed to save to fallback directory: {e}")
+            # Try current working directory as last resort
+            try:
+                cwd_snapshots = os.path.join(os.getcwd(), "periodic_snapshots")
+                logger.info(f"Trying CWD fallback directory: {cwd_snapshots}")
+                os.makedirs(cwd_snapshots, exist_ok=True)
+                
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"periodic_snapshot_{timestamp}.jpg"
+                filepath = os.path.join(cwd_snapshots, filename)
+                
+                cv2.imwrite(filepath, frame)
+                logger.info(f"✅ Saved periodic snapshot to CWD: {filename}")
+                self.periodic_snapshot_path = cwd_snapshots
+                
+            except Exception as e2:
+                logger.error(f"Failed to save snapshot anywhere: {e2}")
     
     def _try_fallback_snapshot_directory(self, frame):
         """Try to save snapshot to a fallback directory if primary fails"""
@@ -527,23 +578,58 @@ class VehicleDetectionService:
     
     def start_detection(self):
         """Start continuous vehicle detection"""
-        if not self.initialize_camera() or not self.load_model():
+        logger.info("🚀 Starting vehicle detection service...")
+        logger.info(f"📹 Camera index: {self.camera_index}")
+        logger.info(f"⏰ Periodic snapshots: {self.periodic_snapshots}")
+        logger.info(f"⏱️  Snapshot interval: {self.snapshot_interval_minutes} minutes ({self.snapshot_interval_seconds} seconds)")
+        logger.info(f"📁 Snapshot path: {self.periodic_snapshot_path}")
+        logger.info(f"🔧 Use IMX500 AI: {self.use_imx500_ai}")
+        logger.info(f"🧠 Model path: {self.model_path}")
+        
+        # Check if periodic snapshots directory exists
+        if self.periodic_snapshots:
+            if os.path.exists(self.periodic_snapshot_path):
+                logger.info(f"✅ Periodic snapshot directory exists: {self.periodic_snapshot_path}")
+            else:
+                logger.warning(f"⚠️  Periodic snapshot directory does not exist: {self.periodic_snapshot_path}")
+                try:
+                    os.makedirs(self.periodic_snapshot_path, exist_ok=True)
+                    logger.info(f"✅ Created periodic snapshot directory: {self.periodic_snapshot_path}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to create periodic snapshot directory: {e}")
+        
+        if not self.initialize_camera():
+            logger.error("❌ Camera initialization failed - cannot start detection")
+            return False
+            
+        if not self.load_model():
+            logger.error("❌ Model loading failed - cannot start detection")
             return False
             
         self.is_running = True
         detection_thread = threading.Thread(target=self._detection_loop)
+        detection_thread.daemon = True
         detection_thread.start()
-        logger.info("Vehicle detection service started")
+        logger.info("✅ Vehicle detection service started successfully")
+        logger.info("🔄 Detection loop should be running in background thread")
         return True
     
     def _detection_loop(self):
         """Main detection loop with optimized frame processing"""
+        logger.info("Detection loop started")
+        loop_count = 0
+        
         while self.is_running:
             try:
+                loop_count += 1
+                if loop_count % 100 == 0:  # Log every 100 frames
+                    logger.info(f"Detection loop running - frame count: {self.frame_count}")
+                
                 ret, frame = self.capture_frame()
                 if not ret or frame is None:
                     if not self.suppress_camera_warning:
                         logger.warning("Failed to capture frame from camera")
+                    time.sleep(0.1)
                     continue
                 
                 self.frame_count += 1
@@ -557,7 +643,9 @@ class VehicleDetectionService:
                 self.save_detection_snapshots(frame, detections)
                 
                 # Take periodic snapshot every 5 minutes
-                self.take_periodic_snapshot(frame)
+                if self.periodic_snapshots:
+                    logger.debug(f"About to call take_periodic_snapshot (frame {self.frame_count})")
+                    self.take_periodic_snapshot(frame)
                 
                 # Adaptive frame rate based on processing load
                 # Maintain ~30 FPS but allow dynamic adjustment

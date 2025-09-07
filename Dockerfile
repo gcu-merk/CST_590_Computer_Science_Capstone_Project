@@ -29,11 +29,28 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     curl \
+    # Camera and video processing libraries
+    python3-opencv \
+    python3-picamera2 \
+    libcamera-dev \
+    libcamera-apps \
+    libcamera-tools \
+    v4l-utils \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Raspberry Pi specific packages (picamera2, gpiozero, RPi.GPIO) should be installed on the Pi itself or in the running container, not during cloud build.
-# See deployment instructions for details.
+# Install Raspberry Pi specific packages for camera support
+# These are needed for the IMX500 camera to work in Docker
+RUN apt-get update && apt-get install -y \
+    python3-picamera2 \
+    python3-opencv \
+    python3-munkres \
+    libcamera-dev \
+    libcamera-apps \
+    libcamera-tools \
+    v4l-utils \
+    imx500-all \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY edge_processing/requirements-cloud.txt /app/edge_processing/
