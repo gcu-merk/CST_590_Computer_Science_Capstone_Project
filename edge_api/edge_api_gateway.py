@@ -87,6 +87,21 @@ class EdgeAPIGateway:
                 logger.error(f"Health check error: {e}")
                 return jsonify({'status': 'error', 'message': str(e)}), 500
         
+        @self.app.route('/', methods=['GET'])
+        def hello_world():
+            """Simple hello world endpoint"""
+            return jsonify({
+                'message': 'Hello World!',
+                'service': 'Raspberry Pi Edge Traffic Monitoring API',
+                'timestamp': datetime.now().isoformat(),
+                'status': 'running'
+            })
+        
+        @self.app.route('/hello', methods=['GET'])
+        def hello():
+            """Alternative hello endpoint"""
+            return jsonify({'message': 'Hello from Raspberry Pi Edge API!'})
+        
         @self.app.route('/api/detections', methods=['GET'])
         def get_detections():
             """Get recent vehicle detections"""
