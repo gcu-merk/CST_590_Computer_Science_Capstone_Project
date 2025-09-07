@@ -3,6 +3,12 @@
 Vehicle Detection Service for Raspberry Pi 5
 Uses TensorFlow/OpenCV with Sony IMX500 AI Camera for real-time vehicle detection
 Optimized for Raspberry Pi 5 with native camera interface
+
+Features:
+- Real-time vehicle detection using IMX500 AI camera
+- Automatic image saving to external SSD for high-confidence detections
+- Configurable detection thresholds and storage management
+- Support for both IMX500 on-sensor AI and TensorFlow Lite inference
 """
 
 
@@ -10,6 +16,7 @@ import cv2
 import numpy as np
 import time
 import json
+import os
 from datetime import datetime
 from collections import deque
 import threading
@@ -63,20 +70,28 @@ class VehicleDetection:
     frame_id: int
     
 class VehicleDetectionService:
-    # TEMP: Suppress camera capture warnings
-    suppress_camera_warning = True
+    # TEMP: Suppress camera capture warnings - set to False for debugging
+    suppress_camera_warning = False
     """
     Core vehicle detection service using Sony IMX500 AI Camera
     Optimized for Raspberry Pi 5 with native camera interface and edge inference
     """
     
 
-    def __init__(self, camera_index=0, model_path=None, use_tflite=True, use_imx500_ai=True, imx500_model_path=None):
+    def __init__(self, camera_index=0, model_path=None, use_tflite=True, use_imx500_ai=True, imx500_model_path=None, 
+                 save_detections=True, save_path="/mnt/storage/ai_camera_images", save_confidence_threshold=0.7, max_saved_images=1000):
         self.camera_index = camera_index
         self.model_path = model_path
         self.use_tflite = use_tflite and TFLITE_AVAILABLE
         self.use_imx500_ai = use_imx500_ai and IMX500_AVAILABLE
         self.imx500_model_path = imx500_model_path or "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk"
+        
+        # Image saving configuration
+        self.save_detections = save_detections
+        self.save_path = save_path
+        self.save_confidence_threshold = save_confidence_threshold
+        self.max_saved_images = max_saved_images
+        
         self.camera = None
         self.picamera2 = None
         self.model = None
@@ -85,8 +100,8 @@ class VehicleDetectionService:
         self.is_running = False
         self.detection_buffer = deque(maxlen=100)
         self.frame_count = 0
-        # Performance optimization settings
-        self.input_size = (640, 640)  # Optimized for edge inference
+        # Performance optimization settings - corrected for IMX500 SSD model
+        self.input_size = (320, 320)  # Corrected: IMX500 SSD model expects 320x320 input
         self.confidence_threshold = 0.5
         self.nms_threshold = 0.4
         
@@ -95,11 +110,13 @@ class VehicleDetectionService:
         try:
             if PI_CAMERA_AVAILABLE:
                 self.picamera2 = Picamera2()
-                # Configure for optimal performance
-                camera_config = self.picamera2.create_still_configuration(
-                    main={"size": (1920, 1080)},
+                # Configure for optimal performance with IMX500
+                camera_config = self.picamera2.create_video_configuration(
+                    main={"size": (1920, 1080), "format": "RGB888"},
                     lores={"size": self.input_size, "format": "YUV420"}
                 )
+                # Set framerate for smooth video processing
+                camera_config["controls"]["FrameRate"] = 30.0
                 self.picamera2.configure(camera_config)
                 self.picamera2.start()
                 logger.info("Sony IMX500 AI Camera initialized with picamera2")
@@ -107,6 +124,10 @@ class VehicleDetectionService:
                 if self.use_imx500_ai:
                     self.imx500 = IMX500Device(self.imx500_model_path)
                     logger.info(f"IMX500 on-sensor AI model loaded: {self.imx500_model_path}")
+                    # Show firmware loading progress (as recommended in docs)
+                    self.imx500.show_network_fw_progress_bar()
+                    # Set inference aspect ratio to match model input
+                    self.imx500.set_inference_aspect_ratio(self.input_size)
                 return True
             else:
                 # Fallback to OpenCV
@@ -150,8 +171,31 @@ class VehicleDetectionService:
             return False
     
     def capture_frame(self):
-            """Capture frame using optimal camera interface"""
-            # Temporarily disabled image capture from Pi
+        """Capture frame using optimal camera interface"""
+        try:
+            if self.picamera2:
+                # Use Picamera2 (preferred for Raspberry Pi with IMX500)
+                frame = self.picamera2.capture_array()
+                # Convert from YUV420 to RGB if needed
+                if frame.shape[2] == 1:  # Grayscale
+                    frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+                elif frame.shape[2] == 3:  # Already RGB
+                    pass
+                else:  # YUV or other format
+                    frame = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_I420)
+                return True, frame
+            elif self.camera:
+                # Use OpenCV fallback
+                ret, frame = self.camera.read()
+                if ret:
+                    return True, frame
+                else:
+                    return False, None
+            else:
+                logger.warning("No camera interface available")
+                return False, None
+        except Exception as e:
+            logger.error(f"Failed to capture frame: {e}")
             return False, None
     
     def detect_vehicles(self, frame):
@@ -195,6 +239,82 @@ class VehicleDetectionService:
         except Exception as e:
             logger.error(f"Detection error: {e}")
         return detections
+    
+    def save_detection_snapshots(self, frame, detections):
+        """
+        Save snapshots of frames with high-confidence vehicle detections to SSD
+        """
+        if not self.save_detections:
+            return
+            
+        try:
+            # Ensure save directory exists
+            os.makedirs(self.save_path, exist_ok=True)
+            
+            # Filter for high-confidence detections
+            high_conf_detections = [d for d in detections if d.confidence >= self.save_confidence_threshold]
+            
+            if high_conf_detections:
+                # Create timestamp for filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                
+                # Save the full frame
+                frame_filename = f"detection_{timestamp}_frame_{self.frame_count}.jpg"
+                frame_path = os.path.join(self.save_path, frame_filename)
+                cv2.imwrite(frame_path, frame)
+                
+                # Save detection metadata
+                metadata = {
+                    "timestamp": timestamp,
+                    "frame_id": self.frame_count,
+                    "detections": [
+                        {
+                            "id": d.detection_id,
+                            "bbox": d.bbox,
+                            "confidence": d.confidence,
+                            "vehicle_type": d.vehicle_type
+                        } for d in high_conf_detections
+                    ]
+                }
+                
+                metadata_filename = f"detection_{timestamp}_metadata.json"
+                metadata_path = os.path.join(self.save_path, metadata_filename)
+                with open(metadata_path, 'w') as f:
+                    json.dump(metadata, f, indent=2)
+                
+                logger.info(f"Saved detection snapshot: {frame_filename} ({len(high_conf_detections)} vehicles)")
+                
+                # Clean up old images if we have too many
+                self._cleanup_old_images()
+                
+        except Exception as e:
+            logger.error(f"Failed to save detection snapshot: {e}")
+    
+    def _cleanup_old_images(self):
+        """Remove oldest images if we exceed the maximum saved images limit"""
+        try:
+            if not os.path.exists(self.save_path):
+                return
+                
+            # Get all image files
+            image_files = [f for f in os.listdir(self.save_path) if f.endswith(('.jpg', '.jpeg', '.png'))]
+            
+            if len(image_files) > self.max_saved_images:
+                # Sort by modification time (oldest first)
+                image_files.sort(key=lambda x: os.path.getmtime(os.path.join(self.save_path, x)))
+                
+                # Remove oldest files
+                files_to_remove = image_files[:len(image_files) - self.max_saved_images + 50]  # Keep some buffer
+                
+                for filename in files_to_remove:
+                    try:
+                        os.remove(os.path.join(self.save_path, filename))
+                        logger.info(f"Cleaned up old image: {filename}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove old image {filename}: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Failed to cleanup old images: {e}")
     
     def _preprocess_frame(self, frame):
         """Preprocess frame for model input"""
@@ -321,6 +441,9 @@ class VehicleDetectionService:
                 # Store detections
                 for detection in detections:
                     self.detection_buffer.append(detection)
+                
+                # Save detection snapshots to SSD if vehicles detected
+                self.save_detection_snapshots(frame, detections)
                 
                 # Adaptive frame rate based on processing load
                 # Maintain ~30 FPS but allow dynamic adjustment
