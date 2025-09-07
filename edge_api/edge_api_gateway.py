@@ -42,7 +42,7 @@ class EdgeAPIGateway:
         self.vehicle_detection_service = None
         self.speed_analysis_service = None
         self.data_fusion_engine = None
-        self.system_health_monitor = None
+    self.system_health_monitor = PiSystemStatus()
         
         # Runtime state
         self.is_running = False
