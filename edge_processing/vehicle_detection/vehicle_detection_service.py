@@ -335,7 +335,7 @@ class VehicleDetectionService:
         current_time = time.time()
         if current_time - self.last_snapshot_time >= self.snapshot_interval_seconds:
             try:
-                # Ensure periodic snapshot directory exists
+                # Ensure periodic snapshot directory exists (create parent directories too)
                 os.makedirs(self.periodic_snapshot_path, exist_ok=True)
                 
                 # Create timestamp for filename
@@ -354,8 +354,51 @@ class VehicleDetectionService:
                 # Keep only the latest snapshot (cleanup old ones)
                 self._cleanup_old_periodic_snapshots()
                 
+            except PermissionError as e:
+                logger.error(f"Permission denied creating snapshot directory {self.periodic_snapshot_path}: {e}")
+                # Try fallback directory
+                self._try_fallback_snapshot_directory(frame)
+            except OSError as e:
+                logger.error(f"Failed to create snapshot directory {self.periodic_snapshot_path}: {e}")
+                # Try fallback directory
+                self._try_fallback_snapshot_directory(frame)
             except Exception as e:
                 logger.error(f"Failed to take periodic snapshot: {e}")
+    
+    def _try_fallback_snapshot_directory(self, frame):
+        """Try to save snapshot to a fallback directory if primary fails"""
+        try:
+            # Try /tmp as fallback
+            fallback_path = "/tmp/periodic_snapshots"
+            os.makedirs(fallback_path, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"periodic_snapshot_{timestamp}.jpg"
+            filepath = os.path.join(fallback_path, filename)
+            
+            cv2.imwrite(filepath, frame)
+            logger.info(f"Saved periodic snapshot to fallback location: {filename}")
+            
+            # Update the path for future use
+            self.periodic_snapshot_path = fallback_path
+            
+        except Exception as e:
+            logger.error(f"Failed to save to fallback directory: {e}")
+            # Try current working directory as last resort
+            try:
+                cwd_snapshots = os.path.join(os.getcwd(), "periodic_snapshots")
+                os.makedirs(cwd_snapshots, exist_ok=True)
+                
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"periodic_snapshot_{timestamp}.jpg"
+                filepath = os.path.join(cwd_snapshots, filename)
+                
+                cv2.imwrite(filepath, frame)
+                logger.info(f"Saved periodic snapshot to CWD: {filename}")
+                self.periodic_snapshot_path = cwd_snapshots
+                
+            except Exception as e2:
+                logger.error(f"Failed to save snapshot anywhere: {e2}")
     
     def _cleanup_old_periodic_snapshots(self):
         """Keep only the most recent periodic snapshot"""

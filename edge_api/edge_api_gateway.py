@@ -319,15 +319,27 @@ class EdgeAPIGateway:
                 import os
                 from flask import send_file
                 
-                snapshot_path = "/mnt/storage/periodic_snapshots"
-                file_path = os.path.join(snapshot_path, filename)
+                # Check multiple possible locations for snapshots
+                possible_paths = [
+                    "/mnt/storage/periodic_snapshots",  # Primary SSD location
+                    "/tmp/periodic_snapshots",          # Fallback temp location
+                    "/app/periodic_snapshots",          # Docker app directory
+                    os.path.join(os.getcwd(), "periodic_snapshots")  # Current working directory
+                ]
+                
+                file_path = None
+                for snapshot_path in possible_paths:
+                    potential_path = os.path.join(snapshot_path, filename)
+                    if os.path.exists(potential_path):
+                        file_path = potential_path
+                        break
                 
                 # Security check - only allow access to snapshot files
                 if not filename.startswith('periodic_snapshot_') or not filename.endswith('.jpg'):
                     return jsonify({'error': 'Invalid filename'}), 400
                 
-                if not os.path.exists(file_path):
-                    return jsonify({'error': 'Snapshot not found'}), 404
+                if not file_path or not os.path.exists(file_path):
+                    return jsonify({'error': 'Snapshot not found in any location'}), 404
                 
                 return send_file(file_path, mimetype='image/jpeg')
                 
@@ -449,12 +461,25 @@ class EdgeAPIGateway:
         """Get information about the latest periodic camera snapshot"""
         try:
             import os
-            snapshot_path = "/mnt/storage/periodic_snapshots"
             
-            if not os.path.exists(snapshot_path):
+            # Check multiple possible locations for snapshots
+            possible_paths = [
+                "/mnt/storage/periodic_snapshots",  # Primary SSD location
+                "/tmp/periodic_snapshots",          # Fallback temp location
+                "/app/periodic_snapshots",          # Docker app directory
+                os.path.join(os.getcwd(), "periodic_snapshots")  # Current working directory
+            ]
+            
+            snapshot_path = None
+            for path in possible_paths:
+                if os.path.exists(path) and os.path.isdir(path):
+                    snapshot_path = path
+                    break
+            
+            if not snapshot_path:
                 return {
                     'available': False,
-                    'message': 'No snapshots directory found'
+                    'message': 'No snapshots directory found in any location'
                 }
             
             # Find the latest snapshot
@@ -470,7 +495,7 @@ class EdgeAPIGateway:
             if not snapshot_files:
                 return {
                     'available': False,
-                    'message': 'No snapshots found'
+                    'message': f'No snapshots found in {snapshot_path}'
                 }
             
             # Get the most recent snapshot
@@ -482,12 +507,20 @@ class EdgeAPIGateway:
                 mod_time = os.path.getmtime(snapshot_full_path)
                 file_size = os.path.getsize(snapshot_full_path)
                 
+                # Create URL based on the actual path
+                if snapshot_path == "/mnt/storage/periodic_snapshots":
+                    url_path = f'/api/camera/snapshot/{latest_snapshot}'
+                else:
+                    # For fallback locations, we'll need to serve from different endpoints
+                    url_path = f'/api/camera/snapshot/{latest_snapshot}'
+                
                 return {
                     'available': True,
                     'filename': latest_snapshot,
                     'timestamp': datetime.fromtimestamp(mod_time).isoformat(),
                     'file_size_bytes': file_size,
-                    'url': f'/api/camera/snapshot/{latest_snapshot}'
+                    'path': snapshot_path,
+                    'url': url_path
                 }
             except (OSError, ValueError) as e:
                 return {
