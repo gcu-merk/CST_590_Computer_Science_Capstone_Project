@@ -60,6 +60,24 @@ class EdgeAPIGateway:
         self.data_fusion_engine = data_fusion
         self.system_health_monitor = system_health
     
+    def _convert_performance_temps(self, perf_summary):
+        """Convert temperature values in performance summary from Celsius to Fahrenheit"""
+        if not perf_summary or 'temperature' not in perf_summary or perf_summary['temperature'] is None:
+            return perf_summary
+        
+        temp_data = perf_summary['temperature']
+        converted = perf_summary.copy()
+        converted['temperature'] = {
+            'avg_fahrenheit': round((temp_data['avg'] * 9/5) + 32, 1),
+            'max_fahrenheit': round((temp_data['max'] * 9/5) + 32, 1),
+            'min_fahrenheit': round((temp_data['min'] * 9/5) + 32, 1),
+            'avg_celsius': temp_data['avg'],
+            'max_celsius': temp_data['max'],
+            'min_celsius': temp_data['min']
+        }
+        
+        return converted
+    
     def _setup_routes(self):
         """Setup REST API routes"""
         
@@ -82,6 +100,12 @@ class EdgeAPIGateway:
                 if self.system_health_monitor:
                     # Basic system metrics
                     basic_metrics = self.system_health_monitor.get_system_metrics()
+                    
+                    # Convert temperature from Celsius to Fahrenheit
+                    if 'temperature' in basic_metrics and basic_metrics['temperature'] is not None:
+                        basic_metrics['temperature_fahrenheit'] = round((basic_metrics['temperature'] * 9/5) + 32, 1)
+                        basic_metrics['temperature_celsius'] = basic_metrics['temperature']  # Keep original for reference
+                    
                     health_data.update(basic_metrics)
                     
                     # Enhanced health information
@@ -89,7 +113,7 @@ class EdgeAPIGateway:
                         'health_score': self.system_health_monitor.get_health_score(),
                         'service_details': self.system_health_monitor.get_service_statuses(),
                         'recent_alerts': self.system_health_monitor.get_recent_alerts(30),  # Last 30 minutes
-                        'performance_summary': self.system_health_monitor.get_performance_summary(30),  # Last 30 minutes
+                        'performance_summary': self._convert_performance_temps(self.system_health_monitor.get_performance_summary(30)),  # Last 30 minutes
                         'system_info': {
                             'hostname': __import__('socket').gethostname(),
                             'python_version': __import__('sys').version.split()[0],
