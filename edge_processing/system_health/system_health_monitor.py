@@ -111,9 +111,9 @@ class SystemHealthMonitor:
             memory = psutil.virtual_memory()
             memory_percent = memory.percent
             
-            # Disk usage
-            disk = psutil.disk_usage('/')
-            disk_percent = disk.percent
+            # Disk usage (all mounted disks)
+            disk_info = self._get_all_disk_info()
+            disk_percent = disk_info.get('/', {}).get('percent', 0)
             
             # Network I/O
             network = psutil.net_io_counters()
@@ -147,6 +147,31 @@ class SystemHealthMonitor:
                 memory_percent=0.0,
                 disk_percent=0.0
             )
+    
+    def _get_all_disk_info(self):
+        """Get information about all mounted disks"""
+        disk_info = {}
+        try:
+            partitions = psutil.disk_partitions(all=True)
+            for partition in partitions:
+                try:
+                    usage = psutil.disk_usage(partition.mountpoint)
+                    disk_info[partition.mountpoint] = {
+                        'device': partition.device,
+                        'mountpoint': partition.mountpoint,
+                        'fstype': partition.fstype,
+                        'total_gb': round(usage.total / (1024**3), 1),
+                        'used_gb': round(usage.used / (1024**3), 1),
+                        'free_gb': round(usage.free / (1024**3), 1),
+                        'percent': usage.percent
+                    }
+                except (PermissionError, OSError):
+                    # Skip partitions we can't access
+                    continue
+        except Exception as e:
+            logger.error(f"Error getting disk info: {e}")
+        
+        return disk_info
     
     def _get_cpu_temperature(self):
         """Get CPU temperature (Raspberry Pi specific)"""
@@ -296,7 +321,8 @@ class SystemHealthMonitor:
             'temperature': latest.temperature,
             'gpu_temperature': latest.gpu_temp,
             'timestamp': latest.timestamp,
-            'uptime_seconds': time.time() - (self.metrics_history[0].timestamp if self.metrics_history else time.time())
+            'uptime_seconds': time.time() - (self.metrics_history[0].timestamp if self.metrics_history else time.time()),
+            'disk_info': self._get_all_disk_info()  # Add detailed disk information
         }
     
     def get_service_statuses(self):
