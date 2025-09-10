@@ -7,8 +7,11 @@ services:
     # Device access for camera and GPIO
     devices:
       - /dev/video0:/dev/video0    # Camera access
+      - /dev/video1:/dev/video1    # Additional camera device
       - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access
       - /dev/gpiomem:/dev/gpiomem  # GPIO access
+      - /dev/vchiq:/dev/vchiq      # VideoCore access for camera
+      - /dev/vcsm:/dev/vcsm        # VideoCore shared memory
     
     # Privileged mode for hardware access
     privileged: true
@@ -30,6 +33,8 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - DISPLAY=:0  # For GUI debugging if needed
+      - LIBCAMERA_LOG_LEVELS=ERROR  # Reduce libcamera logging
+      - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk
     
     # Health check
     healthcheck:

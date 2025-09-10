@@ -49,7 +49,16 @@ RUN apt-get update && ( \
         python3-picamera2 \
         libcamera-apps \
         imx500-all \
+        python3-imx500 \
     || echo "Raspberry Pi specific packages not available, continuing without them" \
+    ) ; rm -rf /var/lib/apt/lists/*
+
+# Install IMX500 libraries from Raspberry Pi repository if available
+RUN apt-get update && ( \
+    apt-get install -y \
+        imx500-tools \
+        imx500-models \
+    || echo "IMX500 tools not available" \
     ) ; rm -rf /var/lib/apt/lists/*
 
 # Install Python camera packages via pip as fallback
@@ -58,15 +67,25 @@ RUN pip install --no-cache-dir \
     opencv-python \
     numpy \
     pillow \
+    imx500 \
     || echo "Some Python packages may not be available"
+
+# Try to install IMX500 Python package specifically
+RUN pip install --no-cache-dir \
+    imx500 \
+    || echo "IMX500 Python package not available"
 
 # Copy requirements first for better caching
 COPY edge_processing/requirements-cloud.txt /app/edge_processing/
+COPY edge_processing/requirements-pi.txt /app/edge_processing/
 COPY edge_api/requirements.txt /app/edge_api/
 
 # Install Python dependencies (cloud-compatible only)
 RUN pip install --no-cache-dir -r edge_processing/requirements-cloud.txt
 RUN pip install --no-cache-dir -r edge_api/requirements.txt
+
+# Try to install Pi-specific dependencies (may fail in non-Pi environments)
+RUN pip install --no-cache-dir -r edge_processing/requirements-pi.txt || echo "Pi-specific packages not available"
 
 # Copy application code
 COPY . /app/
