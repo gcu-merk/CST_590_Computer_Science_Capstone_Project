@@ -276,7 +276,7 @@ def main():
     logger.info("Starting Raspberry Pi 5 Edge ML Traffic Monitoring System")
     logger.info("=" * 60)
     
-    orchestrator = EdgeOrchestrator(sensors_enabled=False)
+    orchestrator = EdgeOrchestrator(sensors_enabled=True)
     
     try:
         orchestrator.start_all_services()
