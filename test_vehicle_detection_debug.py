@@ -31,21 +31,40 @@ def test_vehicle_detection_service():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    # Create service instance with debugging enabled
+    # Create service instance with IMX500 camera specifically
     service = VehicleDetectionService(
         camera_index=0,
         periodic_snapshots=True,
         snapshot_interval_minutes=1,  # Test with 1 minute for faster feedback
         periodic_snapshot_path="/tmp/test_snapshots",
-        use_imx500_ai=False,  # Disable IMX500 for testing
-        suppress_camera_warning=False
+        use_imx500_ai=True,  # Force IMX500 usage
+        imx500_model_path="/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk"
     )
 
     print("✅ Service created successfully")
     print(f"📁 Snapshot path: {service.periodic_snapshot_path}")
     print(f"⏰ Snapshot interval: {service.snapshot_interval_minutes} minutes")
+    print(f"📹 Camera index: {service.camera_index}")
+    print(f"🤖 IMX500 AI enabled: {service.use_imx500_ai}")
+    print(f"🧠 IMX500 model path: {service.imx500_model_path}")
 
-    # Start the service
+    # Test camera initialization separately
+    print("\n🔧 Testing camera initialization...")
+    camera_ok = service.initialize_camera()
+    if camera_ok:
+        print("✅ Camera initialized successfully")
+    else:
+        print("❌ Camera initialization failed")
+        return
+
+    # Test model loading
+    print("\n🧠 Testing model loading...")
+    model_ok = service.load_model()
+    if model_ok:
+        print("✅ Model loaded successfully")
+    else:
+        print("❌ Model loading failed")
+        return
     print("\n🚀 Starting vehicle detection service...")
     success = service.start_detection()
 
