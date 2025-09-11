@@ -486,14 +486,71 @@ class EdgeAPIGateway:
                 except Exception:
                     pass
                 
-                # Try to get Docker info using docker command if available
+                # Try multiple methods to get Docker container information
+                
+                # Method 1: Check /proc/self/cgroup for container ID
                 try:
-                    # Get container info using docker inspect
+                    with open('/proc/self/cgroup', 'r') as f:
+                        for line in f:
+                            if 'docker' in line:
+                                # Extract container ID from cgroup path
+                                parts = line.strip().split('/')
+                                for part in parts:
+                                    if len(part) == 64 and all(c in '0123456789abcdef' for c in part):
+                                        docker_info['container_id'] = part[:12]  # Short form
+                                        break
+                except Exception:
+                    pass
+                
+                # Method 2: Try to get image name from environment variables or common locations
+                image_sources = [
+                    os.environ.get('DOCKER_IMAGE'),
+                    os.environ.get('IMAGE_NAME'),
+                    os.environ.get('CONTAINER_IMAGE'),
+                    'gcumerk/cst590-capstone-public:latest'  # Known default for this project
+                ]
+                
+                for source in image_sources:
+                    if source and source != 'unknown':
+                        docker_info['image_name'] = source
+                        break
+                
+                # Method 3: Try to get uptime from /proc/1/stat (PID 1 in container)
+                try:
+                    with open('/proc/1/stat', 'r') as f:
+                        stat_data = f.read().split()
+                        # Field 22 is starttime in ticks since boot
+                        starttime_ticks = int(stat_data[21])
+                        
+                        # Get system boot time
+                        with open('/proc/stat', 'r') as stat_f:
+                            for line in stat_f:
+                                if line.startswith('btime'):
+                                    boot_time = int(line.split()[1])
+                                    break
+                        
+                        # Get ticks per second
+                        import os
+                        ticks_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
+                        
+                        # Calculate start time
+                        start_seconds = boot_time + (starttime_ticks / ticks_per_sec)
+                        current_time = time.time()
+                        docker_info['uptime'] = current_time - start_seconds
+                        
+                        # Format created_at timestamp
+                        docker_info['created_at'] = datetime.fromtimestamp(start_seconds).isoformat()
+                        
+                except Exception as e:
+                    logger.debug(f"Error calculating container uptime: {e}")
+                
+                # Method 4: Try docker command if available (less likely to work inside container)
+                try:
                     result = subprocess.run(
                         ['docker', 'inspect', '--format', 
                          '{{.Config.Image}}|{{.Name}}|{{.Created}}|{{.State.StartedAt}}',
                          socket.gethostname()], 
-                        capture_output=True, text=True, timeout=5
+                        capture_output=True, text=True, timeout=3
                     )
                     
                     if result.returncode == 0:
@@ -502,27 +559,17 @@ class EdgeAPIGateway:
                             docker_info['image_name'] = parts[0]
                             docker_info['container_name'] = parts[1].lstrip('/')
                             docker_info['created_at'] = parts[2]
-                            started_at = parts[3]
                             
-                            # Calculate uptime
-                            try:
-                                from datetime import datetime
-                                started = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-                                uptime_seconds = (datetime.now().astimezone() - started).total_seconds()
-                                docker_info['uptime'] = uptime_seconds
-                            except Exception:
-                                pass
-                                
                 except subprocess.TimeoutExpired:
                     logger.debug("Docker command timed out")
                 except FileNotFoundError:
-                    logger.debug("Docker command not found")
+                    logger.debug("Docker command not found in container")
                 except Exception as e:
-                    logger.debug(f"Error getting Docker info: {e}")
+                    logger.debug(f"Docker command failed: {e}")
                 
-                # Alternative method: check environment variables
-                if not docker_info['image_name']:
-                    docker_info['image_name'] = os.environ.get('DOCKER_IMAGE_NAME', 'unknown')
+                # Set container name from hostname if not found
+                if not docker_info['container_name']:
+                    docker_info['container_name'] = socket.gethostname()
                 
                 # Try to get container stats
                 try:
