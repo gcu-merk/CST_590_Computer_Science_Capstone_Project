@@ -47,6 +47,11 @@ jobs:
           echo "Downloaded docker-compose.yml"
           cat docker-compose.yml
           
+      - name: Remove all containers
+        run: |
+          echo "=== Removing all containers ==="
+          docker ps -a -q | xargs -r docker rm -f
+
       - name: Stop existing containers
         run: |
           echo "=== Stopping existing containers ==="
