@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y \
     libcamera-dev \
     libcamera-tools \
     v4l-utils \
+    fswebcam \
     && rm -rf /var/lib/apt/lists/*
 
 
