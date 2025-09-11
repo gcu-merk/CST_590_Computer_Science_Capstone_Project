@@ -129,7 +129,7 @@ stop_containers() {
     
     # Stop containers gracefully
     if [ -f "docker-compose.yml" ]; then
-        $COMPOSE_CMD down || true
+        $COMPOSE_CMD down --remove-orphans || echo "No existing containers to stop"
         print_success "Containers stopped"
     else
         print_warning "No docker-compose.yml found, skipping container stop"
@@ -158,10 +158,8 @@ pull_image() {
 deploy_containers() {
     print_step "Deploying containers..."
     cd "$DEPLOY_DIR"
-    # Gracefully stop all running containers
-    docker ps -aq | xargs -r docker stop
-    # Remove all containers to avoid name conflicts
-    docker ps -aq | xargs -r docker rm
+    # Gracefully stop and remove all containers managed by docker-compose
+    $COMPOSE_CMD down --remove-orphans || echo "No existing containers to stop"
     # Start containers
     if $COMPOSE_CMD up -d; then
         print_success "Containers deployed"
