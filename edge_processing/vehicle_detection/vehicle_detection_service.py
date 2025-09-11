@@ -198,15 +198,29 @@ class VehicleDetectionService:
         try:
             if self.picamera2:
                 # Use Picamera2 (preferred for Raspberry Pi with IMX500)
-                frame = self.picamera2.capture_array()
-                # Convert from YUV420 to RGB if needed
-                if frame.shape[2] == 1:  # Grayscale
-                    frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-                elif frame.shape[2] == 3:  # Already RGB
-                    pass
-                else:  # YUV or other format
-                    frame = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_I420)
-                return True, frame
+                try:
+                    frame = self.picamera2.capture_array()
+                    # Validate the frame
+                    if frame is not None and frame.size > 0:
+                        # Convert from YUV420 to RGB if needed
+                        if len(frame.shape) == 3 and frame.shape[2] == 1:  # Grayscale
+                            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+                        elif len(frame.shape) == 3 and frame.shape[2] == 3:  # Already RGB
+                            pass
+                        else:  # YUV or other format - try conversion
+                            try:
+                                frame = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_I420)
+                            except:
+                                # If color conversion fails, fallback to system level
+                                logger.warning("Picamera2 color conversion failed, falling back to system-level capture")
+                                return self._capture_frame_system_level()
+                        return True, frame
+                    else:
+                        logger.warning("Picamera2 returned empty frame, falling back to system-level capture")
+                        return self._capture_frame_system_level()
+                except Exception as e:
+                    logger.warning(f"Picamera2 capture failed: {e}, falling back to system-level capture")
+                    return self._capture_frame_system_level()
             elif self.camera:
                 # Use OpenCV fallback
                 ret, frame = self.camera.read()
