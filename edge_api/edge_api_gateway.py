@@ -11,6 +11,8 @@ import time
 import logging
 import threading
 import json
+import os
+import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -169,6 +171,7 @@ class EdgeAPIGateway:
                                 'platform': __import__('platform').platform(),
                                 'uptime': basic_metrics.get('uptime_seconds', 0) if isinstance(basic_metrics, dict) else 0
                             },
+                            'docker_info': self._get_docker_info(),
                             'camera_snapshot': self._get_latest_camera_snapshot()
                         })
                     except Exception as e:
@@ -456,6 +459,90 @@ class EdgeAPIGateway:
         """Stop the API server"""
         self.is_running = False
         logger.info("Edge API Gateway stopped")
+    
+    def _get_docker_info(self):
+        """Get Docker container information if running in a container"""
+        docker_info = {
+            'running_in_container': False,
+            'container_id': None,
+            'image_name': None,
+            'container_name': None,
+            'created_at': None,
+            'uptime': None
+        }
+        
+        try:
+            # Check if running in a Docker container
+            if os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup'):
+                docker_info['running_in_container'] = True
+                
+                # Try to get container ID from hostname (often used in Docker)
+                try:
+                    import socket
+                    hostname = socket.gethostname()
+                    # In Docker, hostname is often the container ID (first 12 chars)
+                    if len(hostname) == 12 and all(c in '0123456789abcdef' for c in hostname):
+                        docker_info['container_id'] = hostname
+                except Exception:
+                    pass
+                
+                # Try to get Docker info using docker command if available
+                try:
+                    # Get container info using docker inspect
+                    result = subprocess.run(
+                        ['docker', 'inspect', '--format', 
+                         '{{.Config.Image}}|{{.Name}}|{{.Created}}|{{.State.StartedAt}}',
+                         socket.gethostname()], 
+                        capture_output=True, text=True, timeout=5
+                    )
+                    
+                    if result.returncode == 0:
+                        parts = result.stdout.strip().split('|')
+                        if len(parts) >= 4:
+                            docker_info['image_name'] = parts[0]
+                            docker_info['container_name'] = parts[1].lstrip('/')
+                            docker_info['created_at'] = parts[2]
+                            started_at = parts[3]
+                            
+                            # Calculate uptime
+                            try:
+                                from datetime import datetime
+                                started = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                                uptime_seconds = (datetime.now().astimezone() - started).total_seconds()
+                                docker_info['uptime'] = uptime_seconds
+                            except Exception:
+                                pass
+                                
+                except subprocess.TimeoutExpired:
+                    logger.debug("Docker command timed out")
+                except FileNotFoundError:
+                    logger.debug("Docker command not found")
+                except Exception as e:
+                    logger.debug(f"Error getting Docker info: {e}")
+                
+                # Alternative method: check environment variables
+                if not docker_info['image_name']:
+                    docker_info['image_name'] = os.environ.get('DOCKER_IMAGE_NAME', 'unknown')
+                
+                # Try to get container stats
+                try:
+                    result = subprocess.run(
+                        ['docker', 'stats', '--no-stream', '--format', 
+                         'table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}'],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if result.returncode == 0:
+                        lines = result.stdout.strip().split('\n')
+                        if len(lines) > 1:  # Skip header
+                            stats_line = lines[1]
+                            docker_info['container_stats'] = stats_line
+                except Exception:
+                    pass
+                    
+        except Exception as e:
+            logger.debug(f"Error checking Docker environment: {e}")
+        
+        return docker_info
     
     def _get_latest_camera_snapshot(self):
         """Get information about the latest periodic camera snapshot"""
