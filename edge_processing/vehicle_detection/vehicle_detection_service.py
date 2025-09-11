@@ -242,56 +242,71 @@ class VehicleDetectionService:
                 return self._capture_mock_frame()
 
     def _capture_frame_system_level(self):
-        """Capture frame using system-level tools (fswebcam) when OpenCV fails"""
+        """Capture frame using system-level tools (fswebcam) when OpenCV fails
+        
+        Tries multiple video devices since /dev/video0 may be claimed by main app
+        """
         try:
-            # Create temporary file for captured image
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
-                temp_path = tmp_file.name
+            # Try multiple video devices in order
+            video_devices = ['/dev/video0', '/dev/video1', '/dev/video2', '/dev/video3', 
+                           '/dev/video4', '/dev/video5', '/dev/video6', '/dev/video7']
             
-            # Use fswebcam to capture image (we verified this works with IMX500)
-            cmd = [
-                'fswebcam',
-                '--no-banner',
-                '--resolution', '1920x1080',
-                '--device', '/dev/video0',
-                '--jpeg', '95',
-                temp_path
-            ]
-            
-            # Execute fswebcam command
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            
-            if result.returncode == 0 and os.path.exists(temp_path):
-                # Load captured image with OpenCV
-                frame = cv2.imread(temp_path)
-                # Clean up temporary file
-                os.unlink(temp_path)
+            for device in video_devices:
+                if not os.path.exists(device):
+                    continue
+                    
+                logger.debug(f"Attempting system-level capture with {device}")
                 
-                if frame is not None:
-                    # Convert from BGR to RGB for consistency
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    logger.info("Successfully captured frame using system-level tools")
-                    return True, frame
-                else:
-                    logger.error("Failed to load captured image")
-                    return False, None
-            else:
-                logger.error(f"fswebcam failed: {result.stderr}")
-                return False, None
+                # Create temporary file for captured image
+                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+                    temp_path = tmp_file.name
                 
-        except subprocess.TimeoutExpired:
-            logger.error("fswebcam command timed out")
+                try:
+                    # Use fswebcam to capture image
+                    cmd = [
+                        'fswebcam',
+                        '--no-banner',
+                        '--resolution', '1920x1080',
+                        '--device', device,
+                        '--jpeg', '95',
+                        '--quiet',  # Reduce output noise
+                        temp_path
+                    ]
+                    
+                    # Execute fswebcam command with shorter timeout per device
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                    
+                    if result.returncode == 0 and os.path.exists(temp_path) and os.path.getsize(temp_path) > 1000:
+                        # Load captured image with OpenCV
+                        frame = cv2.imread(temp_path)
+                        # Clean up temporary file
+                        os.unlink(temp_path)
+                        
+                        if frame is not None and frame.size > 0:
+                            # Convert from BGR to RGB for consistency
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            logger.info(f"Successfully captured frame using {device}")
+                            return True, frame
+                        else:
+                            logger.debug(f"Failed to load image from {device}")
+                    else:
+                        logger.debug(f"fswebcam failed on {device}: {result.stderr}")
+                        
+                except subprocess.TimeoutExpired:
+                    logger.debug(f"Timeout capturing from {device}")
+                except Exception as e:
+                    logger.debug(f"Error with {device}: {e}")
+                finally:
+                    # Clean up temp file if it exists
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+            
+            logger.error("All video devices failed for system-level capture")
             return False, None
+                
         except Exception as e:
             logger.error(f"System-level capture failed: {e}")
             return False, None
-        finally:
-            # Ensure temp file is cleaned up
-            if 'temp_path' in locals() and os.path.exists(temp_path):
-                try:
-                    os.unlink(temp_path)
-                except:
-                    pass
 
     def _capture_mock_frame(self):
         """Create a mock frame for testing when camera is unavailable"""
