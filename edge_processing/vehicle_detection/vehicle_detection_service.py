@@ -18,6 +18,8 @@ import numpy as np
 import time
 import json
 import os
+import subprocess
+import tempfile
 from datetime import datetime
 from collections import deque
 import threading
@@ -213,13 +215,70 @@ class VehicleDetectionService:
                 else:
                     return False, None
             else:
-                logger.warning("No camera interface available")
-                return False, None
+                # Fallback to system-level camera capture (works with IMX500)
+                return self._capture_frame_system_level()
         except Exception as e:
             logger.error(f"Failed to capture frame: {e}")
-            # Try mock camera as fallback for testing
-            return self._capture_mock_frame()
-    
+            # Try system-level capture as fallback
+            try:
+                return self._capture_frame_system_level()
+            except Exception as e2:
+                logger.error(f"System-level capture also failed: {e2}")
+                # Final fallback to mock camera for testing
+                return self._capture_mock_frame()
+
+    def _capture_frame_system_level(self):
+        """Capture frame using system-level tools (fswebcam) when OpenCV fails"""
+        try:
+            # Create temporary file for captured image
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+                temp_path = tmp_file.name
+            
+            # Use fswebcam to capture image (we verified this works with IMX500)
+            cmd = [
+                'fswebcam',
+                '--no-banner',
+                '--resolution', '1920x1080',
+                '--device', '/dev/video0',
+                '--jpeg', '95',
+                temp_path
+            ]
+            
+            # Execute fswebcam command
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0 and os.path.exists(temp_path):
+                # Load captured image with OpenCV
+                frame = cv2.imread(temp_path)
+                # Clean up temporary file
+                os.unlink(temp_path)
+                
+                if frame is not None:
+                    # Convert from BGR to RGB for consistency
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    logger.info("Successfully captured frame using system-level tools")
+                    return True, frame
+                else:
+                    logger.error("Failed to load captured image")
+                    return False, None
+            else:
+                logger.error(f"fswebcam failed: {result.stderr}")
+                return False, None
+                
+        except subprocess.TimeoutExpired:
+            logger.error("fswebcam command timed out")
+            return False, None
+        except Exception as e:
+            logger.error(f"System-level capture failed: {e}")
+            return False, None
+        finally:
+            # Ensure temp file is cleaned up
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+
     def _capture_mock_frame(self):
         """Create a mock frame for testing when camera is unavailable"""
         try:
