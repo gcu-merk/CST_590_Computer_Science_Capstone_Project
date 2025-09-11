@@ -94,12 +94,24 @@ class VehicleDetectionService:
         self.save_confidence_threshold = save_confidence_threshold
         self.max_saved_images = max_saved_images
         
-        # Periodic snapshot configuration
+        # Periodic snapshot configuration (allow environment overrides)
+        # ENV VARS:
+        #   PERIODIC_SNAPSHOT_PATH - override snapshot directory
+        #   SNAPSHOT_INTERVAL_MINUTES - override interval
+        #   DETECTION_SAVE_PATH - override detection save dir
+        env_snapshot_path = os.getenv("PERIODIC_SNAPSHOT_PATH")
+        env_snapshot_interval = os.getenv("SNAPSHOT_INTERVAL_MINUTES")
+        env_detection_path = os.getenv("DETECTION_SAVE_PATH")
+
         self.periodic_snapshots = periodic_snapshots
-        self.snapshot_interval_minutes = snapshot_interval_minutes
-        self.periodic_snapshot_path = periodic_snapshot_path
+        self.snapshot_interval_minutes = int(env_snapshot_interval) if env_snapshot_interval else snapshot_interval_minutes
+        self.periodic_snapshot_path = env_snapshot_path if env_snapshot_path else periodic_snapshot_path
+        if env_detection_path:
+            self.save_path = env_detection_path
         self.last_snapshot_time = 0
-        self.snapshot_interval_seconds = snapshot_interval_minutes * 60
+        self.snapshot_interval_seconds = self.snapshot_interval_minutes * 60
+        if env_snapshot_path or env_snapshot_interval or env_detection_path:
+            logger.info(f"Environment overrides -> snapshot_path: {self.periodic_snapshot_path}, interval: {self.snapshot_interval_minutes}m, detections: {self.save_path}")
         
         self.camera = None
         self.picamera2 = None
@@ -399,77 +411,25 @@ class VehicleDetectionService:
             except Exception as e:
                 logger.error(f"Failed to take periodic snapshot: {e}")
     
-    def _try_fallback_snapshot_directory(self, frame):
-        """Try to save snapshot to a fallback directory if primary fails"""
-        try:
-            # Try /tmp as fallback
-            fallback_path = "/tmp/periodic_snapshots"
-            logger.info(f"Trying fallback directory: {fallback_path}")
-            os.makedirs(fallback_path, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"periodic_snapshot_{timestamp}.jpg"
-            filepath = os.path.join(fallback_path, filename)
-            
-            cv2.imwrite(filepath, frame)
-            logger.info(f"✅ Saved periodic snapshot to fallback location: {filename}")
-            
-            # Update the path for future use
-            self.periodic_snapshot_path = fallback_path
-            
-        except Exception as e:
-            logger.error(f"Failed to save to fallback directory: {e}")
-            # Try current working directory as last resort
+    def _try_fallback_snapshot_directory(self, frame):  # Single consolidated implementation
+        """Try to save snapshot to fallback directories in order of preference."""
+        fallbacks = [
+            "/tmp/periodic_snapshots",
+            os.path.join(os.getcwd(), "periodic_snapshots")
+        ]
+        for fb in fallbacks:
             try:
-                cwd_snapshots = os.path.join(os.getcwd(), "periodic_snapshots")
-                logger.info(f"Trying CWD fallback directory: {cwd_snapshots}")
-                os.makedirs(cwd_snapshots, exist_ok=True)
-                
+                os.makedirs(fb, exist_ok=True)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"periodic_snapshot_{timestamp}.jpg"
-                filepath = os.path.join(cwd_snapshots, filename)
-                
+                filepath = os.path.join(fb, filename)
                 cv2.imwrite(filepath, frame)
-                logger.info(f"✅ Saved periodic snapshot to CWD: {filename}")
-                self.periodic_snapshot_path = cwd_snapshots
-                
-            except Exception as e2:
-                logger.error(f"Failed to save snapshot anywhere: {e2}")
-    
-    def _try_fallback_snapshot_directory(self, frame):
-        """Try to save snapshot to a fallback directory if primary fails"""
-        try:
-            # Try /tmp as fallback
-            fallback_path = "/tmp/periodic_snapshots"
-            os.makedirs(fallback_path, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"periodic_snapshot_{timestamp}.jpg"
-            filepath = os.path.join(fallback_path, filename)
-            
-            cv2.imwrite(filepath, frame)
-            logger.info(f"Saved periodic snapshot to fallback location: {filename}")
-            
-            # Update the path for future use
-            self.periodic_snapshot_path = fallback_path
-            
-        except Exception as e:
-            logger.error(f"Failed to save to fallback directory: {e}")
-            # Try current working directory as last resort
-            try:
-                cwd_snapshots = os.path.join(os.getcwd(), "periodic_snapshots")
-                os.makedirs(cwd_snapshots, exist_ok=True)
-                
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"periodic_snapshot_{timestamp}.jpg"
-                filepath = os.path.join(cwd_snapshots, filename)
-                
-                cv2.imwrite(filepath, frame)
-                logger.info(f"Saved periodic snapshot to CWD: {filename}")
-                self.periodic_snapshot_path = cwd_snapshots
-                
-            except Exception as e2:
-                logger.error(f"Failed to save snapshot anywhere: {e2}")
+                logger.info(f"✅ Saved periodic snapshot to fallback: {filepath}")
+                self.periodic_snapshot_path = fb
+                return
+            except Exception as e:  # pragma: no cover - fallback rarely fails
+                logger.error(f"Fallback save failed for {fb}: {e}")
+        logger.error("All fallback snapshot saves failed")
     
     def _cleanup_old_periodic_snapshots(self):
         """Keep only the most recent periodic snapshot"""

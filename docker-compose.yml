@@ -27,22 +27,27 @@ services:
       - ./logs:/app/logs
       - ./config:/app/config
       - /opt/vc:/opt/vc  # VideoCore libraries
+      - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
+      - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images
     
     # Environment variables
     environment:
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
-      - DISPLAY=:0  # For GUI debugging if needed
-      - LIBCAMERA_LOG_LEVELS=ERROR  # Reduce libcamera logging
-      - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: '1'
+      DISPLAY: ":0"  # For GUI debugging if needed
+      LIBCAMERA_LOG_LEVELS: ERROR  # Reduce libcamera logging
+      IMX500_MODEL_PATH: /usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk
+      PERIODIC_SNAPSHOT_PATH: /mnt/storage/periodic_snapshots
+      SNAPSHOT_INTERVAL_MINUTES: '5'
+      DETECTION_SAVE_PATH: /mnt/storage/ai_camera_images
     
     # Health check
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
 
 # Optional: Add database service for more complex setups
   # database:

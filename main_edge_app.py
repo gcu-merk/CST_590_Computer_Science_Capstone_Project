@@ -56,12 +56,17 @@ class EdgeOrchestrator:
             
             if self.sensors_enabled:
                 # 2. Vehicle Detection Service
+                import os
+                # Allow override of snapshot interval/path through env vars
+                env_interval = os.getenv("SNAPSHOT_INTERVAL_MINUTES")
+                snapshot_interval = int(env_interval) if env_interval else 5
+                snapshot_path = os.getenv("PERIODIC_SNAPSHOT_PATH", "/mnt/storage/periodic_snapshots")
                 self.services['vehicle_detection'] = VehicleDetectionService(
                     camera_index=0,  # Sony IMX500 AI Camera
                     model_path=None,  # Use default model
                     periodic_snapshots=True,  # Enable periodic snapshots
-                    snapshot_interval_minutes=5,  # Take snapshot every 5 minutes
-                    periodic_snapshot_path="/mnt/storage/periodic_snapshots"  # Save to SSD
+                    snapshot_interval_minutes=snapshot_interval,  # Interval (env overrideable)
+                    periodic_snapshot_path=snapshot_path  # Save to SSD or override
                 )
                 
                 # 3. Speed Analysis Service

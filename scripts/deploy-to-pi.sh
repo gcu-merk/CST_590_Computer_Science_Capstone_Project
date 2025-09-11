@@ -157,9 +157,9 @@ pull_image() {
 # Deploy containers
 deploy_containers() {
     print_step "Deploying containers..."
-    
     cd "$DEPLOY_DIR"
-    
+    # Remove any existing traffic-monitoring-edge container to avoid name conflicts
+    docker rm -f traffic-monitoring-edge || true
     # Start containers
     if $COMPOSE_CMD up -d; then
         print_success "Containers deployed"
