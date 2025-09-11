@@ -12,9 +12,9 @@ Features:
 - Support for both IMX500 on-sensor AI and TensorFlow Lite inference
 """
 
-
-import cv2
-import numpy as np
+# Type: ignore - These imports are platform-specific (Raspberry Pi)
+import cv2  # type: ignore
+import numpy as np  # type: ignore
 import time
 import json
 import os
@@ -27,9 +27,9 @@ import logging
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
 
-# IMX500 on-sensor AI import
+# IMX500 on-sensor AI import (Raspberry Pi specific)
 try:
-    from picamera2.devices.imx500 import IMX500 as IMX500Device
+    from picamera2.devices.imx500 import IMX500 as IMX500Device  # type: ignore
     IMX500_AVAILABLE = True
 except ImportError:
     IMX500_AVAILABLE = False
@@ -37,9 +37,9 @@ except ImportError:
 
 # Raspberry Pi specific imports
 try:
-    from picamera2 import Picamera2
-    from picamera2.encoders import H264Encoder
-    from picamera2.outputs import FileOutput
+    from picamera2 import Picamera2  # type: ignore
+    from picamera2.encoders import H264Encoder  # type: ignore
+    from picamera2.outputs import FileOutput  # type: ignore
     PI_CAMERA_AVAILABLE = True
 except ImportError:
     PI_CAMERA_AVAILABLE = False
@@ -47,10 +47,10 @@ except ImportError:
 
 # TensorFlow imports with edge optimization
 try:
-    import tensorflow as tf
+    import tensorflow as tf  # type: ignore
     # Try to use TensorFlow Lite for better edge performance
     try:
-        import tflite_runtime.interpreter as tflite
+        import tflite_runtime.interpreter as tflite  # type: ignore
         TFLITE_AVAILABLE = True
     except ImportError:
         TFLITE_AVAILABLE = False
@@ -311,7 +311,7 @@ class VehicleDetectionService:
     def _capture_mock_frame(self):
         """Create a mock frame for testing when camera is unavailable"""
         try:
-            import numpy as np
+            import numpy as np  # type: ignore
             # Create a mock 1920x1080 RGB frame
             mock_frame = np.random.randint(0, 255, (1080, 1920, 3), dtype=np.uint8)
             
