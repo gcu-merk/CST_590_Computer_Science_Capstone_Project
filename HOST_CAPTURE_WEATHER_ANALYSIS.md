@@ -12,6 +12,7 @@ This resolves the camera access issues within Docker containers while maintainin
 ## Problem Solved
 
 **Previous Issue**: Weather API was failing with:
+
 ```json
 {
   "camera_available": false,
@@ -26,8 +27,9 @@ This resolves the camera access issues within Docker containers while maintainin
 
 ### Architecture Changes
 
-#### Before (Direct Camera Access):
-```
+#### Before (Direct Camera Access)
+
+```text
 ┌─────────────────────────────────────┐
 │         Docker Container            │
 │  ┌─────────────┐  ┌──────────────┐  │
@@ -38,8 +40,9 @@ This resolves the camera access issues within Docker containers while maintainin
 └─────────────────────────────────────┘
 ```
 
-#### After (Host-Capture Architecture):
-```
+#### After (Host-Capture Architecture)
+
+```text
 ┌─────────────────────────────────────┐
 │        Raspberry Pi Host            │
 │  ┌─────────────┐  ┌──────────────┐  │
@@ -63,6 +66,7 @@ This resolves the camera access issues within Docker containers while maintainin
 #### Modified Weather API Endpoint (`/api/weather`)
 
 **Before**:
+
 ```python
 # Get current frame from vehicle detection service
 current_frame = self.vehicle_detection_service.get_current_frame()
@@ -74,6 +78,7 @@ sky_result = self.sky_analyzer.analyze_sky_condition(current_frame)
 ```
 
 **After**:
+
 ```python
 # Use host-capture architecture - analyze from shared volume
 max_age = request.args.get('max_age_seconds', 10.0, type=float) 
@@ -97,9 +102,11 @@ else:
 ### API Usage
 
 #### New Parameters
+
 - `max_age_seconds` (optional): Maximum age of image to use for analysis (default: 10.0 seconds)
 
 #### Example Requests
+
 ```bash
 # Standard weather analysis (images up to 10 seconds old)
 curl http://100.121.231.16:5000/api/weather
@@ -112,6 +119,7 @@ curl http://100.121.231.16:5000/api/weather?max_age_seconds=5.0
 ```
 
 #### Success Response
+
 ```json
 {
   "weather_enabled": true,
@@ -135,6 +143,7 @@ curl http://100.121.231.16:5000/api/weather?max_age_seconds=5.0
 ```
 
 #### No Recent Images Response
+
 ```json
 {
   "weather_enabled": true,
@@ -154,7 +163,9 @@ curl http://100.121.231.16:5000/api/weather?max_age_seconds=5.0
 ## Host-Capture Setup Requirements
 
 ### 1. Host Camera Capture Service
+
 Must be running on the Raspberry Pi host:
+
 ```bash
 # Check if host capture service is running
 sudo systemctl status host-camera-capture
@@ -164,7 +175,9 @@ sudo systemctl start host-camera-capture
 ```
 
 ### 2. Shared Volume Mount
+
 Docker container must have access to shared volume:
+
 ```yaml
 # docker-compose.yml
 volumes:
@@ -172,7 +185,9 @@ volumes:
 ```
 
 ### 3. Recent Images Available
+
 Host capture service should be creating recent images:
+
 ```bash
 # Check for recent images
 ls -la /mnt/storage/camera_capture/live/
@@ -185,6 +200,7 @@ ls -la /mnt/storage/camera_capture/live/
 ## Testing
 
 ### Test Host-Capture Weather Analysis
+
 ```bash
 # Run the test script
 python test_host_capture_weather.py
@@ -196,11 +212,13 @@ curl http://100.121.231.16:5000/api/weather?max_age_seconds=30
 ### Troubleshooting
 
 #### No Recent Images
+
 - Check host camera capture service: `sudo systemctl status host-camera-capture`
 - Verify shared volume mount: `docker exec container ls -la /app/data/camera_capture/live/`
 - Check disk space: `df -h /mnt/storage/`
 
 #### Analysis Errors  
+
 - Check SkyAnalyzer logs for image processing errors
 - Verify image file integrity: `file /mnt/storage/camera_capture/live/*.jpg`
 - Test with longer `max_age_seconds` parameter

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Monitoring Edge API - Clickable Endpoints</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #2980b9;
+            margin-top: 25px;
+        }
+        .api-info {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .endpoint-group {
+            margin-bottom: 25px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .endpoint-link {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 5px 5px 5px 0;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .endpoint-link:hover {
+            background: #2980b9;
+        }
+        .method {
+            background: #27ae60;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .parameters {
+            background: #e74c3c;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .description {
+            margin: 10px 0;
+            font-style: italic;
+            color: #666;
+        }
+        .curl-examples {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        .curl-example {
+            margin: 5px 0;
+            padding: 5px;
+            background: #34495e;
+            border-radius: 3px;
+        }
+        .websocket-section {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #27ae60;
+        }
+        .event {
+            background: #d5f4e6;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .base-url {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 Traffic Monitoring Edge API - Clickable Endpoints</h1>
+        
+        <div class="api-info">
+            <h3>API Information</h3>
+            <strong>Title:</strong> Traffic Monitoring Edge API<br>
+            <strong>Version:</strong> 1.0.0<br>
+            <strong>Description:</strong> Real-time traffic monitoring with vehicle detection, speed analysis, and weather integration<br>
+            <strong>Timestamp:</strong> 2025-09-12T21:41:25.579532
+        </div>
+
+        <div class="base-url">
+            <strong>🌐 Base URL:</strong> <a href="http://100.121.231.16:5000" target="_blank">http://100.121.231.16:5000</a>
+        </div>
+
+        <h2>🔗 API Endpoints with Clickable Links</h2>
+
+        <!-- System Endpoints -->
+        <div class="endpoint-group">
+            <h3>🖥️ System Health and Status</h3>
+            <p><em>System health and status endpoints</em></p>
+            
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>System Health Check</strong>
+                <div class="description">System health check with service status and metrics</div>
+                <a href="http://100.121.231.16:5000/api/health" target="_blank" class="endpoint-link">
+                    🔗 /api/health
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Hello Test Endpoint</strong>
+                <div class="description">Simple hello endpoint for testing connectivity</div>
+                <a href="http://100.121.231.16:5000/hello" target="_blank" class="endpoint-link">
+                    🔗 /hello
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>API Endpoints List</strong>
+                <div class="description">This endpoint - lists all available API endpoints</div>
+                <a href="http://100.121.231.16:5000/api/endpoints" target="_blank" class="endpoint-link">
+                    🔗 /api/endpoints
+                </a>
+            </div>
+        </div>
+
+        <!-- Vehicle Detection Endpoints -->
+        <div class="endpoint-group">
+            <h3>🚙 Vehicle Detection and Tracking</h3>
+            <p><em>Vehicle detection and tracking endpoints</em></p>
+            
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Recent Vehicle Detections</strong>
+                <span class="parameters">?seconds=10 (optional)</span>
+                <div class="description">Get recent vehicle detections</div>
+                <a href="http://100.121.231.16:5000/api/detections" target="_blank" class="endpoint-link">
+                    🔗 /api/detections
+                </a>
+                <a href="http://100.121.231.16:5000/api/detections?seconds=30" target="_blank" class="endpoint-link">
+                    🔗 /api/detections?seconds=30
+                </a>
+                <a href="http://100.121.231.16:5000/api/detections?seconds=60" target="_blank" class="endpoint-link">
+                    🔗 /api/detections?seconds=60
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Active Vehicle Tracks</strong>
+                <div class="description">Get active vehicle tracks from data fusion</div>
+                <a href="http://100.121.231.16:5000/api/tracks" target="_blank" class="endpoint-link">
+                    🔗 /api/tracks
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Detection Sensitivity</strong>
+                <div class="description">Get current detection sensitivity parameters (weather-influenced)</div>
+                <a href="http://100.121.231.16:5000/api/detection-sensitivity" target="_blank" class="endpoint-link">
+                    🔗 /api/detection-sensitivity
+                </a>
+            </div>
+        </div>
+
+        <!-- Speed Analysis Endpoints -->
+        <div class="endpoint-group">
+            <h3>🏃 Speed Measurement and Analysis</h3>
+            <p><em>Speed measurement and analysis endpoints</em></p>
+            
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Recent Speed Measurements</strong>
+                <span class="parameters">?seconds=60 (optional)</span>
+                <div class="description">Get recent speed measurements</div>
+                <a href="http://100.121.231.16:5000/api/speeds" target="_blank" class="endpoint-link">
+                    🔗 /api/speeds
+                </a>
+                <a href="http://100.121.231.16:5000/api/speeds?seconds=30" target="_blank" class="endpoint-link">
+                    🔗 /api/speeds?seconds=30
+                </a>
+                <a href="http://100.121.231.16:5000/api/speeds?seconds=120" target="_blank" class="endpoint-link">
+                    🔗 /api/speeds?seconds=120
+                </a>
+            </div>
+        </div>
+
+        <!-- Weather Endpoints -->
+        <div class="endpoint-group">
+            <h3>🌤️ Weather Analysis and Sky Conditions</h3>
+            <p><em>Weather analysis and sky condition endpoints</em></p>
+            
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Current Weather Conditions</strong>
+                <div class="description">Get current weather conditions and sky analysis</div>
+                <a href="http://100.121.231.16:5000/api/weather" target="_blank" class="endpoint-link">
+                    🔗 /api/weather
+                </a>
+                <a href="http://100.121.231.16:5000/api/weather?max_age_seconds=30" target="_blank" class="endpoint-link">
+                    🔗 /api/weather?max_age_seconds=30
+                </a>
+                <a href="http://100.121.231.16:5000/api/weather?max_age_seconds=5" target="_blank" class="endpoint-link">
+                    🔗 /api/weather?max_age_seconds=5
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Weather History</strong>
+                <span class="parameters">?hours=24&limit=100 (optional)</span>
+                <div class="description">Get weather analysis history</div>
+                <a href="http://100.121.231.16:5000/api/weather/history" target="_blank" class="endpoint-link">
+                    🔗 /api/weather/history
+                </a>
+                <a href="http://100.121.231.16:5000/api/weather/history?hours=6&limit=50" target="_blank" class="endpoint-link">
+                    🔗 /api/weather/history?hours=6&limit=50
+                </a>
+                <a href="http://100.121.231.16:5000/api/weather/history?hours=12" target="_blank" class="endpoint-link">
+                    🔗 /api/weather/history?hours=12
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Weather-Traffic Correlation</strong>
+                <span class="parameters">?hours=24 (optional)</span>
+                <div class="description">Get weather-traffic correlation analysis</div>
+                <a href="http://100.121.231.16:5000/api/weather/correlation" target="_blank" class="endpoint-link">
+                    🔗 /api/weather/correlation
+                </a>
+                <a href="http://100.121.231.16:5000/api/weather/correlation?hours=12" target="_blank" class="endpoint-link">
+                    🔗 /api/weather/correlation?hours=12
+                </a>
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Weather Database Statistics</strong>
+                <div class="description">Get weather database statistics</div>
+                <a href="http://100.121.231.16:5000/api/weather/stats" target="_blank" class="endpoint-link">
+                    🔗 /api/weather/stats
+                </a>
+            </div>
+        </div>
+
+        <!-- Analytics Endpoints -->
+        <div class="endpoint-group">
+            <h3>📊 Traffic Analytics and Insights</h3>
+            <p><em>Traffic analytics and insights endpoints</em></p>
+            
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Traffic Analytics</strong>
+                <div class="description">Get traffic analytics and performance insights</div>
+                <a href="http://100.121.231.16:5000/api/analytics" target="_blank" class="endpoint-link">
+                    🔗 /api/analytics
+                </a>
+            </div>
+        </div>
+
+        <!-- Camera Endpoints -->
+        <div class="endpoint-group">
+            <h3>📷 Camera and Images</h3>
+            <p><em>Camera and image endpoints</em></p>
+            
+            <div class="endpoint">
+                <span class="method">GET</span>
+                <strong>Camera Snapshots</strong>
+                <div class="description">Serve camera snapshot images</div>
+                <a href="http://100.121.231.16:5000/api/camera/snapshot/" target="_blank" class="endpoint-link">
+                    🔗 /api/camera/snapshot/[filename]
+                </a>
+            </div>
+        </div>
+
+        <!-- WebSocket Section -->
+        <div class="websocket-section">
+            <h3>🔌 WebSocket Real-time Streaming</h3>
+            <p><strong>WebSocket URL:</strong> <a href="http://100.121.231.16:5000" target="_blank">http://100.121.231.16:5000</a></p>
+            <p><em>Real-time WebSocket endpoints for live data streaming</em></p>
+            
+            <div class="event">connect - Connect to WebSocket</div>
+            <div class="event">disconnect - Disconnect from WebSocket</div>
+            <div class="event">subscribe_detections - Subscribe to vehicle detection updates</div>
+            <div class="event">subscribe_speeds - Subscribe to speed analysis updates</div>
+            <div class="event">subscribe_tracks - Subscribe to tracking updates</div>
+            <div class="event">subscribe_weather - Subscribe to weather updates</div>
+            <div class="event">subscribe_analytics - Subscribe to analytics updates</div>
+        </div>
+
+        <!-- cURL Examples -->
+        <h2>💻 cURL Examples</h2>
+        <div class="curl-examples">
+            <div class="curl-example">curl http://100.121.231.16:5000/api/health</div>
+            <div class="curl-example">curl http://100.121.231.16:5000/api/detections?seconds=30</div>
+            <div class="curl-example">curl http://100.121.231.16:5000/api/weather</div>
+            <div class="curl-example">curl http://100.121.231.16:5000/api/weather/history?hours=6&limit=50</div>
+            <div class="curl-example">curl http://100.121.231.16:5000/api/analytics</div>
+            <div class="curl-example">curl "http://100.121.231.16:5000/api/weather?max_age_seconds=30"</div>
+            <div class="curl-example">curl http://100.121.231.16:5000/api/speeds?seconds=60</div>
+            <div class="curl-example">curl http://100.121.231.16:5000/api/tracks</div>
+        </div>
+
+        <!-- Quick Test Links -->
+        <h2>🚀 Quick Test Links</h2>
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="http://100.121.231.16:5000/api/health" target="_blank" class="endpoint-link">
+                🏥 Health Check
+            </a>
+            <a href="http://100.121.231.16:5000/api/weather" target="_blank" class="endpoint-link">
+                🌤️ Current Weather
+            </a>
+            <a href="http://100.121.231.16:5000/api/detections" target="_blank" class="endpoint-link">
+                🚗 Vehicle Detections
+            </a>
+            <a href="http://100.121.231.16:5000/api/speeds" target="_blank" class="endpoint-link">
+                🏃 Speed Data
+            </a>
+            <a href="http://100.121.231.16:5000/api/analytics" target="_blank" class="endpoint-link">
+                📊 Analytics
+            </a>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666;">
+            <small>Generated on 2025-09-12 | Traffic Monitoring Edge API v1.0.0</small>
+        </div>
+    </div>
+</body>
+</html>

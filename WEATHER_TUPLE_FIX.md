@@ -3,7 +3,8 @@
 ## Problem Identified
 
 The weather analysis was failing with the error:
-```
+
+```text
 "'tuple' object has no attribute 'shape'"
 ```
 
@@ -62,11 +63,13 @@ This fix resolves the weather analysis errors and allows proper sky condition an
 ## Testing
 
 Created `test_weather_fix.py` to verify the fix works correctly by testing:
+
 1. Direct SkyAnalyzer functionality
 2. PiSystemStatus weather metrics
 3. VehicleDetectionService get_current_frame method
 
 The weather API endpoints should now work properly:
+
 - `/api/weather` - Current weather conditions
 - `/api/weather/history` - Historical weather data
 - `/api/weather/stats` - Database statistics
@@ -75,6 +78,7 @@ The weather API endpoints should now work properly:
 ## Expected Results
 
 After this fix, weather API responses should look like:
+
 ```json
 {
   "weather_enabled": true,

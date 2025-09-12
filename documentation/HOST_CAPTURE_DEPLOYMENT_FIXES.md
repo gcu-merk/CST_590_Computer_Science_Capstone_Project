@@ -10,8 +10,9 @@ This document captures specific deployment issues encountered during the initial
 
 **Date Encountered**: Initial deployment  
 **Severity**: Critical - Container fails to start  
-**Error Message**: 
-```
+**Error Message**:
+
+```text
 error gathering device information while adding custom device "/dev/ttyACM0": no such file or directory
 ```
 
@@ -36,6 +37,7 @@ ls -la /dev/gpiomem*    # Result: Found /dev/gpiomem0
 #### 1. Updated docker-compose.yml Device Mapping
 
 **Before (Problematic Configuration)**:
+
 ```yaml
 devices:
   - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access
@@ -43,6 +45,7 @@ devices:
 ```
 
 **After (Fixed Configuration)**:
+
 ```yaml
 devices:
   # - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access (commented out - device not available)

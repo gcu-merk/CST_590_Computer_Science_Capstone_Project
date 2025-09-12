@@ -18,7 +18,7 @@ This document provides a comprehensive API reference for the **Host-Capture/Cont
 
 The core component that provides containerized services with access to host-captured images.
 
-### Class Definition
+### SharedVolumeImageProvider Class Definition
 
 ```python
 class SharedVolumeImageProvider:
@@ -30,7 +30,7 @@ class SharedVolumeImageProvider:
     """
 ```
 
-### Constructor
+### SharedVolumeImageProvider Constructor
 
 ```python
 def __init__(
@@ -53,7 +53,7 @@ def __init__(
     """
 ```
 
-### Core Methods
+### HostCameraCaptureService Methods
 
 #### get_latest_image()
 
@@ -83,7 +83,7 @@ def get_latest_image(
     """
 ```
 
-#### start_monitoring()
+#### start_monitoring() (ImageSyncManager)
 
 ```python
 def start_monitoring(self) -> None:
@@ -176,7 +176,7 @@ def get_cached_images(self) -> List[Tuple[str, np.ndarray, Dict[str, Any]]]:
 
 Drop-in replacement for OpenCV VideoCapture and Picamera2 interfaces.
 
-### Class Definition
+### ContainerCameraInterface Class Definition
 
 ```python
 class ContainerCameraInterface:
@@ -188,7 +188,7 @@ class ContainerCameraInterface:
     """
 ```
 
-### Constructor
+### ContainerCameraInterface Constructor
 
 ```python
 def __init__(
@@ -311,7 +311,7 @@ def stop(self) -> None:
 
 Host-side service that captures images using rpicam-still.
 
-### Class Definition
+### HostCameraCaptureService Class Definition
 
 ```python
 class HostCameraCaptureService:
@@ -323,7 +323,7 @@ class HostCameraCaptureService:
     """
 ```
 
-### Constructor
+### HostCameraCaptureService Constructor
 
 ```python
 def __init__(
@@ -348,7 +348,7 @@ def __init__(
     """
 ```
 
-### Core Methods
+### HostCameraCaptureService Core Methods
 
 #### start_capture()
 

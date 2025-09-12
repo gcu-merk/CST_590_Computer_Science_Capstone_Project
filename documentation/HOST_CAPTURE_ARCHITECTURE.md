@@ -37,7 +37,7 @@ Implement a **host-capture/container-process** architecture where:
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Raspberry Pi Host System                     │
 ├─────────────────────────────────────────────────────────────────┤
@@ -199,7 +199,7 @@ python3 scripts/image-sync-manager.py \
 
 ### 1. Image Capture Flow
 
-```
+```text
 ┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
 │ IMX500      │    │ rpicam-still │    │ Shared Volume   │
 │ Camera      │───▶│ Command      │───▶│ File System     │
@@ -220,7 +220,7 @@ python3 scripts/image-sync-manager.py \
 
 ### 2. Image Processing Flow
 
-```
+```text
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │ Background      │    │ Processing       │    │ Service         │
 │ Monitor         │───▶│ Request          │───▶│ Response        │
@@ -241,7 +241,7 @@ python3 scripts/image-sync-manager.py \
 
 ### 3. Coordination Flow
 
-```
+```text
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │ Systemd         │    │ Image Sync       │    │ Docker          │
 │ Services        │───▶│ Manager          │───▶│ Container       │
@@ -445,12 +445,14 @@ iostat -x 1
 #### Key Metrics to Track
 
 1. **Image Capture Rate**
+
    ```bash
    # Count images in last minute
    find /mnt/storage/camera_capture/live/ -name "*.jpg" -newermt "1 minute ago" | wc -l
    ```
 
 2. **Image Age Distribution**
+
    ```bash
    # Check age of newest image
    newest=$(ls -t /mnt/storage/camera_capture/live/*.jpg | head -1)
@@ -458,6 +460,7 @@ iostat -x 1
    ```
 
 3. **Disk Usage**
+
    ```bash
    # Check shared volume disk usage
    du -sh /mnt/storage/camera_capture/*
@@ -465,6 +468,7 @@ iostat -x 1
    ```
 
 4. **Container Processing Performance**
+
    ```bash
    # Test end-to-end processing
    python3 test_host_capture_architecture.py --mode performance
@@ -489,6 +493,7 @@ The system includes several automated health checks:
 **Symptoms**: Empty `/mnt/storage/camera_capture/live/` directory
 
 **Diagnosis**:
+
 ```bash
 # Check service status
 sudo systemctl status host-camera-capture
@@ -501,6 +506,7 @@ ls -la /mnt/storage/camera_capture/
 ```
 
 **Solutions**:
+
 - Restart capture service: `sudo systemctl restart host-camera-capture`
 - Check camera hardware connection
 - Verify directory permissions: `sudo chown -R pi:pi /mnt/storage/camera_capture`
@@ -510,6 +516,7 @@ ls -la /mnt/storage/camera_capture/
 **Symptoms**: Container services report "No images found" errors
 
 **Diagnosis**:
+
 ```bash
 # Check volume mount
 docker inspect traffic-monitoring-edge | grep camera_capture
@@ -522,6 +529,7 @@ ls -la /mnt/storage/camera_capture/live/
 ```
 
 **Solutions**:
+
 - Restart container: `docker-compose restart`
 - Fix volume permissions: `sudo chown -R pi:pi /mnt/storage/camera_capture`
 - Verify docker-compose.yml volume mount configuration
@@ -531,6 +539,7 @@ ls -la /mnt/storage/camera_capture/live/
 **Symptoms**: Processing services report "Image too old" errors
 
 **Diagnosis**:
+
 ```bash
 # Check newest image age
 newest=$(ls -t /mnt/storage/camera_capture/live/*.jpg | head -1)
@@ -542,6 +551,7 @@ sudo journalctl -u host-camera-capture --since "5 minutes ago"
 ```
 
 **Solutions**:
+
 - Restart capture service if not creating new images
 - Increase `max_age_seconds` in processing services if needed
 - Check system clock synchronization
@@ -551,6 +561,7 @@ sudo journalctl -u host-camera-capture --since "5 minutes ago"
 **Symptoms**: "No space left on device" errors or excessive disk usage
 
 **Diagnosis**:
+
 ```bash
 # Check disk usage
 df -h /mnt/storage/
@@ -561,6 +572,7 @@ find /mnt/storage/camera_capture/ -name "*.jpg" | wc -l
 ```
 
 **Solutions**:
+
 - Run manual cleanup: `python3 scripts/image-sync-manager.py --status`
 - Reduce image retention time in configuration
 - Increase cleanup frequency
@@ -571,6 +583,7 @@ find /mnt/storage/camera_capture/ -name "*.jpg" | wc -l
 **Symptoms**: Slow image processing or high latency
 
 **Diagnosis**:
+
 ```bash
 # Run performance test
 python3 test_host_capture_architecture.py --mode performance
@@ -582,6 +595,7 @@ free -h
 ```
 
 **Solutions**:
+
 - Increase image cache size in provider configuration
 - Reduce image capture quality if acceptable
 - Optimize cleanup intervals
@@ -599,21 +613,24 @@ free -h
 #### Key Log Messages
 
 **Normal Operation**:
-```
+
+```text
 INFO - Successfully captured frame using rpicam-still
 INFO - Sky analyzer initialized with shared volume image provider
 INFO - Retrieved image via shared volume: (3040, 4056, 3)
 ```
 
 **Warning Signs**:
-```
+
+```text
 WARNING - Latest image too old: 15.2s > 5.0s
 WARNING - No recent images detected (newest: 65.3s old)
 WARNING - Low disk space: 8.5% free
 ```
 
 **Error Conditions**:
-```
+
+```text
 ERROR - rpicam-still failed: Device not found
 ERROR - Failed to load image from shared volume
 ERROR - Too many consecutive capture errors - restarting camera

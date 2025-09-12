@@ -7,6 +7,7 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System now includes comprehensive 
 ## Features
 
 ### 1. **Sky Condition Analysis**
+
 - **Real-time analysis** of sky conditions using the existing camera feed
 - **Condition classification**: Clear, Partly Cloudy, Cloudy
 - **Confidence scoring** for each analysis
@@ -14,18 +15,21 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System now includes comprehensive 
 - **Multiple analysis methods**: Color analysis, brightness analysis, texture analysis
 
 ### 2. **Weather-Aware Vehicle Detection**
+
 - **Automatic threshold adjustment** based on weather conditions
 - **Improved detection accuracy** in varying visibility conditions
 - **Weather context included** in detection results
 - **Adaptive sensitivity** for different weather scenarios
 
 ### 3. **Data Storage and Correlation**
+
 - **SQLite database** for weather data persistence
 - **Historical weather analysis** with configurable retention
 - **Traffic-weather correlation** analysis
 - **Hourly and daily weather summaries**
 
 ### 4. **API Integration**
+
 - **REST endpoints** for weather data access
 - **WebSocket support** for real-time weather updates
 - **Comprehensive weather history** APIs
@@ -93,9 +97,11 @@ curl http://localhost:5000/api/detection-sensitivity
 ### Weather Endpoints
 
 #### `GET /api/weather`
+
 Get current weather conditions and sky analysis.
 
 **Response:**
+
 ```json
 {
   "weather_enabled": true,
@@ -114,19 +120,24 @@ Get current weather conditions and sky analysis.
 ```
 
 #### `GET /api/weather/history?hours=24&limit=100`
+
 Get weather analysis history.
 
 **Parameters:**
+
 - `hours`: Hours to look back (1-168, default: 24)
 - `limit`: Maximum records to return (1-1000, default: 100)
 
 #### `GET /api/weather/correlation?hours=24`
+
 Get weather-traffic correlation analysis.
 
 **Parameters:**
+
 - `hours`: Hours to analyze (1-168, default: 24)
 
 #### `GET /api/weather/stats`
+
 Get weather database statistics.
 
 ### WebSocket Events
@@ -148,21 +159,25 @@ socket.on('weather_update', function(data) {
 The system automatically adjusts vehicle detection sensitivity based on current weather conditions:
 
 #### **Clear Conditions (Confidence > 80%)**
+
 - **Detection Threshold**: 0.5 (standard)
 - **Save Threshold**: 0.7 (standard)
 - **Rationale**: Optimal visibility, use standard thresholds
 
 #### **Partly Cloudy Conditions**
+
 - **Detection Threshold**: 0.45 (-0.05 adjustment)
 - **Save Threshold**: 0.65 (-0.05 adjustment)
 - **Rationale**: Slightly reduced visibility, minor threshold reduction
 
 #### **Cloudy Conditions (Confidence > 70%)**
+
 - **Detection Threshold**: 0.35 (-0.15 adjustment)
 - **Save Threshold**: 0.6 (-0.1 adjustment)
 - **Rationale**: Poor visibility, significant threshold reduction to catch more detections
 
 #### **Unknown/Uncertain Conditions**
+
 - **Detection Threshold**: 0.4 (-0.1 adjustment)
 - **Save Threshold**: 0.65 (-0.05 adjustment)
 - **Rationale**: Conservative adjustment for uncertain conditions
@@ -183,6 +198,7 @@ service.set_detection_threshold(0.3)  # Lower threshold for poor conditions
 The weather integration uses SQLite with three main tables:
 
 #### **weather_analysis**
+
 - `id`: Primary key
 - `timestamp`: Analysis timestamp
 - `condition`: Sky condition (clear/partly_cloudy/cloudy)
@@ -193,6 +209,7 @@ The weather integration uses SQLite with three main tables:
 - `frame_info`: JSON blob with frame metadata
 
 #### **traffic_events**
+
 - `id`: Primary key
 - `timestamp`: Event timestamp
 - `event_type`: Type of event (detection/speed/track)
@@ -200,6 +217,7 @@ The weather integration uses SQLite with three main tables:
 - `weather_id`: Foreign key to weather_analysis
 
 #### **weather_summaries**
+
 - `id`: Primary key
 - `period_start/end`: Time period covered
 - `period_type`: 'hourly' or 'daily'
@@ -247,6 +265,7 @@ weather_adjustments = {
 ### Common Issues
 
 #### **Weather Analysis Not Available**
+
 - **Symptom**: API returns "Weather analysis not available"
 - **Solutions**:
   - Check that OpenCV is installed: `pip install opencv-python`
@@ -254,6 +273,7 @@ weather_adjustments = {
   - Check logs for import errors
 
 #### **No Camera Data for Weather Analysis**
+
 - **Symptom**: API returns "No camera data available"
 - **Solutions**:
   - Ensure vehicle detection service is running
@@ -261,6 +281,7 @@ weather_adjustments = {
   - Verify camera permissions
 
 #### **Database Errors**
+
 - **Symptom**: Weather storage failures
 - **Solutions**:
   - Check disk space in data directory

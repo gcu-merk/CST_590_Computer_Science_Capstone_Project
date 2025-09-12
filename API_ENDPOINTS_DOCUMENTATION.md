@@ -3,9 +3,11 @@
 ## New `/api/endpoints` Endpoint
 
 ### Overview
+
 Added a comprehensive API documentation endpoint at `http://100.121.231.16:5000/api/endpoints` that provides a complete listing of all available API endpoints grouped by category.
 
 ### Endpoint Details
+
 - **URL**: `http://100.121.231.16:5000/api/endpoints`
 - **Method**: `GET`
 - **Content-Type**: `application/json`
@@ -62,32 +64,40 @@ Added a comprehensive API documentation endpoint at `http://100.121.231.16:5000/
 ### Endpoint Categories
 
 #### 1. System Endpoints
+
 - `/api/health` - System health check
 - `/hello` - Connectivity test
 - `/api/endpoints` - This documentation endpoint
 
 #### 2. Vehicle Detection Endpoints  
+
 - `/api/detections` - Recent vehicle detections
 - `/api/tracks` - Active vehicle tracks
 - `/api/detection-sensitivity` - Detection parameters
 
 #### 3. Speed Analysis Endpoints
+
 - `/api/speeds` - Recent speed measurements
 
 #### 4. Analytics Endpoints
+
 - `/api/analytics` - Traffic analytics and insights
 
 #### 5. Weather Endpoints
+
 - `/api/weather` - Current weather conditions
 - `/api/weather/history` - Historical weather data
 - `/api/weather/correlation` - Weather-traffic correlation
 - `/api/weather/stats` - Weather database statistics
 
 #### 6. Camera Endpoints
+
 - `/api/camera/snapshot/<filename>` - Camera snapshot images
 
 ### WebSocket Events
+
 The API also provides real-time WebSocket connectivity with events for:
+
 - Vehicle detection updates
 - Speed analysis updates  
 - Tracking updates
@@ -97,6 +107,7 @@ The API also provides real-time WebSocket connectivity with events for:
 ### Usage Examples
 
 #### cURL Examples
+
 ```bash
 # Get API documentation
 curl http://100.121.231.16:5000/api/endpoints
@@ -118,6 +129,7 @@ curl http://100.121.231.16:5000/api/analytics
 ```
 
 #### Python Example
+
 ```python
 import requests
 
@@ -133,6 +145,7 @@ for category, info in endpoints_data['endpoints'].items():
 ```
 
 #### JavaScript Example
+
 ```javascript
 // Fetch all endpoints
 fetch('http://100.121.231.16:5000/api/endpoints')

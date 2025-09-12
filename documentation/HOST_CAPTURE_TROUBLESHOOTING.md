@@ -84,6 +84,7 @@ df -h /mnt/storage/
 #### Container Fails to Start with Device Mapping Errors
 
 **Symptoms:**
+
 - Container fails to start with error: `error gathering device information while adding custom device "/dev/ttyACM0": no such file or directory`
 - Similar errors for `/dev/gpiomem` or other device mappings
 
@@ -104,6 +105,7 @@ grep -A 10 "devices:" docker-compose.yml
 **Solutions:**
 
 1. **Update Device Mappings Based on Available Hardware**
+
    ```bash
    # Check what GPIO devices are actually available
    ls -la /dev/gpiomem*
@@ -118,6 +120,7 @@ grep -A 10 "devices:" docker-compose.yml
    ```
 
 2. **Remove Old Container and Recreate**
+
    ```bash
    # Remove container with old configuration
    docker rm traffic-monitoring-edge
@@ -127,6 +130,7 @@ grep -A 10 "devices:" docker-compose.yml
    ```
 
 3. **Verify Container Startup**
+
    ```bash
    # Check container status
    docker-compose ps
@@ -162,6 +166,7 @@ stat /usr/local/bin/host-camera-capture.py
 **Common Issues and Solutions:**
 
 1. **Camera Not Available**
+
    ```bash
    # Error: "rpicam-still: command not found"
    sudo apt install camera-utils
@@ -173,6 +178,7 @@ stat /usr/local/bin/host-camera-capture.py
    ```
 
 2. **Permission Denied**
+
    ```bash
    # Fix service file permissions
    sudo chmod 644 /etc/systemd/system/host-camera-capture.service
@@ -184,6 +190,7 @@ stat /usr/local/bin/host-camera-capture.py
    ```
 
 3. **Directory Not Found**
+
    ```bash
    # Recreate directory structure
    sudo mkdir -p /mnt/storage/camera_capture/{live,metadata,snapshots,processed}
@@ -193,6 +200,7 @@ stat /usr/local/bin/host-camera-capture.py
 #### Service Starts But No Images
 
 **Symptoms:**
+
 - Service shows "active (running)" but no images in `/mnt/storage/camera_capture/live/`
 
 **Diagnosis:**
@@ -211,6 +219,7 @@ rpicam-still -o /tmp/manual_test.jpg --immediate --width 4056 --height 3040
 **Solutions:**
 
 1. **Configuration Issues**
+
    ```bash
    # Check service configuration
    sudo systemctl cat host-camera-capture
@@ -221,6 +230,7 @@ rpicam-still -o /tmp/manual_test.jpg --immediate --width 4056 --height 3040
    ```
 
 2. **Camera Busy**
+
    ```bash
    # Check for other processes using camera
    sudo lsof /dev/video*
@@ -293,6 +303,7 @@ fi
 ### Images Created But Too Infrequent
 
 **Symptoms:**
+
 - Images created but gaps longer than configured interval
 - Service logs show occasional capture failures
 
@@ -316,6 +327,7 @@ iostat -x 1 5
 **Solutions:**
 
 1. **Reduce Capture Resolution**
+
    ```bash
    # Edit service to use lower resolution temporarily
    sudo systemctl edit host-camera-capture
@@ -323,6 +335,7 @@ iostat -x 1 5
    ```
 
 2. **Increase Capture Interval**
+
    ```bash
    # Modify service configuration
    ExecStart=/usr/bin/python3 /usr/local/bin/host-camera-capture.py --interval 2.0
@@ -360,6 +373,7 @@ ls -la /tmp/q*.jpg
 ### Container Cannot See Shared Volume
 
 **Symptoms:**
+
 - Container services report "No images found"
 - `docker exec` shows empty `/app/data/camera_capture/live/` directory
 
@@ -379,6 +393,7 @@ docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
 **Solutions:**
 
 1. **Restart Container with Proper Mounts**
+
    ```bash
    # Stop container
    docker-compose down
@@ -394,6 +409,7 @@ docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
    ```
 
 2. **Fix Volume Permissions**
+
    ```bash
    # Check host permissions
    ls -la /mnt/storage/camera_capture/
@@ -406,6 +422,7 @@ docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
 ### Container Sees Old Images
 
 **Symptoms:**
+
 - Container can access shared volume but images are stale
 - Processing services report "Image too old" errors
 
@@ -427,6 +444,7 @@ date
 **Solutions:**
 
 1. **Restart Host Capture Service**
+
    ```bash
    sudo systemctl restart host-camera-capture
    
@@ -438,6 +456,7 @@ date
    ```
 
 2. **Increase Maximum Age Tolerance**
+
    ```python
    # In container services, temporarily increase tolerance
    success, image, metadata = provider.get_latest_image(max_age_seconds=10.0)
@@ -448,6 +467,7 @@ date
 ### Slow Image Access
 
 **Symptoms:**
+
 - Long delays between image requests and responses
 - High CPU usage in container
 
@@ -467,6 +487,7 @@ iostat -x 1 5
 **Solutions:**
 
 1. **Optimize Cache Settings**
+
    ```python
    # Increase cache size in provider
    provider = SharedVolumeImageProvider(
@@ -476,6 +497,7 @@ iostat -x 1 5
    ```
 
 2. **Reduce Image Size**
+
    ```bash
    # Temporarily reduce capture resolution
    sudo systemctl edit host-camera-capture
@@ -485,6 +507,7 @@ iostat -x 1 5
 ### High Memory Usage
 
 **Symptoms:**
+
 - Container memory usage continuously growing
 - System running out of RAM
 
@@ -502,12 +525,14 @@ docker stats traffic-monitoring-edge
 **Solutions:**
 
 1. **Reduce Cache Size**
+
    ```python
    # In container services
    provider = SharedVolumeImageProvider(cache_size=5)  # Reduce from 10
    ```
 
 2. **Force Garbage Collection**
+
    ```python
    # In long-running services
    import gc
@@ -519,6 +544,7 @@ docker stats traffic-monitoring-edge
 ### Disk Space Running Low
 
 **Symptoms:**
+
 - "No space left on device" errors
 - Capture service fails intermittently
 
@@ -538,6 +564,7 @@ echo "Processed images: $(find /mnt/storage/camera_capture/processed/ -name "*.j
 **Solutions:**
 
 1. **Emergency Cleanup**
+
    ```bash
    # Remove images older than 1 hour
    find /mnt/storage/camera_capture/live/ -name "*.jpg" -mtime +0.04 -delete
@@ -548,6 +575,7 @@ echo "Processed images: $(find /mnt/storage/camera_capture/processed/ -name "*.j
    ```
 
 2. **Automatic Cleanup Configuration**
+
    ```bash
    # Configure more aggressive cleanup
    sudo systemctl edit host-camera-capture
@@ -557,6 +585,7 @@ echo "Processed images: $(find /mnt/storage/camera_capture/processed/ -name "*.j
 ### Cleanup Not Working
 
 **Symptoms:**
+
 - Old images accumulating despite cleanup configuration
 - Sync manager not removing old files
 

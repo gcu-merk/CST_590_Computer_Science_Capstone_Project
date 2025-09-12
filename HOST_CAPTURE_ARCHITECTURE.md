@@ -17,6 +17,7 @@ This system implements a **host-capture/container-process architecture** to work
 **Purpose**: Runs on the Raspberry Pi host system to capture images using `rpicam-still`
 
 **Key Features**:
+
 - High-quality image capture (4056x3040, ~1.4MB)
 - Configurable capture intervals (default: 1 second)
 - Automatic image rotation and cleanup
@@ -26,6 +27,7 @@ This system implements a **host-capture/container-process architecture** to work
 **Location**: `/scripts/host-camera-capture.py`
 
 **Usage**:
+
 ```bash
 # Run directly
 python3 scripts/host-camera-capture.py --capture-dir /mnt/storage/camera_capture
@@ -36,6 +38,7 @@ sudo systemctl enable host-camera-capture  # Auto-start on boot
 ```
 
 **Configuration**:
+
 ```bash
 # Test camera functionality
 python3 scripts/host-camera-capture.py --test-only
@@ -56,6 +59,7 @@ python3 scripts/host-camera-capture.py \
 **Purpose**: Provides images to container services from the shared volume
 
 **Key Features**:
+
 - Reads images captured by host-side service
 - Background monitoring and caching
 - OpenCV/Picamera2 compatible interfaces
@@ -65,6 +69,7 @@ python3 scripts/host-camera-capture.py \
 **Location**: `/edge_processing/shared_volume_image_provider.py`
 
 **Usage in Container Code**:
+
 ```python
 from shared_volume_image_provider import SharedVolumeImageProvider
 
@@ -87,12 +92,14 @@ provider.stop_monitoring()
 **Purpose**: Drop-in replacement for direct camera access in containers
 
 **Key Features**:
+
 - OpenCV `VideoCapture` compatible API
 - Picamera2 compatible methods
 - Seamless integration with existing code
 - No code changes required for camera access
 
 **Usage**:
+
 ```python
 from shared_volume_image_provider import ContainerCameraInterface
 
@@ -112,6 +119,7 @@ camera.release()
 **Purpose**: Coordinates between host capture and container processing
 
 **Key Features**:
+
 - Monitors host capture service health
 - Manages Docker container lifecycle
 - Automatic cleanup of old images
@@ -121,6 +129,7 @@ camera.release()
 **Location**: `/scripts/image-sync-manager.py`
 
 **Usage**:
+
 ```bash
 # Run sync manager
 python3 scripts/image-sync-manager.py
@@ -137,7 +146,7 @@ python3 scripts/image-sync-manager.py \
 
 ## Directory Structure
 
-```
+```text
 /mnt/storage/camera_capture/          # Shared volume root
 ├── live/                             # Current images for processing
 │   ├── capture_20241212_143022_123.jpg
@@ -159,6 +168,7 @@ python3 scripts/image-sync-manager.py \
 ### Updated `docker-compose.yml`
 
 **Key Changes**:
+
 - Removed direct camera device access (`/dev/video0`, `/dev/video1`)
 - Removed VideoCore libraries and privileged mode
 - Added shared volume mount for image capture
@@ -194,6 +204,7 @@ services:
 ### Updated Vehicle Detection Service
 
 **Changes**:
+
 - Added shared volume image provider integration
 - Fallback chain: Shared Volume → Picamera2 → OpenCV → System-level → Mock
 - Automatic detection of host-capture architecture
@@ -202,6 +213,7 @@ services:
 ### Updated Sky Analysis Service
 
 **Changes**:
+
 - Integrated with shared volume provider
 - New `analyze_current_sky()` method for shared volume images
 - Backward compatibility with direct image input
@@ -256,6 +268,7 @@ sudo systemctl start image-sync-manager
 ### Test Script: `test_host_capture_architecture.py`
 
 **Comprehensive Testing**:
+
 ```bash
 # Run all tests
 python3 test_host_capture_architecture.py --mode all
@@ -275,6 +288,7 @@ python3 test_host_capture_architecture.py --status
 ```
 
 **Test Coverage**:
+
 - Host camera capture service functionality
 - Shared volume directory structure and permissions
 - Image provider operation and caching
@@ -337,7 +351,8 @@ python3 scripts/image-sync-manager.py --status
 
 ### Common Issues
 
-**1. No Images Being Captured**
+### 1. No Images Being Captured
+
 ```bash
 # Check service status
 sudo systemctl status host-camera-capture
@@ -349,7 +364,8 @@ rpicam-still -o test.jpg --immediate
 ls -la /mnt/storage/camera_capture/
 ```
 
-**2. Container Cannot Access Images**
+### 2. Container Cannot Access Images
+
 ```bash
 # Check volume mount
 docker inspect traffic-monitoring-edge | grep camera_capture
@@ -358,7 +374,8 @@ docker inspect traffic-monitoring-edge | grep camera_capture
 docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
 ```
 
-**3. Old Images Accumulating**
+### 3. Old Images Accumulating
+
 ```bash
 # Check disk space
 df -h /mnt/storage/
@@ -367,7 +384,8 @@ df -h /mnt/storage/
 python3 scripts/image-sync-manager.py --status
 ```
 
-**4. Performance Issues**
+#### 4. Performance Issues
+
 ```bash
 # Run performance test
 python3 test_host_capture_architecture.py --mode performance
@@ -380,17 +398,20 @@ iostat -x 1
 ### Log Files
 
 **Host Capture Service**:
+
 ```bash
 sudo journalctl -u host-camera-capture -f
 tail -f /var/log/host-camera-capture.log
 ```
 
 **Image Sync Manager**:
+
 ```bash
 tail -f /var/log/image-sync-manager.log
 ```
 
 **Container Logs**:
+
 ```bash
 docker logs -f traffic-monitoring-edge
 ```
@@ -418,12 +439,14 @@ docker logs -f traffic-monitoring-edge
 ### Code Changes Required
 
 **Before (Direct Camera)**:
+
 ```python
 camera = cv2.VideoCapture(0)
 ret, frame = camera.read()
 ```
 
 **After (Shared Volume)**:
+
 ```python
 from shared_volume_image_provider import ContainerCameraInterface
 camera = ContainerCameraInterface()
@@ -431,6 +454,7 @@ ret, frame = camera.read()  # Same API!
 ```
 
 **Sky Analysis Before**:
+
 ```python
 # Capture image directly
 ret, frame = camera.read()
@@ -438,6 +462,7 @@ result = sky_analyzer.analyze_sky_condition(frame)
 ```
 
 **Sky Analysis After**:
+
 ```python
 # Use shared volume
 result = sky_analyzer.analyze_current_sky(max_age_seconds=5.0)
