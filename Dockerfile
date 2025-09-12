@@ -49,6 +49,7 @@ RUN apt-get update && ( \
     apt-get install -y \
         python3-picamera2 \
         libcamera-apps \
+        rpicam-apps \
         imx500-all \
         python3-imx500 \
     || echo "Raspberry Pi specific packages not available, continuing without them" \

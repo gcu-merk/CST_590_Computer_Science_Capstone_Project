@@ -7,17 +7,20 @@
 ## Diagnostic Results
 
 ### Hardware & Permissions ✅
+
 - ✅ Camera devices exist: `/dev/video0-7` with correct permissions
 - ✅ IMX500 camera properly detected via `rp1-cfe` driver
 - ✅ Container has root access and proper device mounting
 
 ### Software Stack Issues ❌
+
 - ❌ `fswebcam` not installed in Docker image
 - ❌ Multiple processes trying to access camera simultaneously
 - ❌ Main app (`PID 1`) has camera claimed via picamera2
 - ❌ Secondary access attempts fail with "Device or resource busy"
 
 ### Camera Access Pattern
+
 1. **Main app**: Uses picamera2 successfully (primary interface)
 2. **OpenCV**: Fails with "can't open camera by index" (device busy)
 3. **fswebcam**: Failed with "Device or resource busy" (was missing from image)
@@ -26,6 +29,7 @@
 ## Solution Implemented ✅
 
 ### 1. Updated Dockerfile
+
 ```dockerfile
 # Added fswebcam to camera tools section
     v4l-utils \
@@ -34,6 +38,7 @@
 ```
 
 ### 2. Expected Behavior After Fix
+
 - ✅ Main app continues using picamera2 (primary method)
 - ✅ fswebcam available for system-level capture fallback
 - ✅ Application can capture frames even when primary methods fail
@@ -42,6 +47,7 @@
 ## Testing Plan
 
 ### 1. Wait for New Image Deployment (~15-20 minutes)
+
 ```bash
 # Check build status
 docker system df
@@ -51,6 +57,7 @@ docker logs traffic-monitoring-edge --tail=20 -f
 ```
 
 ### 2. Verify Fix
+
 ```bash
 # Test fswebcam availability
 docker exec traffic-monitoring-edge fswebcam --version
@@ -68,6 +75,7 @@ docker exec traffic-monitoring-edge bash -c "
 ```
 
 ### 3. Application Testing
+
 ```bash
 # Check for reduced warnings in logs
 docker logs traffic-monitoring-edge --tail=50 | grep -i "failed to capture"
@@ -95,10 +103,12 @@ docker exec traffic-monitoring-edge ls -la /mnt/storage/periodic_snapshots/
 4. **Monitoring**: Enhanced logging to track camera access patterns
 
 ## Files Modified
+
 - ✅ `Dockerfile` - Added fswebcam package
 - ✅ Git committed and pushed (triggers new image build)
 
 ## Timeline
+
 - **Fix Applied**: Now
 - **Build Time**: ~15-20 minutes  
 - **Deployment**: Automatic via CI/CD

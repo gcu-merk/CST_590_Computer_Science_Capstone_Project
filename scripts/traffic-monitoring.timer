@@ -1,0 +1,23 @@
+# Traffic Monitoring Timer Configuration
+# Place this file at: /etc/systemd/system/traffic-monitoring.timer
+#
+# Installation commands:
+# sudo cp traffic-monitoring.timer /etc/systemd/system/
+# sudo systemctl daemon-reload
+# sudo systemctl enable traffic-monitoring.timer
+# sudo systemctl start traffic-monitoring.timer
+
+[Unit]
+Description=Traffic Monitoring Timer (every 5 minutes)
+Requires=traffic-monitoring.service
+
+[Timer]
+# Run every 5 minutes
+OnCalendar=*:0/5
+# Start immediately if system was down during scheduled time
+Persistent=true
+# Add randomization to prevent load spikes
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

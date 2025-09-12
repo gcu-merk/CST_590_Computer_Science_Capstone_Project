@@ -194,11 +194,17 @@ services:
    - Connection Type: Ethernet LAN-5
    - Connection Speed: 10000Mbps fullduplex
    - IPv6 Address: `2600:1700:c6c1:6b50::35`, `fe80::87f9:7b2d:8afc:7163`
-- Raspberry Pi AI Camera (Sony IMX500)
-- OmniPreSense OPS243-C Radar Sensor
-- Samsung T7 SSD (or similar), 256GB MicroSD card
-- Power supply (PoE or USB-C)
-- Ethernet or WiFi network access
+- **Raspberry Pi AI Camera (Sony IMX500) with Edge AI Processing**
+   - 12.3MP sensor with 3.1 TOPS neural processing unit
+   - On-camera vehicle classification and inference
+   - Real-time AI processing with <100ms latency
+- **OmniPreSense OPS243-C Radar Sensor**
+   - Continuous wave Doppler radar for motion detection
+   - Speed and direction measurement
+   - UART interface for radar data
+- **Samsung T7 SSD (or similar), 256GB MicroSD card**
+- **Power supply (PoE or USB-C)**
+- **Ethernet or WiFi network access**
 
 ---
 
@@ -308,9 +314,11 @@ sudo ./svc.sh status
 
 ### 2.2. Hardware Assembly
 
-1. **Connect the AI Camera to the Pi camera port**
+1. **Connect the IMX500 AI Camera to the Pi camera port**
    - Use the CSI-2 ribbon cable (included with camera)
    - Ensure proper orientation (blue side toward Ethernet port)
+   - **Enable camera interface in raspi-config**
+   - **Configure AI inference settings for edge processing**
 
 2. **Wire the OPS243-C radar sensor to the Pi GPIO header**
 
@@ -319,9 +327,14 @@ sudo ./svc.sh status
    OPS243-C Pin 10 (GND)  → Pi Pin 6 (GND)
    OPS243-C Pin 6 (RxD)   → Pi Pin 8 (TXD/GPIO14)
    OPS243-C Pin 7 (TxD)   → Pi Pin 10 (RXD/GPIO15)
+   
+   # Optional: Status LED connections
+   Radar Active LED       → Pi Pin 18 (GPIO24)
+   Camera Active LED      → Pi Pin 22 (GPIO25)
+   System Status LED      → Pi Pin 24 (GPIO8)
    ```
 
-3. **Connect SSD for local storage**
+3. **Connect SSD for local storage and AI model storage**
 
    ```bash
    # Format and mount external SSD

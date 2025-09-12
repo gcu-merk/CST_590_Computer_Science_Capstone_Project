@@ -1,7 +1,7 @@
 # Technical Design Document
 
 **Document Version:** 1.0  
-**Last Updated:** August 7, 2025  
+**Last Updated:** December 11, 2025  
 **Project:** Raspberry Pi 5 Edge ML Traffic Monitoring System  
 **Authors:** Technical Team  
 
@@ -29,18 +29,21 @@
 
 ## 1. System Overview
 
-The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real-time vehicle detection, speed measurement, and traffic analytics at the edge. The system leverages a Raspberry Pi 5, an AI-enabled camera, and an OmniPreSense OPS243-C radar sensor to process video and radar data locally, sending only processed results to cloud services for aggregation and reporting. This approach reduces bandwidth, increases privacy, and enables rapid response to traffic events.
+The Raspberry Pi 5 Edge ML Traffic Monitoring System is designed to provide real-time vehicle detection, classification, speed measurement, and traffic analytics at the edge. The system leverages a Raspberry Pi 5, an AI-enabled IMX500 camera with on-sensor processing, and an OmniPreSense OPS243-C radar sensor to perform radar-triggered vehicle classification and analysis locally, sending only processed results and metadata to cloud services for aggregation and reporting. This approach reduces bandwidth, increases privacy, and enables rapid response to traffic events.
 
 **Objectives:**
 
 - Deploy a low-cost, scalable, and reliable edge-based traffic monitoring solution
-- Integrate ML/AI for vehicle detection, classification, and anomaly detection
-- Fuse camera and radar data for accurate speed and event measurement
+- **Integrate radar-triggered edge AI for real-time vehicle classification**
+- **Perform on-camera AI inference using IMX500 neural processing unit**
+- Fuse radar and AI camera data for accurate speed and vehicle identification
 - Provide real-time dashboards and cloud-based analytics
 
 **Key Features:**
 
-- Local ML inference and data fusion
+- **Radar-triggered edge AI processing with <350ms total latency**
+- **On-camera vehicle classification with 85-95% accuracy**
+- **Multi-sensor data fusion (radar + motion detection + AI)**
 - Real-time web dashboard (Edge UI)
 - Cloud integration for historical analytics and alerts (Cloud UI)
 - Modular, container-friendly architecture
@@ -73,13 +76,13 @@ This diagram summarizes the overall system structure and data flow for both tech
                                          |                                    |
                                          v                                    v
                                 +-------------------+                +-------------------+
-                                |   Edge UI (Web)   |<---------------|  AI Camera        |
+                                |   Edge UI (Web)   |<---------------|  IMX500 AI Camera |
                                 +-------------------+                +-------------------+
-                                |   Edge API        |                | (Sony IMX500)     |
+                                |   Edge API        |                | (Edge AI Inference)|
                                 +-------------------+                +-------------------+
                                 |   Data Fusion     |<---------------|  OPS243-C Radar   |
                                 +-------------------+                +-------------------+
-                                |   Speed Analysis  |                |  External SSD     |
+                                |  AI Correlation   |                |  External SSD     |
                                 +-------------------+                | (Samsung T7)      |
                                 |   Local Storage   |                +-------------------+
                                 +-------------------+                |  Power/PoE/UPS    |
@@ -92,11 +95,14 @@ Legend:
 
 Cloud Services are optional and only receive processed data/events.
 Remote users connect via Tailscale VPN for secure SSH and web access.
-The Edge Device (Raspberry Pi 5) hosts all core services, fusing data from the AI camera and radar, and provides a local dashboard.
+The Edge Device (Raspberry Pi 5) hosts all core services, with radar-triggered edge AI processing.
+IMX500 AI Camera performs real-time vehicle classification on-sensor.
+OPS243-C Radar provides continuous motion detection and speed measurement.
+Data Fusion layer correlates radar and AI data for enhanced accuracy.
 All sensors and storage are directly attached to the Pi.
 The network layer (Tailscale, WiFi/Ethernet/Cellular) secures and routes all connections.
 
-### Unified Architecture Diagram
+### Enhanced Edge AI Architecture Diagram
 
 ```text
 +-------------------------------------------------------------+
@@ -120,26 +126,26 @@ The network layer (Tailscale, WiFi/Ethernet/Cellular) secures and routes all con
           |                    |
           v                    v
 +-------------------------------------------------------------+
-|         Edge Processing Layer (Raspberry Pi 5)              |
+|         Edge AI Processing Layer (Raspberry Pi 5)           |
 |  +-------------------+   +-------------------+              |
-|  | Vehicle Detection |   | Speed Analysis    |              |
-|  |  (TensorFlow,     |   |  (OPS243-C Radar) |              |
-|  |   OpenCV, AI Cam) |   +-------------------+              |
-|  +-------------------+   | Multi-Vehicle     |              |
-|  | Data Fusion Engine|   | Tracking (SORT)   |              |
+|  | Radar Detection   |   | IMX500 AI Camera  |              |
+|  |  (OPS243-C, UART)|   |  (Edge Inference) |              |
+|  +-------------------+   +-------------------+              |
+|  | Multi-Sensor Data |   | Vehicle Class.    |              |
+|  | Fusion Engine     |   | (On-Camera AI)    |              |
 |  +-------------------+   +-------------------+              |
 |  | Edge API Gateway  |   | Edge UI (Web Dash)|              |
 |  +-------------------+   +-------------------+              |
-|  | System Health/    |   | Local Storage     |              |
-|  | Watchdog/Weather  |   | Manager           |              |
+|  | System Health/    |   | Enhanced Storage  |              |
+|  | AI Performance   |   | w/ AI Metadata    |              |
 +---------|--------------------|------------------------------+
           |                    |
           v                    v
 +-------------------------------------------------------------+
 |         Physical Sensing Layer                              |
 |  +-------------------+   +-------------------+              |
-|  | AI Camera         |   | OPS243-C Radar    |              |
-|  | (Sony IMX500)     |   | (Doppler, UART)   |              |
+|  | IMX500 AI Camera  |   | OPS243-C Radar    |              |
+|  | (3.1 TOPS NPU)    |   | (Doppler, UART)   |              |
 |  +-------------------+   +-------------------+              |
 |  | Raspberry Pi 5    |   | External SSD      |              |
 |  | (16GB RAM, ARM)   |   | (Samsung T7)      |              |

@@ -1,0 +1,32 @@
+# Traffic Monitoring Service Configuration
+# Place this file at: /etc/systemd/system/traffic-monitoring.service
+#
+# Installation commands:
+# sudo cp traffic-monitoring.service /etc/systemd/system/
+# sudo systemctl daemon-reload
+# sudo systemctl enable traffic-monitoring.service
+# sudo systemctl start traffic-monitoring.service
+
+[Unit]
+Description=Traffic Monitoring Periodic Capture
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=merk
+Group=merk
+WorkingDirectory=/home/merk/CST_590_Computer_Science_Capstone_Project
+ExecStart=/home/merk/CST_590_Computer_Science_Capstone_Project/scripts/capture-and-process.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=traffic-monitoring
+
+# Security
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

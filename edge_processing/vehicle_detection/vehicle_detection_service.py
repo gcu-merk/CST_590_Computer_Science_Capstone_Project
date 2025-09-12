@@ -242,12 +242,59 @@ class VehicleDetectionService:
                 return self._capture_mock_frame()
 
     def _capture_frame_system_level(self):
-        """Capture frame using system-level tools (fswebcam) when OpenCV fails
+        """Capture frame using system-level tools when OpenCV fails
         
-        Tries multiple video devices since /dev/video0 may be claimed by main app
+        Tries rpicam-still first (modern Pi camera), then fswebcam fallback
         """
         try:
-            # Try multiple video devices in order
+            # Method 1: Try rpicam-still (modern Raspberry Pi camera apps)
+            logger.debug("Attempting capture with rpicam-still")
+            try:
+                # Create temporary file for captured image
+                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+                    temp_path = tmp_file.name
+                
+                # Use rpicam-still for immediate capture
+                cmd = [
+                    'rpicam-still',
+                    '-o', temp_path,
+                    '--immediate',  # Don't wait for auto-exposure
+                    '--width', '1920',
+                    '--height', '1080',
+                    '--quality', '95',
+                    '--timeout', '5000'  # 5 second timeout
+                ]
+                
+                # Execute rpicam-still command
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0 and os.path.exists(temp_path) and os.path.getsize(temp_path) > 1000:
+                    # Load captured image with OpenCV
+                    frame = cv2.imread(temp_path)
+                    # Clean up temporary file
+                    os.unlink(temp_path)
+                    
+                    if frame is not None and frame.size > 0:
+                        # Convert from BGR to RGB for consistency
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        logger.info("Successfully captured frame using rpicam-still")
+                        return True, frame
+                    else:
+                        logger.debug("Failed to load image from rpicam-still")
+                else:
+                    logger.debug(f"rpicam-still failed: {result.stderr}")
+                    
+            except subprocess.TimeoutExpired:
+                logger.debug("Timeout with rpicam-still")
+            except Exception as e:
+                logger.debug(f"Error with rpicam-still: {e}")
+            finally:
+                # Clean up temp file if it exists
+                if 'temp_path' in locals() and os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            
+            # Method 2: Fallback to fswebcam (try multiple video devices)
+            logger.debug("Falling back to fswebcam")
             video_devices = ['/dev/video0', '/dev/video1', '/dev/video2', '/dev/video3', 
                            '/dev/video4', '/dev/video5', '/dev/video6', '/dev/video7']
             
