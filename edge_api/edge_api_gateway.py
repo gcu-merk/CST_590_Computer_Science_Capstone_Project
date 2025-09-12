@@ -338,7 +338,7 @@ class EdgeAPIGateway:
                         break
                 
                 # Security check - only allow access to snapshot files
-                if not filename.startswith('periodic_snapshot_') or not filename.endswith('.jpg'):
+                if not (filename.startswith('periodic_snapshot_') or filename.startswith('traffic_')) or not filename.endswith('.jpg'):
                     return jsonify({'error': 'Invalid filename'}), 400
                 
                 if not file_path or not os.path.exists(file_path):
@@ -619,7 +619,7 @@ class EdgeAPIGateway:
             # Find the latest snapshot
             try:
                 snapshot_files = [f for f in os.listdir(snapshot_path) 
-                                if f.startswith('periodic_snapshot_') and f.endswith('.jpg')]
+                                if (f.startswith('periodic_snapshot_') or f.startswith('traffic_')) and f.endswith('.jpg')]
             except OSError as e:
                 return {
                     'available': False,
