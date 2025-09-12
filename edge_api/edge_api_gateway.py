@@ -369,21 +369,39 @@ class EdgeAPIGateway:
                         'weather_enabled': False
                     }), 503
                 
-                # Get current frame from vehicle detection if available
-                current_frame = None
-                if self.vehicle_detection_service and hasattr(self.vehicle_detection_service, 'get_current_frame'):
-                    current_frame = self.vehicle_detection_service.get_current_frame()
+                # Use host-capture architecture - analyze current sky from shared volume
+                # This gets images captured on the host and analyzes them in the container
+                max_age = request.args.get('max_age_seconds', 10.0, type=float)
+                sky_result = self.sky_analyzer.analyze_current_sky(max_age_seconds=max_age)
                 
-                if current_frame is None:
+                # Check if we got a valid analysis result
+                if 'error' in sky_result:
+                    # Try to get basic system metrics without camera image
+                    weather_metrics = self.system_status.get_weather_metrics(camera_image=None)
+                    
                     return jsonify({
-                        'error': 'No camera data available for weather analysis',
                         'weather_enabled': True,
-                        'camera_available': False
-                    }), 503
+                        'timestamp': datetime.now().isoformat(),
+                        'sky_condition': sky_result,
+                        'weather_metrics': weather_metrics,
+                        'visibility_estimate': self.sky_analyzer.get_visibility_estimate(
+                            sky_result.get('condition', 'unknown'),
+                            sky_result.get('confidence', 0)
+                        ),
+                        'camera_available': False,
+                        'image_source': 'shared_volume_failed',
+                        'max_age_seconds': max_age
+                    })
                 
-                # Analyze current conditions
-                sky_result = self.sky_analyzer.analyze_sky_condition(current_frame)
-                weather_metrics = self.system_status.get_weather_metrics(current_frame)
+                # Get enhanced system metrics (without passing camera image since we already analyzed it)
+                weather_metrics = self.system_status.get_weather_metrics(camera_image=None)
+                
+                # Update weather metrics with our sky analysis
+                weather_metrics['sky_condition'] = sky_result
+                weather_metrics['visibility_estimate'] = self.sky_analyzer.get_visibility_estimate(
+                    sky_result.get('condition', 'unknown'),
+                    sky_result.get('confidence', 0)
+                )
                 
                 return jsonify({
                     'weather_enabled': True,
@@ -394,7 +412,10 @@ class EdgeAPIGateway:
                         sky_result.get('condition', 'unknown'),
                         sky_result.get('confidence', 0)
                     ),
-                    'camera_available': True
+                    'camera_available': True,
+                    'image_source': sky_result.get('image_source', 'shared_volume'),
+                    'image_age_seconds': sky_result.get('image_age_seconds'),
+                    'max_age_seconds': max_age
                 })
                 
             except Exception as e:
