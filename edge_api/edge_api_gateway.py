@@ -45,6 +45,9 @@ class EdgeAPIGateway:
         self.speed_analysis_service = None
         self.data_fusion_engine = None
         self.system_health_monitor = None
+        self.sky_analyzer = None
+        self.system_status = None
+        self.weather_storage = None
         
         # Runtime state
         self.is_running = False
@@ -55,12 +58,16 @@ class EdgeAPIGateway:
         self._setup_websocket_events()
     
     def set_services(self, vehicle_detection=None, speed_analysis=None, 
-                    data_fusion=None, system_health=None):
+                    data_fusion=None, system_health=None, sky_analyzer=None, 
+                    system_status=None, weather_storage=None):
         """Set references to edge processing services"""
         self.vehicle_detection_service = vehicle_detection
         self.speed_analysis_service = speed_analysis
         self.data_fusion_engine = data_fusion
         self.system_health_monitor = system_health
+        self.sky_analyzer = sky_analyzer
+        self.system_status = system_status
+        self.weather_storage = weather_storage
     
     def _convert_performance_temps(self, perf_summary):
         """Convert temperature values in performance summary from Celsius to Fahrenheit"""
@@ -115,7 +122,8 @@ class EdgeAPIGateway:
                         'vehicle_detection': self.vehicle_detection_service is not None,
                         'speed_analysis': self.speed_analysis_service is not None,
                         'data_fusion': self.data_fusion_engine is not None,
-                        'system_health': self.system_health_monitor is not None
+                        'system_health': self.system_health_monitor is not None,
+                        'weather_analysis': self.sky_analyzer is not None
                     },
                     'client_count': self.client_count
                 }
@@ -349,6 +357,154 @@ class EdgeAPIGateway:
             except Exception as e:
                 logger.error(f"Camera snapshot endpoint error: {e}")
                 return jsonify({'error': str(e)}), 500
+        
+        # Weather analysis endpoints
+        @self.app.route('/api/weather', methods=['GET'])
+        def get_weather_data():
+            """Get current weather conditions and sky analysis"""
+            try:
+                if not self.sky_analyzer or not self.system_status:
+                    return jsonify({
+                        'error': 'Weather analysis not available',
+                        'weather_enabled': False
+                    }), 503
+                
+                # Get current frame from vehicle detection if available
+                current_frame = None
+                if self.vehicle_detection_service and hasattr(self.vehicle_detection_service, 'get_current_frame'):
+                    current_frame = self.vehicle_detection_service.get_current_frame()
+                
+                if current_frame is None:
+                    return jsonify({
+                        'error': 'No camera data available for weather analysis',
+                        'weather_enabled': True,
+                        'camera_available': False
+                    }), 503
+                
+                # Analyze current conditions
+                sky_result = self.sky_analyzer.analyze_sky_condition(current_frame)
+                weather_metrics = self.system_status.get_weather_metrics(current_frame)
+                
+                return jsonify({
+                    'weather_enabled': True,
+                    'timestamp': datetime.now().isoformat(),
+                    'sky_condition': sky_result,
+                    'weather_metrics': weather_metrics,
+                    'visibility_estimate': self.sky_analyzer.get_visibility_estimate(
+                        sky_result.get('condition', 'unknown'),
+                        sky_result.get('confidence', 0)
+                    ),
+                    'camera_available': True
+                })
+                
+            except Exception as e:
+                logger.error(f"Weather endpoint error: {e}")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/api/weather/history', methods=['GET'])
+        def get_weather_history():
+            """Get weather analysis history"""
+            try:
+                if not self.weather_storage:
+                    return jsonify({
+                        'error': 'Weather storage not available',
+                        'weather_enabled': bool(self.sky_analyzer)
+                    }), 503
+                
+                # Get query parameters
+                hours = request.args.get('hours', 24, type=int)
+                limit = request.args.get('limit', 100, type=int)
+                
+                # Validate parameters
+                hours = max(1, min(hours, 168))  # 1 hour to 7 days
+                limit = max(1, min(limit, 1000))  # 1 to 1000 records
+                
+                history = self.weather_storage.get_weather_history(hours=hours, limit=limit)
+                
+                return jsonify({
+                    'weather_enabled': True,
+                    'storage_available': True,
+                    'history': history,
+                    'query_parameters': {
+                        'hours': hours,
+                        'limit': limit,
+                        'returned_records': len(history)
+                    }
+                })
+                
+            except Exception as e:
+                logger.error(f"Weather history endpoint error: {e}")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/api/detection-sensitivity', methods=['GET'])
+        def get_detection_sensitivity():
+            """Get current detection sensitivity parameters (weather-influenced)"""
+            try:
+                # Get weather-adjusted detection parameters from orchestrator
+                # This would need to be passed down from the main orchestrator
+                
+                base_response = {
+                    'timestamp': datetime.now().isoformat(),
+                    'default_threshold': 0.5,
+                    'current_threshold': 0.5,
+                    'weather_influence': 'none',
+                    'weather_condition': 'unknown'
+                }
+                
+                # If we have access to weather-adjusted parameters
+                # (This would need orchestrator reference to work fully)
+                return jsonify(base_response)
+                
+            except Exception as e:
+                logger.error(f"Detection sensitivity endpoint error: {e}")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/api/weather/correlation', methods=['GET'])
+        def get_weather_traffic_correlation():
+            """Get weather-traffic correlation analysis"""
+            try:
+                if not self.weather_storage:
+                    return jsonify({
+                        'error': 'Weather storage not available for correlation analysis',
+                        'weather_enabled': bool(self.sky_analyzer)
+                    }), 503
+                
+                hours = request.args.get('hours', 24, type=int)
+                hours = max(1, min(hours, 168))  # 1 hour to 7 days
+                
+                correlation_data = self.weather_storage.get_weather_traffic_correlation(hours=hours)
+                
+                return jsonify({
+                    'weather_enabled': True,
+                    'storage_available': True,
+                    'correlation_data': correlation_data
+                })
+                
+            except Exception as e:
+                logger.error(f"Weather correlation endpoint error: {e}")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/api/weather/stats', methods=['GET'])
+        def get_weather_database_stats():
+            """Get weather database statistics"""
+            try:
+                if not self.weather_storage:
+                    return jsonify({
+                        'error': 'Weather storage not available',
+                        'weather_enabled': bool(self.sky_analyzer)
+                    }), 503
+                
+                stats = self.weather_storage.get_database_stats()
+                
+                return jsonify({
+                    'weather_enabled': True,
+                    'storage_available': True,
+                    'database_stats': stats
+                })
+                
+            except Exception as e:
+                logger.error(f"Weather stats endpoint error: {e}")
+                return jsonify({'error': str(e)}), 500
     
     def _setup_websocket_events(self):
         """Setup WebSocket event handlers"""
@@ -377,6 +533,12 @@ class EdgeAPIGateway:
             """Subscribe to real-time speed updates"""
             emit('status', {'message': 'Subscribed to speed updates'})
             # Client will receive updates via broadcast_speed_update
+        
+        @self.socketio.on('subscribe_weather')
+        def handle_subscribe_weather():
+            """Subscribe to real-time weather updates"""
+            emit('status', {'message': 'Subscribed to weather updates'})
+            # Client will receive updates via broadcast_weather_update
     
     def broadcast_detection_update(self, detection_data):
         """Broadcast detection update to all connected clients"""
@@ -391,6 +553,13 @@ class EdgeAPIGateway:
             self.socketio.emit('speed_update', speed_data)
         except Exception as e:
             logger.error(f"Error broadcasting speed update: {e}")
+    
+    def broadcast_weather_update(self, weather_data):
+        """Broadcast weather update to all connected clients"""
+        try:
+            self.socketio.emit('weather_update', weather_data)
+        except Exception as e:
+            logger.error(f"Error broadcasting weather update: {e}")
     
     def broadcast_track_update(self, track_data):
         """Broadcast track update to all connected clients"""

@@ -4,38 +4,55 @@ services:
     container_name: traffic-monitoring-edge
     restart: unless-stopped
 
-    # Device access for camera and GPIO
+    # Hardware access (removed direct camera devices - using host-capture architecture)
     devices:
-      - /dev/video0:/dev/video0    # Camera access
-      - /dev/video1:/dev/video1    # Additional camera device
       - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access
       - /dev/gpiomem:/dev/gpiomem  # GPIO access
-      - /dev/vchiq:/dev/vchiq      # VideoCore access for camera
-      - /dev/vcsm:/dev/vcsm        # VideoCore shared memory
+      # Camera devices removed - using shared volume image capture instead
+      # - /dev/video0:/dev/video0    # Removed: OpenCV compatibility issues with IMX500
+      # - /dev/video1:/dev/video1    # Removed: Not needed with host-capture
+      # - /dev/vchiq:/dev/vchiq      # Removed: VideoCore not needed in container
+      # - /dev/vcsm:/dev/vcsm        # Removed: VideoCore shared memory not needed
 
-    # Privileged mode for hardware access
-    privileged: true
+    # Reduced privilege - camera access through shared volume only
+    privileged: false
+    
+    # Add specific capabilities instead of full privileged mode
+    cap_add:
+      - NET_ADMIN  # For network monitoring if needed
+      - SYS_TIME   # For time synchronization
 
     # Expose API on host (for Tailscale/external access)
     ports:
       - "5000:5000"
 
-    # Volume mounts for persistent data
+    # Volume mounts for persistent data and shared image capture
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./config:/app/config
-      - /opt/vc:/opt/vc  # VideoCore libraries
+      # Shared volume for host-captured images (main change)
+      - /mnt/storage/camera_capture:/app/data/camera_capture
       - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
       - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images
+      # VideoCore libraries removed - not needed for shared volume approach
+      # - /opt/vc:/opt/vc  # Removed: VideoCore libraries not needed in container
 
     # Environment variables
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
-      - DISPLAY=:0  # For GUI debugging if needed
-      - LIBCAMERA_LOG_LEVELS=ERROR  # Reduce libcamera logging
-      - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk
+      # Removed display and camera-specific variables
+      # - DISPLAY=:0  # Removed: No GUI needed in container
+      # - LIBCAMERA_LOG_LEVELS=ERROR  # Removed: No direct camera access
+      # - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk  # Removed: Host handles IMX500
+      
+      # Shared volume configuration
+      - CAMERA_CAPTURE_DIR=/app/data/camera_capture
+      - USE_SHARED_VOLUME_IMAGES=true
+      - HOST_CAPTURE_ARCHITECTURE=true
+      
+      # Legacy paths for compatibility
       - PERIODIC_SNAPSHOT_PATH=/mnt/storage/periodic_snapshots
       - SNAPSHOT_INTERVAL_MINUTES=5
       - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images

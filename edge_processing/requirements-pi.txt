@@ -4,3 +4,8 @@ picamera2>=0.3.12        # Native Pi camera interface (replaces deprecated picam
 gpiozero>=1.6.2          # Simplified GPIO control
 RPi.GPIO>=0.7.1         # Low-level GPIO access
 gpustat>=1.1.1          # GPU monitoring for Pi 5
+
+# Computer vision and image processing for weather analysis
+opencv-python>=4.5.0    # OpenCV for image processing and sky analysis
+numpy>=1.21.0           # Numerical computing for image analysis
+scikit-image>=0.19.0    # Advanced image processing algorithms

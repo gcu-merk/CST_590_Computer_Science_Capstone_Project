@@ -1,0 +1,40 @@
+[Unit]
+Description=Host Camera Capture Service for Docker Container Processing
+Documentation=https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/CST_590_Computer_Science_Capstone_Project
+ExecStart=/usr/bin/python3 /home/pi/CST_590_Computer_Science_Capstone_Project/scripts/host-camera-capture.py --capture-dir /mnt/storage/camera_capture --interval 1.0
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/storage/camera_capture /var/log
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/home/pi/CST_590_Computer_Science_Capstone_Project
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=host-camera-capture
+
+[Install]
+WantedBy=multi-user.target

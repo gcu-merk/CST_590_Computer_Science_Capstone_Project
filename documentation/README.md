@@ -13,6 +13,17 @@ This folder contains all project documentation, guides, and related resources fo
 - **docs/References_Appendices.md** – References, glossary, and appendices
 - **docs/Documentation_TODO.md** – Living list of outstanding, in-progress, and completed documentation tasks
 
+## Host-Capture Architecture Documentation
+
+Due to OpenCV 4.12.0 compatibility issues with the Sony IMX500 AI camera in Docker containers, a specialized **Host-Capture/Container-Process Architecture** has been implemented. This solution separates image capture (host-side) from processing (container-side) via shared volume mounting.
+
+### Host-Capture Architecture Documents
+
+- **HOST_CAPTURE_ARCHITECTURE.md** – Complete technical architecture overview, components, data flow, and performance characteristics
+- **HOST_CAPTURE_DEPLOYMENT.md** – Step-by-step deployment guide with prerequisites, installation, and verification procedures
+- **HOST_CAPTURE_API.md** – Comprehensive API reference for all components including usage examples and integration patterns
+- **HOST_CAPTURE_TROUBLESHOOTING.md** – Systematic troubleshooting guide covering common issues, diagnostics, and recovery procedures
+
 ## Quick Links
 
 - [User Guide](./docs/User_Guide.md)

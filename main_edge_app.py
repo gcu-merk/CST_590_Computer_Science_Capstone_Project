@@ -22,6 +22,15 @@ from edge_processing.data_fusion.data_fusion_engine import DataFusionEngine
 from edge_processing.system_health.system_health_monitor import SystemHealthMonitor
 from edge_api.edge_api_gateway import EdgeAPIGateway
 
+# Weather analysis imports
+try:
+    from edge_processing.weather_analysis.sky_analyzer import SkyAnalyzer
+    from edge_processing.weather_analysis.weather_data_storage import WeatherDataStorage
+    from edge_api.pi_system_status import PiSystemStatus
+    WEATHER_ANALYSIS_AVAILABLE = True
+except ImportError as e:
+    WEATHER_ANALYSIS_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -29,15 +38,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Log weather analysis availability
+if not WEATHER_ANALYSIS_AVAILABLE:
+    logger.warning("Weather analysis modules not available - running without sky condition detection")
+
 class EdgeOrchestrator:
     """
     Main orchestrator for all edge processing services
     """
     
-    def __init__(self, sensors_enabled=True):
+    def __init__(self, sensors_enabled=True, weather_analysis_enabled=True):
         self.services = {}
         self.is_running = False
         self.sensors_enabled = sensors_enabled
+        self.weather_analysis_enabled = weather_analysis_enabled and WEATHER_ANALYSIS_AVAILABLE
+        
+        # Weather analysis components
+        if self.weather_analysis_enabled:
+            self.sky_analyzer = SkyAnalyzer()
+            self.system_status = PiSystemStatus()
+            self.weather_storage = WeatherDataStorage()
+            logger.info("Weather analysis enabled with data storage")
+        else:
+            self.sky_analyzer = None
+            self.system_status = None
+            self.weather_storage = None
+            logger.info("Weather analysis disabled")
         
         # Initialize services
         self._initialize_services()
@@ -91,10 +117,15 @@ class EdgeOrchestrator:
                 vehicle_detection=self.services.get('vehicle_detection'),
                 speed_analysis=self.services.get('speed_analysis'),
                 data_fusion=self.services.get('data_fusion'),
-                system_health=self.services['health_monitor']
+                system_health=self.services['health_monitor'],
+                sky_analyzer=self.sky_analyzer,
+                system_status=self.system_status,
+                weather_storage=self.weather_storage
             )
             
             logger.info("All services initialized successfully")
+            if self.weather_analysis_enabled:
+                logger.info("Weather analysis integration enabled")
             
         except Exception as e:
             logger.error(f"Failed to initialize services: {e}")
@@ -190,11 +221,121 @@ class EdgeOrchestrator:
                               f"Memory: {metrics.get('memory_percent', 0):.1f}% - "
                               f"Temp: {metrics.get('temperature', 0):.1f}°C")
                 
+                # Weather analysis integration
+                self._update_weather_conditions()
+                
                 time.sleep(10)  # Check every 10 seconds
                 
             except Exception as e:
                 logger.error(f"Monitoring loop error: {e}")
                 time.sleep(10)
+    
+    def _update_weather_conditions(self):
+        """Update weather conditions and adjust system parameters accordingly"""
+        if not self.weather_analysis_enabled or not self.sky_analyzer:
+            return
+        
+        try:
+            # Get current frame from vehicle detection service if available
+            current_frame = None
+            if 'vehicle_detection' in self.services:
+                vehicle_service = self.services['vehicle_detection']
+                if hasattr(vehicle_service, 'get_current_frame'):
+                    current_frame = vehicle_service.get_current_frame()
+            
+            if current_frame is not None:
+                # Analyze sky conditions
+                sky_result = self.sky_analyzer.analyze_sky_condition(current_frame)
+                weather_metrics = self.system_status.get_weather_metrics(current_frame)
+                
+                # Store latest weather data for API access
+                self._latest_weather_data = {
+                    'sky_condition': sky_result,
+                    'weather_metrics': weather_metrics,
+                    'timestamp': sky_result.get('timestamp'),
+                    'visibility_estimate': self.sky_analyzer.get_visibility_estimate(
+                        sky_result.get('condition', 'unknown'),
+                        sky_result.get('confidence', 0)
+                    )
+                }
+                
+                # Store weather data in database
+                if self.weather_storage:
+                    weather_id = self.weather_storage.store_weather_analysis(self._latest_weather_data)
+                    self._latest_weather_data['stored_id'] = weather_id
+                
+                # Adjust detection sensitivity based on weather
+                self._adjust_detection_sensitivity(sky_result)
+                
+                # Update vehicle detection service with weather context
+                if 'vehicle_detection' in self.services:
+                    vehicle_service = self.services['vehicle_detection']
+                    if hasattr(vehicle_service, 'update_weather_context'):
+                        vehicle_service.update_weather_context(self._latest_weather_data)
+                
+                # Log weather updates every 5 minutes
+                current_time = time.time()
+                if not hasattr(self, '_last_weather_log') or (current_time - self._last_weather_log) > 300:
+                    logger.info(f"Weather Update: Sky={sky_result.get('condition', 'unknown')} "
+                              f"(confidence: {sky_result.get('confidence', 0):.2f}), "
+                              f"Visibility={self._latest_weather_data['visibility_estimate']}")
+                    self._last_weather_log = current_time
+                    
+        except Exception as e:
+            logger.warning(f"Weather analysis error: {e}")
+    
+    def _adjust_detection_sensitivity(self, sky_result):
+        """Adjust vehicle detection sensitivity based on weather conditions"""
+        if 'vehicle_detection' not in self.services:
+            return
+        
+        try:
+            condition = sky_result.get('condition', 'unknown')
+            confidence = sky_result.get('confidence', 0)
+            
+            # Calculate detection threshold based on weather
+            if condition == 'clear' and confidence > 0.8:
+                detection_threshold = 0.5  # Standard threshold for clear conditions
+            elif condition == 'partly_cloudy':
+                detection_threshold = 0.4  # Slightly lower for partly cloudy
+            elif condition == 'cloudy' and confidence > 0.7:
+                detection_threshold = 0.3  # Lower threshold for poor visibility
+            else:
+                detection_threshold = 0.4  # Default medium threshold
+            
+            # Apply threshold to vehicle detection service
+            vehicle_service = self.services['vehicle_detection']
+            if hasattr(vehicle_service, 'set_detection_threshold'):
+                vehicle_service.set_detection_threshold(detection_threshold)
+            
+            # Store current detection parameters
+            self._current_detection_params = {
+                'threshold': detection_threshold,
+                'weather_condition': condition,
+                'weather_confidence': confidence,
+                'adjusted_at': time.time()
+            }
+            
+        except Exception as e:
+            logger.warning(f"Error adjusting detection sensitivity: {e}")
+    
+    def get_current_weather_data(self):
+        """Get the latest weather analysis data"""
+        return getattr(self, '_latest_weather_data', {
+            'sky_condition': {'condition': 'unavailable', 'confidence': 0},
+            'weather_metrics': {},
+            'visibility_estimate': 'unknown',
+            'timestamp': None
+        })
+    
+    def get_detection_parameters(self):
+        """Get current detection parameters influenced by weather"""
+        return getattr(self, '_current_detection_params', {
+            'threshold': 0.5,
+            'weather_condition': 'unknown',
+            'weather_confidence': 0,
+            'adjusted_at': None
+        })
     
     def stop_all_services(self):
         """Stop all edge processing services"""
@@ -249,7 +390,28 @@ def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description='Raspberry Pi Edge Traffic Monitoring System')
     parser.add_argument('--api-only', action='store_true', help='Run API server only (no sensors)')
+    parser.add_argument('--no-weather', action='store_true', help='Disable weather analysis')
+    parser.add_argument('--weather-only', action='store_true', help='Test weather analysis only')
     args = parser.parse_args()
+    
+    if args.weather_only:
+        # Weather analysis test mode
+        logger.info("Starting weather analysis test mode")
+        logger.info("=" * 60)
+        
+        if not WEATHER_ANALYSIS_AVAILABLE:
+            logger.error("Weather analysis modules not available!")
+            return
+        
+        try:
+            # Run standalone weather test
+            import subprocess
+            import sys
+            test_script_path = Path(__file__).parent / "test_sky_analysis.py"
+            subprocess.run([sys.executable, str(test_script_path), "--mode", "camera"])
+        except Exception as e:
+            logger.error(f"Weather test error: {e}")
+        return
     
     if args.api_only:
         # API-only mode for local testing
@@ -281,7 +443,9 @@ def main():
     logger.info("Starting Raspberry Pi 5 Edge ML Traffic Monitoring System")
     logger.info("=" * 60)
     
-    orchestrator = EdgeOrchestrator(sensors_enabled=True)
+    # Create orchestrator with weather analysis setting
+    weather_enabled = not args.no_weather
+    orchestrator = EdgeOrchestrator(sensors_enabled=True, weather_analysis_enabled=weather_enabled)
     
     try:
         orchestrator.start_all_services()

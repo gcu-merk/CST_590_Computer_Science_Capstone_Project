@@ -62,6 +62,18 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Shared volume image provider (for host-capture/container-process architecture)
+try:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    from shared_volume_image_provider import SharedVolumeImageProvider, ContainerCameraInterface
+    SHARED_VOLUME_AVAILABLE = True
+    logger.info("Shared volume image provider available - using host-capture architecture")
+except ImportError:
+    SHARED_VOLUME_AVAILABLE = False
+    logger.info("Shared volume image provider not available - using direct camera access")
+
 @dataclass
 class VehicleDetection:
     """Vehicle detection result from AI camera"""
@@ -129,8 +141,26 @@ class VehicleDetectionService:
         self.nms_threshold = 0.4
         
     def initialize_camera(self):
-        """Initialize Sony IMX500 AI Camera using optimal interface"""
+        """Initialize camera interface - prefer shared volume for host-capture architecture"""
         try:
+            # First priority: Shared volume image provider (host-capture architecture)
+            if SHARED_VOLUME_AVAILABLE:
+                try:
+                    self.shared_image_provider = SharedVolumeImageProvider()
+                    self.shared_image_provider.start_monitoring()
+                    
+                    # Test if we can get an image
+                    success, test_image, metadata = self.shared_image_provider.get_latest_image(max_age_seconds=30)
+                    if success and test_image is not None:
+                        logger.info("Successfully initialized shared volume image provider (host-capture)")
+                        logger.info(f"Test image loaded: {test_image.shape} from {metadata.get('filename', 'unknown')}")
+                        return True
+                    else:
+                        logger.warning("Shared volume available but no recent images found - falling back to direct camera")
+                except Exception as e:
+                    logger.warning(f"Shared volume initialization failed: {e} - falling back to direct camera")
+            
+            # Second priority: Direct camera access (original approach)
             if PI_CAMERA_AVAILABLE:
                 self.picamera2 = Picamera2()
                 # Configure for optimal performance with IMX500
@@ -153,7 +183,7 @@ class VehicleDetectionService:
                     self.imx500.set_inference_aspect_ratio(self.input_size)
                 return True
             else:
-                # Fallback to OpenCV
+                # Third priority: OpenCV fallback
                 self.camera = cv2.VideoCapture(self.camera_index)
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
@@ -194,8 +224,20 @@ class VehicleDetectionService:
             return False
     
     def capture_frame(self):
-        """Capture frame using optimal camera interface"""
+        """Capture frame using optimal interface - prefer shared volume for host-capture architecture"""
         try:
+            # First priority: Shared volume image provider (host-capture architecture)
+            if hasattr(self, 'shared_image_provider') and self.shared_image_provider:
+                success, frame, metadata = self.shared_image_provider.get_latest_image()
+                if success and frame is not None:
+                    # Convert BGR to RGB if needed (OpenCV loads as BGR)
+                    if len(frame.shape) == 3 and frame.shape[2] == 3:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    return True, frame
+                else:
+                    logger.warning("Shared volume provider failed to get image - falling back")
+            
+            # Second priority: Direct camera access
             if self.picamera2:
                 # Use Picamera2 (preferred for Raspberry Pi with IMX500)
                 try:
@@ -800,6 +842,114 @@ class VehicleDetectionService:
                 recent_detections.append(detection)
                 
         return recent_detections
+    
+    def set_detection_threshold(self, threshold: float):
+        """
+        Set detection confidence threshold (can be adjusted based on weather conditions)
+        
+        Args:
+            threshold: Detection confidence threshold (0.0 to 1.0)
+        """
+        old_threshold = self.confidence_threshold
+        self.confidence_threshold = max(0.1, min(0.9, threshold))  # Clamp between 0.1 and 0.9
+        
+        logger.info(f"Detection threshold updated: {old_threshold:.2f} -> {self.confidence_threshold:.2f}")
+    
+    def get_current_frame(self):
+        """
+        Get the current camera frame for weather analysis
+        
+        Returns:
+            Current frame as numpy array or None if not available
+        """
+        try:
+            return self.capture_frame()
+        except Exception as e:
+            logger.warning(f"Could not get current frame for weather analysis: {e}")
+            return None
+    
+    def get_detection_parameters(self):
+        """
+        Get current detection parameters
+        
+        Returns:
+            Dictionary with current detection settings
+        """
+        return {
+            'confidence_threshold': self.confidence_threshold,
+            'nms_threshold': self.nms_threshold,
+            'save_confidence_threshold': self.save_confidence_threshold,
+            'input_size': self.input_size,
+            'frame_count': self.frame_count,
+            'is_running': self.is_running
+        }
+    
+    def update_weather_context(self, weather_data: Dict):
+        """
+        Update detection behavior based on weather conditions
+        
+        Args:
+            weather_data: Weather analysis data including condition and confidence
+        """
+        try:
+            sky_condition = weather_data.get('sky_condition', {})
+            condition = sky_condition.get('condition', 'unknown')
+            confidence = sky_condition.get('confidence', 0)
+            
+            # Adjust detection parameters based on weather
+            if condition == 'clear' and confidence > 0.8:
+                # Good conditions - use standard threshold
+                threshold_adjustment = 0.0
+                save_threshold_adjustment = 0.0
+            elif condition == 'partly_cloudy':
+                # Moderate conditions - slightly lower threshold
+                threshold_adjustment = -0.05
+                save_threshold_adjustment = -0.05
+            elif condition == 'cloudy' and confidence > 0.7:
+                # Poor visibility - significantly lower threshold
+                threshold_adjustment = -0.15
+                save_threshold_adjustment = -0.1
+            else:
+                # Unknown/uncertain conditions - conservative adjustment
+                threshold_adjustment = -0.1
+                save_threshold_adjustment = -0.05
+            
+            # Apply adjustments with bounds checking
+            base_threshold = 0.5  # Default threshold
+            base_save_threshold = 0.7  # Default save threshold
+            
+            new_threshold = max(0.1, min(0.9, base_threshold + threshold_adjustment))
+            new_save_threshold = max(0.3, min(0.9, base_save_threshold + save_threshold_adjustment))
+            
+            # Update thresholds if they changed significantly
+            if abs(new_threshold - self.confidence_threshold) > 0.01:
+                old_threshold = self.confidence_threshold
+                self.confidence_threshold = new_threshold
+                logger.info(f"Weather-adjusted detection threshold: {old_threshold:.2f} -> {new_threshold:.2f} "
+                          f"(weather: {condition}, confidence: {confidence:.2f})")
+            
+            if abs(new_save_threshold - self.save_confidence_threshold) > 0.01:
+                old_save_threshold = self.save_confidence_threshold
+                self.save_confidence_threshold = new_save_threshold
+                logger.info(f"Weather-adjusted save threshold: {old_save_threshold:.2f} -> {new_save_threshold:.2f}")
+            
+        except Exception as e:
+            logger.warning(f"Error updating weather context: {e}")
+    
+    def get_weather_aware_status(self):
+        """
+        Get status indicating weather-aware operation
+        
+        Returns:
+            Dictionary with weather integration status
+        """
+        return {
+            'weather_integration_enabled': True,
+            'current_detection_threshold': self.confidence_threshold,
+            'current_save_threshold': self.save_confidence_threshold,
+            'adaptive_thresholds': True,
+            'last_weather_update': getattr(self, '_last_weather_update', None)
+        }
 
 if __name__ == "__main__":
     # Test the vehicle detection service
