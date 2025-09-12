@@ -505,6 +505,164 @@ class EdgeAPIGateway:
             except Exception as e:
                 logger.error(f"Weather stats endpoint error: {e}")
                 return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/api/endpoints', methods=['GET'])
+        def list_api_endpoints():
+            """List all available API endpoints grouped by category"""
+            try:
+                base_url = request.url_root.rstrip('/')
+                
+                endpoints = {
+                    "api_info": {
+                        "title": "Traffic Monitoring Edge API",
+                        "version": "1.0.0",
+                        "description": "Real-time traffic monitoring with vehicle detection, speed analysis, and weather integration",
+                        "base_url": base_url,
+                        "timestamp": datetime.now().isoformat()
+                    },
+                    "endpoints": {
+                        "system": {
+                            "description": "System health and status endpoints",
+                            "endpoints": [
+                                {
+                                    "path": "/api/health",
+                                    "method": "GET",
+                                    "description": "System health check with service status and metrics",
+                                    "url": f"{base_url}/api/health"
+                                },
+                                {
+                                    "path": "/hello",
+                                    "method": "GET", 
+                                    "description": "Simple hello endpoint for testing connectivity",
+                                    "url": f"{base_url}/hello"
+                                },
+                                {
+                                    "path": "/api/endpoints",
+                                    "method": "GET",
+                                    "description": "This endpoint - lists all available API endpoints",
+                                    "url": f"{base_url}/api/endpoints"
+                                }
+                            ]
+                        },
+                        "vehicle_detection": {
+                            "description": "Vehicle detection and tracking endpoints",
+                            "endpoints": [
+                                {
+                                    "path": "/api/detections",
+                                    "method": "GET",
+                                    "description": "Get recent vehicle detections",
+                                    "parameters": "?seconds=10 (optional)",
+                                    "url": f"{base_url}/api/detections"
+                                },
+                                {
+                                    "path": "/api/tracks",
+                                    "method": "GET",
+                                    "description": "Get active vehicle tracks from data fusion",
+                                    "url": f"{base_url}/api/tracks"
+                                },
+                                {
+                                    "path": "/api/detection-sensitivity",
+                                    "method": "GET",
+                                    "description": "Get current detection sensitivity parameters (weather-influenced)",
+                                    "url": f"{base_url}/api/detection-sensitivity"
+                                }
+                            ]
+                        },
+                        "speed_analysis": {
+                            "description": "Speed measurement and analysis endpoints", 
+                            "endpoints": [
+                                {
+                                    "path": "/api/speeds",
+                                    "method": "GET",
+                                    "description": "Get recent speed measurements",
+                                    "parameters": "?seconds=60 (optional)",
+                                    "url": f"{base_url}/api/speeds"
+                                }
+                            ]
+                        },
+                        "analytics": {
+                            "description": "Traffic analytics and insights endpoints",
+                            "endpoints": [
+                                {
+                                    "path": "/api/analytics", 
+                                    "method": "GET",
+                                    "description": "Get traffic analytics and performance insights",
+                                    "url": f"{base_url}/api/analytics"
+                                }
+                            ]
+                        },
+                        "weather": {
+                            "description": "Weather analysis and sky condition endpoints",
+                            "endpoints": [
+                                {
+                                    "path": "/api/weather",
+                                    "method": "GET", 
+                                    "description": "Get current weather conditions and sky analysis",
+                                    "url": f"{base_url}/api/weather"
+                                },
+                                {
+                                    "path": "/api/weather/history",
+                                    "method": "GET",
+                                    "description": "Get weather analysis history", 
+                                    "parameters": "?hours=24&limit=100 (optional)",
+                                    "url": f"{base_url}/api/weather/history"
+                                },
+                                {
+                                    "path": "/api/weather/correlation",
+                                    "method": "GET",
+                                    "description": "Get weather-traffic correlation analysis",
+                                    "parameters": "?hours=24 (optional)", 
+                                    "url": f"{base_url}/api/weather/correlation"
+                                },
+                                {
+                                    "path": "/api/weather/stats",
+                                    "method": "GET",
+                                    "description": "Get weather database statistics",
+                                    "url": f"{base_url}/api/weather/stats"
+                                }
+                            ]
+                        },
+                        "camera": {
+                            "description": "Camera and image endpoints",
+                            "endpoints": [
+                                {
+                                    "path": "/api/camera/snapshot/<filename>",
+                                    "method": "GET",
+                                    "description": "Serve camera snapshot images",
+                                    "url": f"{base_url}/api/camera/snapshot/[filename]"
+                                }
+                            ]
+                        }
+                    },
+                    "websocket": {
+                        "description": "Real-time WebSocket endpoints for live data streaming",
+                        "url": f"{base_url}",
+                        "events": [
+                            "connect - Connect to WebSocket",
+                            "disconnect - Disconnect from WebSocket", 
+                            "subscribe_detections - Subscribe to vehicle detection updates",
+                            "subscribe_speeds - Subscribe to speed analysis updates",
+                            "subscribe_tracks - Subscribe to tracking updates",
+                            "subscribe_weather - Subscribe to weather updates",
+                            "subscribe_analytics - Subscribe to analytics updates"
+                        ]
+                    },
+                    "usage_examples": {
+                        "curl_examples": [
+                            f"curl {base_url}/api/health",
+                            f"curl {base_url}/api/detections?seconds=30",
+                            f"curl {base_url}/api/weather",
+                            f"curl {base_url}/api/weather/history?hours=6&limit=50",
+                            f"curl {base_url}/api/analytics"
+                        ]
+                    }
+                }
+                
+                return jsonify(endpoints)
+                
+            except Exception as e:
+                logger.error(f"Endpoints listing error: {e}")
+                return jsonify({'error': str(e)}), 500
     
     def _setup_websocket_events(self):
         """Setup WebSocket event handlers"""
