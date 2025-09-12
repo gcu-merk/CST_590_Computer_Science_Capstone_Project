@@ -6,8 +6,8 @@ services:
 
     # Hardware access (removed direct camera devices - using host-capture architecture)
     devices:
-      - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access
-      - /dev/gpiomem:/dev/gpiomem  # GPIO access
+      # - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access (commented out - device not available)
+      - /dev/gpiomem0:/dev/gpiomem  # GPIO access (using gpiomem0)
       # Camera devices removed - using shared volume image capture instead
       # - /dev/video0:/dev/video0    # Removed: OpenCV compatibility issues with IMX500
       # - /dev/video1:/dev/video1    # Removed: Not needed with host-capture

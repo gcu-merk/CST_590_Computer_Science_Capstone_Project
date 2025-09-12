@@ -23,6 +23,7 @@ Due to OpenCV 4.12.0 compatibility issues with the Sony IMX500 AI camera in Dock
 - **HOST_CAPTURE_DEPLOYMENT.md** – Step-by-step deployment guide with prerequisites, installation, and verification procedures
 - **HOST_CAPTURE_API.md** – Comprehensive API reference for all components including usage examples and integration patterns
 - **HOST_CAPTURE_TROUBLESHOOTING.md** – Systematic troubleshooting guide covering common issues, diagnostics, and recovery procedures
+- **HOST_CAPTURE_DEPLOYMENT_FIXES.md** – Critical deployment issues and their resolutions, including Docker device mapping fixes
 
 ## Quick Links
 

@@ -79,11 +79,68 @@ df -h /mnt/storage/
 
 ## Service Issues
 
+### Docker Container Startup Issues
+
+#### Container Fails to Start with Device Mapping Errors
+
+**Symptoms:**
+- Container fails to start with error: `error gathering device information while adding custom device "/dev/ttyACM0": no such file or directory`
+- Similar errors for `/dev/gpiomem` or other device mappings
+
+**Diagnosis:**
+
+```bash
+# Check available devices on the system
+ls -la /dev/ttyACM*  # Check for radar sensor device
+ls -la /dev/gpio*    # Check for GPIO devices
+
+# Check container logs
+docker logs traffic-monitoring-edge
+
+# Check docker-compose configuration
+grep -A 10 "devices:" docker-compose.yml
+```
+
+**Solutions:**
+
+1. **Update Device Mappings Based on Available Hardware**
+   ```bash
+   # Check what GPIO devices are actually available
+   ls -la /dev/gpiomem*
+   
+   # Edit docker-compose.yml to use available devices
+   nano docker-compose.yml
+   
+   # Comment out unavailable devices:
+   devices:
+     # - /dev/ttyACM0:/dev/ttyACM0  # Commented out if not available
+     - /dev/gpiomem0:/dev/gpiomem   # Use gpiomem0 instead of gpiomem
+   ```
+
+2. **Remove Old Container and Recreate**
+   ```bash
+   # Remove container with old configuration
+   docker rm traffic-monitoring-edge
+   
+   # Recreate with updated configuration
+   docker-compose up -d
+   ```
+
+3. **Verify Container Startup**
+   ```bash
+   # Check container status
+   docker-compose ps
+   
+   # Verify container is running
+   docker logs traffic-monitoring-edge
+   ```
+
 ### Host Camera Capture Service Problems
 
 #### Service Won't Start
 
 **Symptoms:**
+
 - `systemctl status host-camera-capture` shows "failed" or "inactive"
 - No images appearing in shared volume
 

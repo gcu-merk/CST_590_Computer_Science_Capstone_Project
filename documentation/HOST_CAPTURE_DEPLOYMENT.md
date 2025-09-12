@@ -119,8 +119,8 @@ services:
 
     # UPDATED: Reduced device list to essential only
     devices:
-      - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor
-      - /dev/gpiomem:/dev/gpiomem  # GPIO access
+      # - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor (commented out - device not available on all systems)
+      - /dev/gpiomem0:/dev/gpiomem  # GPIO access (using gpiomem0 which is available)
 
     # UPDATED: Reduced privileges 
     privileged: false
@@ -144,7 +144,21 @@ services:
 
 #### Deploy Updated Configuration
 
+**Important Note**: Before deploying, check device availability on your system:
+
 ```bash
+# Check available GPIO devices
+ls -la /dev/gpio*
+
+# Check for radar sensor device
+ls -la /dev/ttyACM*
+
+# If ttyACM0 is not available, ensure it's commented out in docker-compose.yml
+```
+
+```bash
+# Remove any existing container with device mapping issues
+docker rm traffic-monitoring-edge
 # Stop existing containers
 docker-compose down
 
