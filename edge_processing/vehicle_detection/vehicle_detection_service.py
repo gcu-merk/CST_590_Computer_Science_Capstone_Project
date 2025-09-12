@@ -863,7 +863,11 @@ class VehicleDetectionService:
             Current frame as numpy array or None if not available
         """
         try:
-            return self.capture_frame()
+            success, frame = self.capture_frame()
+            if success and frame is not None:
+                return frame
+            else:
+                return None
         except Exception as e:
             logger.warning(f"Could not get current frame for weather analysis: {e}")
             return None
