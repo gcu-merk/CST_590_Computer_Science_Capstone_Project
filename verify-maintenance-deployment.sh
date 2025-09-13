@@ -1,6 +1,10 @@
 #!/bin/bash
 # Post-Deployment Maintenance Verification Script
 # Run this on your Raspberry Pi after CI/CD deployment to verify maintenance system
+#
+# Note: Container Names (used in docker exec commands):
+#   - Main container: traffic-monitoring-edge (service: traffic-monitor)
+#   - Maintenance container: traffic-maintenance (service: data-maintenance)
 
 echo "🔍 Verifying Automated Maintenance System Deployment"
 echo "=================================================="
@@ -39,13 +43,13 @@ echo "🔧 Maintenance System Verification"
 echo "-----------------------------------"
 
 # Test maintenance script availability
-if docker exec traffic-monitor test -f /app/scripts/container-maintenance.py 2>/dev/null; then
+if docker exec traffic-monitoring-edge test -f /app/scripts/container-maintenance.py 2>/dev/null; then
     echo "✅ Maintenance scripts: Available in main container"
     
     # Test maintenance status
     echo ""
     echo "📊 Current maintenance status:"
-    docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --status 2>/dev/null | head -20 || echo "❌ Status check failed"
+    docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --status 2>/dev/null | head -20 || echo "❌ Status check failed"
     
 else
     echo "❌ Maintenance scripts: Not found in container"
@@ -90,7 +94,7 @@ echo "-----------------------------"
 
 # Check maintenance environment variables in main container
 echo "Maintenance configuration in main container:"
-docker exec traffic-monitor printenv | grep MAINTENANCE 2>/dev/null || echo "  No MAINTENANCE_* environment variables found"
+docker exec traffic-monitoring-edge printenv | grep MAINTENANCE 2>/dev/null || echo "  No MAINTENANCE_* environment variables found"
 
 # Check in maintenance service if it exists
 if docker ps | grep -q "traffic-maintenance"; then
@@ -104,10 +108,10 @@ echo "🕐 Scheduled Maintenance Check"
 echo "-----------------------------"
 
 # Check if cron is available in containers
-if docker exec traffic-monitor which cron >/dev/null 2>&1; then
+if docker exec traffic-monitoring-edge which cron >/dev/null 2>&1; then
     echo "✅ Cron available in main container"
     echo "Cron jobs:"
-    docker exec traffic-monitor crontab -l 2>/dev/null || echo "  No cron jobs configured"
+    docker exec traffic-monitoring-edge crontab -l 2>/dev/null || echo "  No cron jobs configured"
 else
     echo "❌ Cron not available in main container"
 fi
@@ -128,12 +132,12 @@ echo "-------------------------"
 
 # Test manual maintenance execution
 echo "Testing manual maintenance execution..."
-if docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --status >/dev/null 2>&1; then
+if docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --status >/dev/null 2>&1; then
     echo "✅ Manual maintenance execution: Working"
     echo ""
     echo "🧹 You can run manual maintenance with:"
-    echo "  docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --daily-cleanup"
-    echo "  docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --emergency-cleanup"
+    echo "  docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --daily-cleanup"
+    echo "  docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --emergency-cleanup"
 elif docker ps | grep -q "traffic-maintenance" && docker exec traffic-maintenance python3 /app/scripts/container-maintenance.py --status >/dev/null 2>&1; then
     echo "✅ Manual maintenance execution: Working (via maintenance service)"
     echo ""
@@ -168,7 +172,7 @@ if docker ps | grep -q "traffic-maintenance.*Up" && docker exec traffic-maintena
     echo "  docker logs traffic-maintenance -f"
     echo "  docker exec traffic-maintenance bash /app/scripts/maintenance-dashboard.sh"
     
-elif docker exec traffic-monitor test -f /app/scripts/container-maintenance.py 2>/dev/null; then
+elif docker exec traffic-monitoring-edge test -f /app/scripts/container-maintenance.py 2>/dev/null; then
     echo "⚠️  Partial deployment detected"
     echo ""
     echo "✅ Maintenance scripts are in main container"
@@ -179,7 +183,7 @@ elif docker exec traffic-monitor test -f /app/scripts/container-maintenance.py 2
     echo "  2. Restart deployment: docker compose down && docker compose up -d"
     echo ""
     echo "🧹 For now, you can run manual maintenance:"
-    echo "  docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --daily-cleanup"
+    echo "  docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --daily-cleanup"
     
 else
     echo "❌ Maintenance system not detected"
