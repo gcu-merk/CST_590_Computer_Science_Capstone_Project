@@ -107,43 +107,13 @@ jobs:
           sleep 5
           curl -f http://localhost:5000/api/health || echo "API health check failed or not available yet"
           
-      - name: Verify maintenance system
-        run: |
-          echo "=== Maintenance System Verification ==="
-          DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
-          cd "$DEPLOY_DIR"
-          
-          # Download verification script
-          echo "Downloading maintenance verification script..."
-          curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/verify-maintenance-deployment.sh -o verify-maintenance-deployment.sh
-          chmod +x verify-maintenance-deployment.sh
-          
-          echo "🔧 Maintenance System Status:"
-          if docker ps | grep -q "traffic-maintenance.*Up"; then
-            echo "  ✅ Automated maintenance service: Running"
-            echo "  🕐 Daily cleanup scheduled for 2:00 AM"
-            echo "  📊 Monitor: docker logs traffic-maintenance -f"
-          elif docker exec traffic-monitor test -f /app/scripts/container-maintenance.py 2>/dev/null; then
-            echo "  ⚠️  Maintenance scripts available in main container"
-            echo "  🧹 Manual cleanup: docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --daily-cleanup"
-          else
-            echo "  ❌ Maintenance system not detected"
-          fi
-          
-          echo ""
-          echo "🔍 Running full maintenance verification..."
-          ./verify-maintenance-deployment.sh || echo "Verification script completed with warnings"
-          
       - name: Deployment summary
         run: |
           echo "=== Deployment Summary ==="
           echo "✅ Deployment completed successfully"
           DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
-          echo "📁 Deployment directory: $DEPLOY_DIR"
-          echo "🐳 Containers:"
+          echo "� Deployment directory: $DEPLOY_DIR"
+          echo "�🐳 Containers:"
           cd "$DEPLOY_DIR"
           docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}" || echo "Container status unavailable"
           echo "🌐 Access dashboard at: http://$(hostname -I | awk '{print $1}'):5000"
-          echo ""
-          echo "🔧 Maintenance System: See verification step above for details"
-          echo "🔍 Full verification script: bash verify-maintenance-deployment.sh"
