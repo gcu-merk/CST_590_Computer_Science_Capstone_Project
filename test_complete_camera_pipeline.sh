@@ -498,32 +498,71 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
         echo "    Error: Main traffic monitoring container not found"
         echo "    RECOMMENDATION: Start containers with 'docker-compose up -d'"
     else
-        provider_test=$(docker exec "$main_container" python3 -c "
+        # Create a fresh test image first
+        echo "    Creating fresh test image for provider test..."
+        provider_test_image="/mnt/storage/camera_capture/live/provider_test_$(date +%Y%m%d_%H%M%S_%3N).jpg"
+        if rpicam-still -o "$provider_test_image" --immediate --width 4056 --height 3040 --quality 95 --timeout 3000 --nopreview --encoding jpg >/dev/null 2>&1; then
+            echo "    ✓ Fresh test image created: $(basename "$provider_test_image")"
+            
+            # Wait for provider to detect the image
+            sleep 2
+            
+            provider_test=$(docker exec "$main_container" python3 -c "
 try:
-    import sys
+    import sys, time
     sys.path.append('/app')
     from edge_processing.shared_volume_image_provider import SharedVolumeImageProvider
+    
     provider = SharedVolumeImageProvider()
     provider.start_monitoring()
-    import time; time.sleep(2)
-    success, image, metadata = provider.get_latest_image(max_age_seconds=60.0)
+    time.sleep(3)  # Give provider time to scan
+    
+    success, image, metadata = provider.get_latest_image(max_age_seconds=10.0)
     provider.stop_monitoring()
+    
     print(f'SUCCESS:{success}')
     if success and image is not None:
         print(f'SHAPE:{image.shape}')
-        print(f'FILENAME:{metadata.get(\"filename\", \"unknown\")}')
+        filename = metadata.get('filename', 'unknown') if metadata else 'no_metadata'
+        print(f'FILENAME:{filename}')
+        capture_time = metadata.get('capture_time', 0) if metadata else 0
+        print(f'IMAGE_AGE:{capture_time}')
+        
+        # Check if we got the fresh image we just created
+        if 'provider_test_' in filename:
+            print('FRESH_IMAGE:true')
+        else:
+            print('FRESH_IMAGE:false')
+            print(f'EXPECTED_PATTERN:provider_test_')
     else:
-        print('ERROR:No image retrieved')
+        print('ERROR:No image retrieved or provider failed')
+        print(f'METADATA:{metadata}')
 except Exception as e:
     print(f'ERROR:{e}')
+    import traceback
+    traceback.print_exc()
 " 2>&1)
-    
-        if echo "$provider_test" | grep -q "SUCCESS:True"; then
-            print_result 0 "Shared Volume Image Provider"
-            echo "    $provider_test"
+        
+            if echo "$provider_test" | grep -q "SUCCESS:True"; then
+                print_result 0 "Shared Volume Image Provider"
+                echo "    $provider_test"
+                
+                # Check if we got the fresh image
+                if echo "$provider_test" | grep -q "FRESH_IMAGE:false"; then
+                    echo "    ⚠️  Warning: Provider not detecting fresh images quickly"
+                    echo "    This could cause weather analysis to use stale data"
+                fi
+            else
+                print_result 1 "Shared Volume Image Provider"
+                echo "    $provider_test"
+                echo "    RECOMMENDATION: Check SharedVolumeImageProvider implementation and directory monitoring"
+            fi
+            
+            # Clean up test image
+            rm -f "$provider_test_image" 2>/dev/null
         else
             print_result 1 "Shared Volume Image Provider"
-            echo "    $provider_test"
+            echo "    Failed to create test image for provider testing"
         fi
     fi
     
@@ -537,24 +576,49 @@ except Exception as e:
     else
         # First, create a recent test image in the shared volume for weather analysis
         echo "    Creating test image for weather analysis..."
-        test_weather_image="/mnt/storage/camera_capture/live/weather_test_$(date +%Y%m%d_%H%M%S).jpg"
+        test_weather_image="/mnt/storage/camera_capture/live/weather_test_$(date +%Y%m%d_%H%M%S_%3N).jpg"
         if rpicam-still -o "$test_weather_image" --immediate --width 4056 --height 3040 --quality 95 --timeout 3000 --nopreview --encoding jpg >/dev/null 2>&1; then
             echo "    ✓ Test image created: $(basename "$test_weather_image")"
             
+            # Wait a moment for the image to be detected by the container
+            echo "    Waiting 3 seconds for image processing..."
+            sleep 3
+            
+            # Test weather API with a short max_age to ensure we get the new image
             weather_test=$(docker exec "$main_container" python3 -c "
 try:
-    import sys, requests, json
-    response = requests.get('http://localhost:5000/api/weather', timeout=10)
+    import sys, requests, json, time
+    
+    # Clear any cached data by requesting with very short max_age
+    response = requests.get('http://localhost:5000/api/weather?max_age_seconds=2', timeout=15)
     data = response.json()
+    
+    print(f'RESPONSE_KEYS:{list(data.keys())}')
+    
     if 'sky_condition' in data and data['sky_condition']['condition'] != 'unknown':
+        condition = data['sky_condition']['condition']
+        confidence = data['sky_condition'].get('confidence', 0)
+        image_source = data.get('image_source', 'unknown')
+        image_age = data.get('image_age_seconds', 'unknown')
+        
         print('SUCCESS:Weather analysis working')
-        print(f'CONDITION:{data[\"sky_condition\"][\"condition\"]}')
-        print(f'CONFIDENCE:{data[\"sky_condition\"].get(\"confidence\", \"N/A\")}')
-    elif 'error' in data['sky_condition']:
-        print(f'ERROR:{data[\"sky_condition\"][\"error\"]}')
+        print(f'CONDITION:{condition}')
+        print(f'CONFIDENCE:{confidence}')
+        print(f'IMAGE_SOURCE:{image_source}')
+        print(f'IMAGE_AGE:{image_age}')
+        
+        # Additional validation - check if we're actually getting recent data
+        if image_age != 'unknown' and isinstance(image_age, (int, float)) and image_age > 30:
+            print('WARNING:Using old image data (>30 seconds)')
+        
+    elif 'error' in data.get('sky_condition', {}):
+        error_msg = data['sky_condition']['error']
+        print(f'ERROR:{error_msg}')
+        print(f'CAMERA_AVAILABLE:{data.get(\"camera_available\", False)}')
+        print(f'WEATHER_ENABLED:{data.get(\"weather_enabled\", False)}')
     else:
         print('ERROR:Unknown weather analysis issue')
-        print(json.dumps(data, indent=2))
+        print(f'DATA:{json.dumps(data, indent=2)}')
 except Exception as e:
     print(f'ERROR:{e}')
 " 2>&1)
@@ -562,10 +626,17 @@ except Exception as e:
             if echo "$weather_test" | grep -q "SUCCESS"; then
                 print_result 0 "Weather Analysis Service"
                 echo "    $weather_test"
+                
+                # Additional validation for image freshness
+                if echo "$weather_test" | grep -q "WARNING:Using old image"; then
+                    echo "    ⚠️  Warning: Weather analysis may be using cached/old image data"
+                    echo "    This suggests the SharedVolumeImageProvider might not be detecting new images quickly"
+                fi
             else
                 print_result 1 "Weather Analysis Service"
                 echo "    $weather_test"
-                echo "    Note: Weather analysis requires recent images and may need time to process"
+                echo "    Note: Weather analysis requires recent images and proper shared volume setup"
+                echo "    Check: 1) Host camera capture service, 2) Volume mounts, 3) Image freshness"
             fi
             
             # Clean up test image
