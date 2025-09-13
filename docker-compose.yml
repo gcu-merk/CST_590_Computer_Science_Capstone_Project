@@ -144,7 +144,8 @@ services:
       - traffic-monitor
     
     # Run maintenance as separate service
-    command: ["python3", "/app/scripts/container-maintenance.py", "--daemon"]
+    working_dir: /app
+    command: ["python3", "scripts/container-maintenance.py", "--daemon"]
     
     # Only need access to storage volumes
     volumes:
