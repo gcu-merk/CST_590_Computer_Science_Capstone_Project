@@ -307,21 +307,21 @@ fi
 echo -e "\n${BLUE}Testing: Container Status${NC}"
 
 find_application_container() {
-    local container_patterns=("traffic" "edge" "monitor" "camera" "capstone")
+    local container_patterns=("traffic-monitoring-edge" "traffic-monitor" "edge" "capstone")
     local container_name=""
     
-    # Look for running containers first
+    # Look for running containers first, excluding maintenance and init containers
     for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -i "$pattern" | head -1 | tr -d '\n\r')
+        container_name=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "^${pattern}$|${pattern}" | grep -v -i "maintenance" | grep -v -i "init" | head -1 | tr -d '\n\r')
         if [ -n "$container_name" ]; then
             echo "$container_name"
             return 0
         fi
     done
     
-    # Look for stopped containers
+    # Look for stopped containers, excluding maintenance and init containers
     for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -i "$pattern" | head -1 | tr -d '\n\r')
+        container_name=$(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "^${pattern}$|${pattern}" | grep -v -i "maintenance" | grep -v -i "init" | head -1 | tr -d '\n\r')
         if [ -n "$container_name" ]; then
             echo "$container_name"
             return 1  # Found but not running
@@ -357,9 +357,10 @@ elif [ $container_result -eq 2 ]; then
 else
     echo "  No application containers found"
     echo "    RECOMMENDATION: Check docker-compose.yml or container setup"
-    print_result 1 "Container Status (No containers found)"
+    print_result 1 "Container Status (No application containers found)"
     echo "    Available containers:"
     docker ps -a --format "table {{.Names}}\t{{.Status}}" | head -5
+    echo "    Expected container: traffic-monitoring-edge"
 fi
 # Conditional container tests (only if container is running)
 if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
@@ -528,8 +529,10 @@ except Exception as e:
     
 else
     print_result 1 "Container Not Found"
+    echo "    Expected container: traffic-monitoring-edge"
     echo "    Available containers:"
     docker ps --format "table {{.Names}}\t{{.Status}}" | head -5
+    echo "    RECOMMENDATION: Start the main application container with 'docker-compose up -d'"
 fi
 
 echo -e "\n${YELLOW}🔧 5. CONTINUOUS CAPTURE TEST${NC}"
