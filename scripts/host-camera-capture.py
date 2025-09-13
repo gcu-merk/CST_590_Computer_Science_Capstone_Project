@@ -27,12 +27,17 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Configure logging
+# Configure logging (default to SSD, fallback to SD card)
+log_dir = Path("/mnt/storage/logs/applications")
+log_dir.mkdir(parents=True, exist_ok=True) if log_dir.parent.exists() else None
+
+log_file = log_dir / "host-camera-capture.log" if log_dir.exists() else Path("/var/log/host-camera-capture.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/var/log/host-camera-capture.log'),
+        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )

@@ -26,18 +26,26 @@ services:
     ports:
       - "5000:5000"
 
-    # Volume mounts for persistent data and shared image capture
+    # Volume mounts for persistent data and shared image capture (ALL ON SSD)
     volumes:
       - ./data:/app/data
-      - ./logs:/app/logs
+      - /mnt/storage/logs/docker:/app/logs  # Docker logs on SSD
       - ./config:/app/config
       # Shared volume for host-captured images (main change)
       - /mnt/storage/camera_capture:/app/data/camera_capture
       - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
       - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images
-      # VideoCore libraries removed - not needed for shared volume approach
-      # - /opt/vc:/opt/vc  # Removed: VideoCore libraries not needed in container
+      # Additional SSD storage mounts
+      - /mnt/storage/processed_data:/app/data/processed
+      - /mnt/storage/backups:/app/data/backups
 
+    # Container logging configuration (logs to SSD)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        
     # Environment variables
     environment:
       - PYTHONPATH=/app
@@ -47,15 +55,18 @@ services:
       # - LIBCAMERA_LOG_LEVELS=ERROR  # Removed: No direct camera access
       # - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk  # Removed: Host handles IMX500
       
-      # Shared volume configuration
+      # SSD-based storage paths
       - CAMERA_CAPTURE_DIR=/app/data/camera_capture
       - USE_SHARED_VOLUME_IMAGES=true
       - HOST_CAPTURE_ARCHITECTURE=true
+      - LOG_DIRECTORY=/app/logs  # Logs stored on SSD
       
-      # Legacy paths for compatibility
+      # Legacy paths for compatibility (all on SSD)
       - PERIODIC_SNAPSHOT_PATH=/mnt/storage/periodic_snapshots
       - SNAPSHOT_INTERVAL_MINUTES=5
       - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images
+      - PROCESSED_DATA_PATH=/app/data/processed
+      - BACKUP_PATH=/app/data/backups
 
     # Health check
     healthcheck:
@@ -92,7 +103,13 @@ services:
   #     - CLOUD_ENDPOINT=https://your-cloud-service.com
 
 volumes:
+  # All persistent data stored on SSD
   postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/postgres_data
 
 networks:
   default:

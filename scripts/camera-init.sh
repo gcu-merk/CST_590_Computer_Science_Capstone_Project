@@ -20,7 +20,16 @@ BASE_DIR="/mnt/storage/camera_capture"
 REQUIRED_DIRS=("live" "metadata" "periodic_snapshots" "processed" "backups" "logs")
 USER="pi"
 GROUP="pi"
-LOG_FILE="/var/log/camera-init.log"
+# Use SSD for logs, fallback to SD card
+LOG_DIR="/mnt/storage/logs/applications"
+LOG_FILE="$LOG_DIR/camera-init.log"
+
+# Create log directory if SSD is available
+if [ -d "/mnt/storage" ]; then
+    mkdir -p "$LOG_DIR" 2>/dev/null || LOG_FILE="/var/log/camera-init.log"
+else
+    LOG_FILE="/var/log/camera-init.log"
+fi
 
 # Function to log messages
 log_message() {
