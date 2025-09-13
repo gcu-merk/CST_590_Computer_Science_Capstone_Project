@@ -332,26 +332,26 @@ find_application_container() {
     local container_patterns=("traffic-monitoring-edge" "traffic-edge" "edge" "traffic" "monitor" "camera" "capstone")
     local container_name=""
     
-    echo "  Searching for application containers..."
+    echo "  Searching for application containers..." >&2
     
     # Look for running containers first - prioritize main traffic monitoring container
     for pattern in "${container_patterns[@]}"; do
         container_name=$(docker ps --format "{{.Names}}" | grep -i "$pattern" | head -1)
         if [ -n "$container_name" ]; then
-            echo "  ✓ Found running container: $container_name"
+            echo "  ✓ Found running container: $container_name" >&2
             echo "$container_name"
             return 0
         fi
     done
     
     # Look for stopped containers
-    echo "  No running containers found, checking for stopped containers..."
+    echo "  No running containers found, checking for stopped containers..." >&2
     for pattern in "${container_patterns[@]}"; do
         container_name=$(docker ps -a --format "{{.Names}}" | grep -i "$pattern" | head -1)
         if [ -n "$container_name" ]; then
             local status=$(docker ps -a --format "{{.Names}}\t{{.Status}}" | grep "$container_name" | cut -f2)
-            echo "  Found stopped container: $container_name ($status)"
-            echo "    RECOMMENDATION: docker start $container_name"
+            echo "  Found stopped container: $container_name ($status)" >&2
+            echo "    RECOMMENDATION: docker start $container_name" >&2
             echo "$container_name"
             return 1  # Found but not running
         fi
@@ -359,26 +359,31 @@ find_application_container() {
     
     # Check for docker-compose.yml
     if [ -f "docker-compose.yml" ]; then
-        echo "  Found docker-compose.yml but no containers running"
-        echo "    RECOMMENDATION: docker-compose up -d"
+        echo "  Found docker-compose.yml but no containers running" >&2
+        echo "    RECOMMENDATION: docker-compose up -d" >&2
         return 2  # Compose available but not running
     fi
     
-    echo "  No application containers found"
-    echo "    RECOMMENDATION: Check docker-compose.yml or container setup"
+    echo "  No application containers found" >&2
+    echo "    RECOMMENDATION: Check docker-compose.yml or container setup" >&2
     return 3  # No containers found
 }
 
-container_name=$(find_application_container)
+container_name=$(find_application_container 2>/dev/null)
 container_result=$?
 
 if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
+    # Display the debug output for user visibility
+    find_application_container >/dev/null
     print_result 0 "Container Status (Running: $container_name)"
 elif [ $container_result -eq 1 ]; then
+    find_application_container >/dev/null
     print_result 1 "Container Status (Found but stopped: $container_name)"
 elif [ $container_result -eq 2 ]; then
+    find_application_container >/dev/null
     print_result 1 "Container Status (Docker Compose available but not running)"
 else
+    find_application_container >/dev/null
     print_result 1 "Container Status (No containers found)"
     echo "    Available containers:"
     docker ps -a --format "table {{.Names}}\t{{.Status}}" | head -5
@@ -412,6 +417,20 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
             missing_paths+=("write_permission")
         fi
         
+        # Check if host-container volume sharing is working
+        local host_test_file="/mnt/storage/camera_capture/live/host_container_sync_test_$(date +%s).tmp"
+        local container_test_path="/app/data/camera_capture/live/host_container_sync_test_$(date +%s).tmp"
+        
+        # Create file on host, check if visible in container
+        if touch "$host_test_file" 2>/dev/null && docker exec "$container_name" test -f "/app/data/camera_capture/live/$(basename "$host_test_file")" 2>/dev/null; then
+            echo "    ✓ Host-container volume sync working"
+            rm -f "$host_test_file" 2>/dev/null
+        else
+            echo "    ✗ Host-container volume sync failed"
+            missing_paths+=("volume_sync")
+            rm -f "$host_test_file" 2>/dev/null
+        fi
+        
         [ ${#missing_paths[@]} -eq 0 ]
     }
     
@@ -428,9 +447,11 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     check_container_image_access() {
         local image_count=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l)
         local recent_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l)
+        local any_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "24 hours ago" 2>/dev/null | wc -l)
         
         echo "    Total images found: $image_count"
         echo "    Recent images (last 5 min): $recent_images"
+        echo "    Images from last 24h: $any_images"
         
         if [ "$image_count" -gt 0 ]; then
             # Show sample of available images
@@ -438,10 +459,26 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
             docker exec "$container_name" ls -la /app/data/camera_capture/live/ 2>/dev/null | tail -3 | while read line; do
                 echo "      $line"
             done
-            return 0
+            
+            # Test that container can actually read image files
+            local test_image=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | head -1)
+            if [ -n "$test_image" ]; then
+                local file_size=$(docker exec "$container_name" stat -c%s "$test_image" 2>/dev/null || echo "0")
+                if [ "$file_size" -gt 10000 ]; then  # > 10KB indicates real image
+                    echo "    ✓ Container can read image files (test file: $file_size bytes)"
+                    return 0
+                else
+                    echo "    ✗ Image files appear corrupted or empty"
+                    return 1
+                fi
+            else
+                echo "    ✗ No image files found"
+                return 1
+            fi
         else
             echo "    Directory contents:"
             docker exec "$container_name" ls -la /app/data/camera_capture/ 2>/dev/null || echo "      Cannot list directory"
+            echo "    Note: This is expected if host camera capture service is not running"
             return 1
         fi
     }
@@ -498,7 +535,13 @@ except Exception as e:
         echo "    Error: Main traffic monitoring container not found"
         echo "    RECOMMENDATION: Start containers with 'docker-compose up -d'"
     else
-        weather_test=$(docker exec "$main_container" python3 -c "
+        # First, create a recent test image in the shared volume for weather analysis
+        echo "    Creating test image for weather analysis..."
+        test_weather_image="/mnt/storage/camera_capture/live/weather_test_$(date +%Y%m%d_%H%M%S).jpg"
+        if rpicam-still -o "$test_weather_image" --immediate --width 4056 --height 3040 --quality 95 --timeout 3000 --nopreview --encoding jpg >/dev/null 2>&1; then
+            echo "    ✓ Test image created: $(basename "$test_weather_image")"
+            
+            weather_test=$(docker exec "$main_container" python3 -c "
 try:
     import sys, requests, json
     response = requests.get('http://localhost:5000/api/weather', timeout=10)
@@ -506,6 +549,7 @@ try:
     if 'sky_condition' in data and data['sky_condition']['condition'] != 'unknown':
         print('SUCCESS:Weather analysis working')
         print(f'CONDITION:{data[\"sky_condition\"][\"condition\"]}')
+        print(f'CONFIDENCE:{data[\"sky_condition\"].get(\"confidence\", \"N/A\")}')
     elif 'error' in data['sky_condition']:
         print(f'ERROR:{data[\"sky_condition\"][\"error\"]}')
     else:
@@ -514,13 +558,22 @@ try:
 except Exception as e:
     print(f'ERROR:{e}')
 " 2>&1)
-    
-        if echo "$weather_test" | grep -q "SUCCESS"; then
-            print_result 0 "Weather Analysis Service"
-            echo "    $weather_test"
+        
+            if echo "$weather_test" | grep -q "SUCCESS"; then
+                print_result 0 "Weather Analysis Service"
+                echo "    $weather_test"
+            else
+                print_result 1 "Weather Analysis Service"
+                echo "    $weather_test"
+                echo "    Note: Weather analysis requires recent images and may need time to process"
+            fi
+            
+            # Clean up test image
+            rm -f "$test_weather_image" 2>/dev/null
         else
             print_result 1 "Weather Analysis Service"
-            echo "    $weather_test"
+            echo "    Failed to create test image for weather analysis"
+            echo "    RECOMMENDATION: Check camera functionality and try again"
         fi
     fi
     
