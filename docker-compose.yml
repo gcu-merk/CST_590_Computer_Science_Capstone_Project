@@ -1,8 +1,52 @@
 services:
+  # Directory initialization service - runs once to set up required directories
+  init-directories:
+    image: busybox:latest
+    container_name: traffic-init-directories
+    restart: "no"  # Run once only
+    
+    volumes:
+      - /mnt/storage:/mnt/storage
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+    
+    command: >
+      sh -c "
+        echo 'Initializing directory structure...' &&
+        mkdir -p /mnt/storage/camera_capture/live &&
+        mkdir -p /mnt/storage/camera_capture/metadata &&
+        mkdir -p /mnt/storage/camera_capture/processed &&
+        mkdir -p /mnt/storage/periodic_snapshots &&
+        mkdir -p /mnt/storage/ai_camera_images &&
+        mkdir -p /mnt/storage/processed_data &&
+        mkdir -p /mnt/storage/backups &&
+        mkdir -p /mnt/storage/logs/docker &&
+        mkdir -p /app/data &&
+        mkdir -p /app/config &&
+        mkdir -p /app/scripts &&
+        chmod -R 777 /mnt/storage/camera_capture &&
+        chmod -R 777 /mnt/storage/periodic_snapshots &&
+        chmod -R 777 /mnt/storage/ai_camera_images &&
+        chmod -R 777 /mnt/storage/processed_data &&
+        chmod -R 777 /mnt/storage/backups &&
+        chmod -R 777 /mnt/storage/logs &&
+        chmod -R 755 /app/data &&
+        chmod -R 755 /app/config &&
+        chmod -R 755 /app/scripts &&
+        echo 'Directory structure initialized successfully!' &&
+        echo 'Created directories:' &&
+        ls -la /mnt/storage/ &&
+        echo 'Camera capture subdirectories:' &&
+        ls -la /mnt/storage/camera_capture/
+      "
+
   traffic-monitor:
     image: gcumerk/cst590-capstone-public:latest
     container_name: traffic-monitoring-edge
     restart: unless-stopped
+    depends_on:
+      - init-directories
 
     # Hardware access (removed direct camera devices - using host-capture architecture)
     devices:
@@ -95,6 +139,9 @@ services:
     image: gcumerk/cst590-capstone-public:latest
     container_name: traffic-maintenance
     restart: unless-stopped
+    depends_on:
+      - init-directories
+      - traffic-monitor
     
     # Run maintenance as separate service
     command: ["python3", "/app/scripts/container-maintenance.py", "--daemon"]
