@@ -67,6 +67,20 @@ services:
       - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images
       - PROCESSED_DATA_PATH=/app/data/processed
       - BACKUP_PATH=/app/data/backups
+      
+      # Data maintenance configuration
+      - DATA_VOLUME=/mnt/storage
+      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
+      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
+      - MAINTENANCE_PROCESSED_MAX_AGE_HOURS=48
+      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
+      - MAINTENANCE_LOG_MAX_SIZE_MB=50
+      - MAINTENANCE_EMERGENCY_THRESHOLD=90
+      - MAINTENANCE_WARNING_THRESHOLD=80
+      - MAINTENANCE_MAX_LIVE_IMAGES=500
+      - MAINTENANCE_MAX_PROCESSED_IMAGES=200
+      - MAINTENANCE_MAX_SNAPSHOTS=100
+      - ENABLE_AUTO_MAINTENANCE=true
 
     # Health check
     healthcheck:
@@ -75,6 +89,52 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
+
+  # Automated Data Maintenance Service
+  data-maintenance:
+    image: gcumerk/cst590-capstone-public:latest
+    container_name: traffic-maintenance
+    restart: unless-stopped
+    
+    # Run maintenance as separate service
+    command: ["python3", "/app/scripts/container-maintenance.py", "--daemon"]
+    
+    # Only need access to storage volumes
+    volumes:
+      - /mnt/storage:/mnt/storage  # Full SSD access for maintenance
+      - ./scripts:/app/scripts     # Maintenance scripts
+      - ./config:/app/config       # Configuration files
+    
+    # Minimal environment for maintenance
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - DATA_VOLUME=/mnt/storage
+      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
+      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
+      - MAINTENANCE_PROCESSED_MAX_AGE_HOURS=48
+      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
+      - MAINTENANCE_LOG_MAX_SIZE_MB=50
+      - MAINTENANCE_EMERGENCY_THRESHOLD=90
+      - MAINTENANCE_WARNING_THRESHOLD=80
+      - MAINTENANCE_MAX_LIVE_IMAGES=500
+      - MAINTENANCE_MAX_PROCESSED_IMAGES=200
+      - MAINTENANCE_MAX_SNAPSHOTS=100
+    
+    # Maintenance service health check
+    healthcheck:
+      test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
+      interval: 300s  # Every 5 minutes
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 # Optional: Add database service for more complex setups
   # database:
