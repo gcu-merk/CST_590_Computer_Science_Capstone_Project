@@ -306,23 +306,52 @@ fi
 # Test 11: Check container status (diagnostic only, no auto-start)
 echo -e "\n${BLUE}Testing: Container Status${NC}"
 
+find_main_container() {
+    # Find the main traffic monitoring container specifically
+    local main_container=""
+    
+    # Look for traffic-monitoring-edge first (main container)
+    main_container=$(docker ps --format "{{.Names}}" | grep "traffic-monitoring-edge" | head -1)
+    if [ -n "$main_container" ]; then
+        echo "$main_container"
+        return 0
+    fi
+    
+    # Fallback to any running traffic-related container
+    main_container=$(docker ps --format "{{.Names}}" | grep -E "(traffic|edge|monitor)" | head -1)
+    if [ -n "$main_container" ]; then
+        echo "$main_container"
+        return 0
+    fi
+    
+    return 1
+}
+
 find_application_container() {
-    local container_patterns=("traffic-monitoring-edge" "traffic-monitor" "edge" "capstone")
+    # Updated patterns to match actual container names from docker-compose.yml
+    local container_patterns=("traffic-monitoring-edge" "traffic-edge" "edge" "traffic" "monitor" "camera" "capstone")
     local container_name=""
     
-    # Look for running containers first, excluding maintenance and init containers
+    echo "  Searching for application containers..."
+    
+    # Look for running containers first - prioritize main traffic monitoring container
     for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "^${pattern}$|${pattern}" | grep -v -i "maintenance" | grep -v -i "init" | head -1 | tr -d '\n\r')
+        container_name=$(docker ps --format "{{.Names}}" | grep -i "$pattern" | head -1)
         if [ -n "$container_name" ]; then
+            echo "  ✓ Found running container: $container_name"
             echo "$container_name"
             return 0
         fi
     done
     
-    # Look for stopped containers, excluding maintenance and init containers
+    # Look for stopped containers
+    echo "  No running containers found, checking for stopped containers..."
     for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -E "^${pattern}$|${pattern}" | grep -v -i "maintenance" | grep -v -i "init" | head -1 | tr -d '\n\r')
+        container_name=$(docker ps -a --format "{{.Names}}" | grep -i "$pattern" | head -1)
         if [ -n "$container_name" ]; then
+            local status=$(docker ps -a --format "{{.Names}}\t{{.Status}}" | grep "$container_name" | cut -f2)
+            echo "  Found stopped container: $container_name ($status)"
+            echo "    RECOMMENDATION: docker start $container_name"
             echo "$container_name"
             return 1  # Found but not running
         fi
@@ -330,37 +359,29 @@ find_application_container() {
     
     # Check for docker-compose.yml
     if [ -f "docker-compose.yml" ]; then
+        echo "  Found docker-compose.yml but no containers running"
+        echo "    RECOMMENDATION: docker-compose up -d"
         return 2  # Compose available but not running
     fi
     
+    echo "  No application containers found"
+    echo "    RECOMMENDATION: Check docker-compose.yml or container setup"
     return 3  # No containers found
 }
 
-# Get container info with proper error handling
-echo "  Searching for application containers..."
-container_name=$(find_application_container 2>/dev/null)
+container_name=$(find_application_container)
 container_result=$?
 
-# Clean the container name of any extra characters
-container_name=$(echo "$container_name" | tr -d '\n\r' | xargs)
-
 if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
-    echo "  ✓ Found running container: $container_name"
     print_result 0 "Container Status (Running: $container_name)"
 elif [ $container_result -eq 1 ]; then
-    echo "  Found stopped container: $container_name"
     print_result 1 "Container Status (Found but stopped: $container_name)"
 elif [ $container_result -eq 2 ]; then
-    echo "  Found docker-compose.yml but no containers running"
-    echo "    RECOMMENDATION: docker-compose up -d"
     print_result 1 "Container Status (Docker Compose available but not running)"
 else
-    echo "  No application containers found"
-    echo "    RECOMMENDATION: Check docker-compose.yml or container setup"
-    print_result 1 "Container Status (No application containers found)"
+    print_result 1 "Container Status (No containers found)"
     echo "    Available containers:"
     docker ps -a --format "table {{.Names}}\t{{.Status}}" | head -5
-    echo "    Expected container: traffic-monitoring-edge"
 fi
 # Conditional container tests (only if container is running)
 if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
@@ -405,14 +426,8 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     echo -e "\n${BLUE}Testing: Container Image Access${NC}"
     
     check_container_image_access() {
-        # Check if container can access the live directory
-        if ! docker exec "$container_name" test -d /app/data/camera_capture/live 2>/dev/null; then
-            echo "    ✗ Container cannot access live directory"
-            return 1
-        fi
-        
-        local image_count=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l || echo "0")
-        local recent_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l || echo "0")
+        local image_count=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l)
+        local recent_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l)
         
         echo "    Total images found: $image_count"
         echo "    Recent images (last 5 min): $recent_images"
@@ -421,17 +436,11 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
             # Show sample of available images
             echo "    Sample images:"
             docker exec "$container_name" ls -la /app/data/camera_capture/live/ 2>/dev/null | tail -3 | while read line; do
-                if [[ "$line" =~ \.jpg$ ]]; then
-                    echo "      $line"
-                fi
+                echo "      $line"
             done
             return 0
         else
             echo "    Directory contents:"
-            docker exec "$container_name" ls -la /app/data/camera_capture/live/ 2>/dev/null | head -5 || echo "      Cannot list directory"
-            return 1
-        fi
-    }
             docker exec "$container_name" ls -la /app/data/camera_capture/ 2>/dev/null || echo "      Cannot list directory"
             return 1
         fi
@@ -446,7 +455,13 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     
     # Test 14: Test shared volume image provider
     echo -e "\n${BLUE}Testing: Shared Volume Image Provider${NC}"
-    provider_test=$(docker exec "$container_name" python3 -c "
+    main_container=$(find_main_container)
+    if [ -z "$main_container" ]; then
+        print_result 1 "Shared Volume Image Provider"
+        echo "    Error: Main traffic monitoring container not found"
+        echo "    RECOMMENDATION: Start containers with 'docker-compose up -d'"
+    else
+        provider_test=$(docker exec "$main_container" python3 -c "
 try:
     import sys
     sys.path.append('/app')
@@ -454,63 +469,44 @@ try:
     provider = SharedVolumeImageProvider()
     provider.start_monitoring()
     import time; time.sleep(2)
-    success, image, metadata = provider.get_latest_image(max_age_seconds=300.0)
+    success, image, metadata = provider.get_latest_image(max_age_seconds=60.0)
     provider.stop_monitoring()
     print(f'SUCCESS:{success}')
     if success and image is not None:
         print(f'SHAPE:{image.shape}')
         print(f'FILENAME:{metadata.get(\"filename\", \"unknown\")}')
     else:
-        print('ERROR:No recent image found (check if images are being captured)')
-except ImportError as e:
-    print(f'ERROR:Module not found - {e}')
+        print('ERROR:No image retrieved')
 except Exception as e:
     print(f'ERROR:{e}')
 " 2>&1)
     
-    if echo "$provider_test" | grep -q "SUCCESS:True"; then
-        print_result 0 "Shared Volume Image Provider"
-        echo "    $(echo "$provider_test" | grep -E "(SUCCESS|SHAPE|FILENAME)")"
-    else
-        print_result 1 "Shared Volume Image Provider"
-        echo "    Error: $(echo "$provider_test" | grep ERROR)"
+        if echo "$provider_test" | grep -q "SUCCESS:True"; then
+            print_result 0 "Shared Volume Image Provider"
+            echo "    $provider_test"
+        else
+            print_result 1 "Shared Volume Image Provider"
+            echo "    $provider_test"
+        fi
     fi
     
-    # Test 15: Test weather analysis service
+    # Test 15: Test weather analysis (original failing service)
     echo -e "\n${BLUE}Testing: Weather Analysis Service${NC}"
-    weather_test=$(docker exec "$container_name" python3 -c "
+    main_container=$(find_main_container)
+    if [ -z "$main_container" ]; then
+        print_result 1 "Weather Analysis Service"
+        echo "    Error: Main traffic monitoring container not found"
+        echo "    RECOMMENDATION: Start containers with 'docker-compose up -d'"
+    else
+        weather_test=$(docker exec "$main_container" python3 -c "
 try:
     import sys, requests, json
     response = requests.get('http://localhost:5000/api/weather', timeout=10)
-    if response.status_code == 200:
-        data = response.json()
-        if 'sky_condition' in data and data['sky_condition']['condition'] != 'unknown':
-            print('SUCCESS:Weather analysis working')
-            print(f'CONDITION:{data[\"sky_condition\"][\"condition\"]}')
-        elif 'error' in data.get('sky_condition', {}):
-            print(f'WARNING:Weather service running but has errors - {data[\"sky_condition\"][\"error\"]}')
-        else:
-            print('WARNING:Weather service running but no sky condition data')
-    else:
-        print(f'ERROR:API returned status {response.status_code}')
-except requests.exceptions.ConnectionError:
-    print('ERROR:Cannot connect to API (service may not be running)')
-except requests.exceptions.Timeout:
-    print('ERROR:API request timed out')
-except Exception as e:
-    print(f'ERROR:{e}')
-" 2>&1)
-    
-    if echo "$weather_test" | grep -q "SUCCESS:"; then
-        print_result 0 "Weather Analysis Service"
-        echo "    $(echo "$weather_test" | grep -E "(SUCCESS|CONDITION)")"
-    elif echo "$weather_test" | grep -q "WARNING:"; then
-        print_result 1 "Weather Analysis Service" 
-        echo "    $(echo "$weather_test" | grep WARNING)"
-    else
-        print_result 1 "Weather Analysis Service"
-        echo "    Error: $(echo "$weather_test" | grep ERROR)"
-    fi
+    data = response.json()
+    if 'sky_condition' in data and data['sky_condition']['condition'] != 'unknown':
+        print('SUCCESS:Weather analysis working')
+        print(f'CONDITION:{data[\"sky_condition\"][\"condition\"]}')
+    elif 'error' in data['sky_condition']:
         print(f'ERROR:{data[\"sky_condition\"][\"error\"]}')
     else:
         print('ERROR:Unknown weather analysis issue')
@@ -519,20 +515,19 @@ except Exception as e:
     print(f'ERROR:{e}')
 " 2>&1)
     
-    if echo "$weather_test" | grep -q "SUCCESS"; then
-        print_result 0 "Weather Analysis Service"
-        echo "    $weather_test"
-    else
-        print_result 1 "Weather Analysis Service"
-        echo "    $weather_test"
+        if echo "$weather_test" | grep -q "SUCCESS"; then
+            print_result 0 "Weather Analysis Service"
+            echo "    $weather_test"
+        else
+            print_result 1 "Weather Analysis Service"
+            echo "    $weather_test"
+        fi
     fi
     
 else
     print_result 1 "Container Not Found"
-    echo "    Expected container: traffic-monitoring-edge"
     echo "    Available containers:"
     docker ps --format "table {{.Names}}\t{{.Status}}" | head -5
-    echo "    RECOMMENDATION: Start the main application container with 'docker-compose up -d'"
 fi
 
 echo -e "\n${YELLOW}🔧 5. CONTINUOUS CAPTURE TEST${NC}"
@@ -600,7 +595,14 @@ disk_usage=$(du -sh /mnt/storage/camera_capture 2>/dev/null | cut -f1)
 echo "  📷 Total images captured: $total_images"
 echo "  📄 Metadata files: $total_metadata"
 echo "  💾 Disk usage: $disk_usage"
-echo "  🐳 Container status: $([ -n "$container_name" ] && echo "Running ($container_name)" || echo "Not found")"
+
+# Show all running containers
+running_containers=$(docker ps --format "{{.Names}}" | grep -E "(traffic|edge|monitor|maintenance)" | tr '\n' ', ' | sed 's/,$//')
+if [ -n "$running_containers" ]; then
+    echo "  🐳 Container status: Running ($running_containers)"
+else
+    echo "  🐳 Container status: No traffic monitoring containers found"
+fi
 
 # Final test results
 echo -e "\n${YELLOW}🏁 TEST RESULTS SUMMARY${NC}"
