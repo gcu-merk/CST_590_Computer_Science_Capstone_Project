@@ -310,11 +310,10 @@ find_application_container() {
     local container_patterns=("traffic" "edge" "monitor" "camera" "capstone")
     local container_name=""
     
-    # Look for running containers first - suppress search messages
+    # Look for running containers first
     for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps --format "{{.Names}}" | grep -i "$pattern" | head -1)
+        container_name=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -i "$pattern" | head -1 | tr -d '\n\r')
         if [ -n "$container_name" ]; then
-            # Only echo the container name, nothing else
             echo "$container_name"
             return 0
         fi
@@ -322,9 +321,8 @@ find_application_container() {
     
     # Look for stopped containers
     for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps -a --format "{{.Names}}" | grep -i "$pattern" | head -1)
+        container_name=$(docker ps -a --format "{{.Names}}" 2>/dev/null | grep -i "$pattern" | head -1 | tr -d '\n\r')
         if [ -n "$container_name" ]; then
-            local status=$(docker ps -a --format "{{.Names}}\t{{.Status}}" | grep "$container_name" | cut -f2)
             echo "$container_name"
             return 1  # Found but not running
         fi
@@ -340,8 +338,11 @@ find_application_container() {
 
 # Get container info with proper error handling
 echo "  Searching for application containers..."
-container_name=$(find_application_container)
+container_name=$(find_application_container 2>/dev/null)
 container_result=$?
+
+# Clean the container name of any extra characters
+container_name=$(echo "$container_name" | tr -d '\n\r' | xargs)
 
 if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     echo "  ✓ Found running container: $container_name"
