@@ -572,6 +572,17 @@ class ContainerMaintenance:
     def run_daemon(self):
         """Run as daemon (for container environments)"""
         self.logger.info("Starting container maintenance daemon")
+        
+        # Wait for system to be ready (important for container startup)
+        self.logger.info("Waiting for system initialization...")
+        time.sleep(30)  # Give container time to fully start
+        
+        # Verify data volumes are mounted
+        if not self.config.data_path.exists():
+            self.logger.error(f"Data volume not mounted at {self.config.data_path}")
+            return 1
+            
+        self.logger.info(f"Data volume verified at {self.config.data_path}")
         self.running = True
         
         def signal_handler(signum, frame):
@@ -585,12 +596,15 @@ class ContainerMaintenance:
         maintenance_interval = 6 * 3600  # 6 hours
         last_maintenance = 0
         
+        self.logger.info("Container maintenance daemon ready")
+        
         while self.running:
             try:
                 current_time = time.time()
                 
                 # Run maintenance if interval has passed
                 if current_time - last_maintenance >= maintenance_interval:
+                    self.logger.info("Running scheduled maintenance")
                     self.run_daily_maintenance()
                     last_maintenance = current_time
                 

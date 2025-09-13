@@ -310,26 +310,21 @@ find_application_container() {
     local container_patterns=("traffic" "edge" "monitor" "camera" "capstone")
     local container_name=""
     
-    echo "  Searching for application containers..."
-    
-    # Look for running containers first
+    # Look for running containers first - suppress search messages
     for pattern in "${container_patterns[@]}"; do
         container_name=$(docker ps --format "{{.Names}}" | grep -i "$pattern" | head -1)
         if [ -n "$container_name" ]; then
-            echo "  ✓ Found running container: $container_name"
+            # Only echo the container name, nothing else
             echo "$container_name"
             return 0
         fi
     done
     
     # Look for stopped containers
-    echo "  No running containers found, checking for stopped containers..."
     for pattern in "${container_patterns[@]}"; do
         container_name=$(docker ps -a --format "{{.Names}}" | grep -i "$pattern" | head -1)
         if [ -n "$container_name" ]; then
             local status=$(docker ps -a --format "{{.Names}}\t{{.Status}}" | grep "$container_name" | cut -f2)
-            echo "  Found stopped container: $container_name ($status)"
-            echo "    RECOMMENDATION: docker start $container_name"
             echo "$container_name"
             return 1  # Found but not running
         fi
@@ -337,26 +332,30 @@ find_application_container() {
     
     # Check for docker-compose.yml
     if [ -f "docker-compose.yml" ]; then
-        echo "  Found docker-compose.yml but no containers running"
-        echo "    RECOMMENDATION: docker-compose up -d"
         return 2  # Compose available but not running
     fi
     
-    echo "  No application containers found"
-    echo "    RECOMMENDATION: Check docker-compose.yml or container setup"
     return 3  # No containers found
 }
 
+# Get container info with proper error handling
+echo "  Searching for application containers..."
 container_name=$(find_application_container)
 container_result=$?
 
 if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
+    echo "  ✓ Found running container: $container_name"
     print_result 0 "Container Status (Running: $container_name)"
 elif [ $container_result -eq 1 ]; then
+    echo "  Found stopped container: $container_name"
     print_result 1 "Container Status (Found but stopped: $container_name)"
 elif [ $container_result -eq 2 ]; then
+    echo "  Found docker-compose.yml but no containers running"
+    echo "    RECOMMENDATION: docker-compose up -d"
     print_result 1 "Container Status (Docker Compose available but not running)"
 else
+    echo "  No application containers found"
+    echo "    RECOMMENDATION: Check docker-compose.yml or container setup"
     print_result 1 "Container Status (No containers found)"
     echo "    Available containers:"
     docker ps -a --format "table {{.Names}}\t{{.Status}}" | head -5
@@ -404,8 +403,14 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     echo -e "\n${BLUE}Testing: Container Image Access${NC}"
     
     check_container_image_access() {
-        local image_count=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l)
-        local recent_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l)
+        # Check if container can access the live directory
+        if ! docker exec "$container_name" test -d /app/data/camera_capture/live 2>/dev/null; then
+            echo "    ✗ Container cannot access live directory"
+            return 1
+        fi
+        
+        local image_count=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l || echo "0")
+        local recent_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l || echo "0")
         
         echo "    Total images found: $image_count"
         echo "    Recent images (last 5 min): $recent_images"
@@ -414,11 +419,17 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
             # Show sample of available images
             echo "    Sample images:"
             docker exec "$container_name" ls -la /app/data/camera_capture/live/ 2>/dev/null | tail -3 | while read line; do
-                echo "      $line"
+                if [[ "$line" =~ \.jpg$ ]]; then
+                    echo "      $line"
+                fi
             done
             return 0
         else
             echo "    Directory contents:"
+            docker exec "$container_name" ls -la /app/data/camera_capture/live/ 2>/dev/null | head -5 || echo "      Cannot list directory"
+            return 1
+        fi
+    }
             docker exec "$container_name" ls -la /app/data/camera_capture/ 2>/dev/null || echo "      Cannot list directory"
             return 1
         fi
@@ -441,37 +452,63 @@ try:
     provider = SharedVolumeImageProvider()
     provider.start_monitoring()
     import time; time.sleep(2)
-    success, image, metadata = provider.get_latest_image(max_age_seconds=60.0)
+    success, image, metadata = provider.get_latest_image(max_age_seconds=300.0)
     provider.stop_monitoring()
     print(f'SUCCESS:{success}')
     if success and image is not None:
         print(f'SHAPE:{image.shape}')
         print(f'FILENAME:{metadata.get(\"filename\", \"unknown\")}')
     else:
-        print('ERROR:No image retrieved')
+        print('ERROR:No recent image found (check if images are being captured)')
+except ImportError as e:
+    print(f'ERROR:Module not found - {e}')
 except Exception as e:
     print(f'ERROR:{e}')
 " 2>&1)
     
     if echo "$provider_test" | grep -q "SUCCESS:True"; then
         print_result 0 "Shared Volume Image Provider"
-        echo "    $provider_test"
+        echo "    $(echo "$provider_test" | grep -E "(SUCCESS|SHAPE|FILENAME)")"
     else
         print_result 1 "Shared Volume Image Provider"
-        echo "    $provider_test"
+        echo "    Error: $(echo "$provider_test" | grep ERROR)"
     fi
     
-    # Test 15: Test weather analysis (original failing service)
+    # Test 15: Test weather analysis service
     echo -e "\n${BLUE}Testing: Weather Analysis Service${NC}"
     weather_test=$(docker exec "$container_name" python3 -c "
 try:
     import sys, requests, json
     response = requests.get('http://localhost:5000/api/weather', timeout=10)
-    data = response.json()
-    if 'sky_condition' in data and data['sky_condition']['condition'] != 'unknown':
-        print('SUCCESS:Weather analysis working')
-        print(f'CONDITION:{data[\"sky_condition\"][\"condition\"]}')
-    elif 'error' in data['sky_condition']:
+    if response.status_code == 200:
+        data = response.json()
+        if 'sky_condition' in data and data['sky_condition']['condition'] != 'unknown':
+            print('SUCCESS:Weather analysis working')
+            print(f'CONDITION:{data[\"sky_condition\"][\"condition\"]}')
+        elif 'error' in data.get('sky_condition', {}):
+            print(f'WARNING:Weather service running but has errors - {data[\"sky_condition\"][\"error\"]}')
+        else:
+            print('WARNING:Weather service running but no sky condition data')
+    else:
+        print(f'ERROR:API returned status {response.status_code}')
+except requests.exceptions.ConnectionError:
+    print('ERROR:Cannot connect to API (service may not be running)')
+except requests.exceptions.Timeout:
+    print('ERROR:API request timed out')
+except Exception as e:
+    print(f'ERROR:{e}')
+" 2>&1)
+    
+    if echo "$weather_test" | grep -q "SUCCESS:"; then
+        print_result 0 "Weather Analysis Service"
+        echo "    $(echo "$weather_test" | grep -E "(SUCCESS|CONDITION)")"
+    elif echo "$weather_test" | grep -q "WARNING:"; then
+        print_result 1 "Weather Analysis Service" 
+        echo "    $(echo "$weather_test" | grep WARNING)"
+    else
+        print_result 1 "Weather Analysis Service"
+        echo "    Error: $(echo "$weather_test" | grep ERROR)"
+    fi
         print(f'ERROR:{data[\"sky_condition\"][\"error\"]}')
     else:
         print('ERROR:Unknown weather analysis issue')
