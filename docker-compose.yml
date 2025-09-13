@@ -150,7 +150,6 @@ services:
     # Only need access to storage volumes
     volumes:
       - /mnt/storage:/mnt/storage  # Full SSD access for maintenance
-      - ./scripts:/app/scripts     # Maintenance scripts
       - ./config:/app/config       # Configuration files
     
     # Minimal environment for maintenance
