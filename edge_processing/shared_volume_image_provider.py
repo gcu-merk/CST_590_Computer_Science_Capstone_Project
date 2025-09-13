@@ -57,15 +57,75 @@ class SharedVolumeImageProvider:
         self.monitoring_active = False
         
         logger.info(f"SharedVolumeImageProvider initialized: {self.capture_dir}")
-        self._verify_directories()
+        
+        # Verify and potentially create directories with defensive programming
+        if not self._verify_and_create_directories():
+            logger.error("Failed to initialize directory structure - proceeding with degraded functionality")
     
-    def _verify_directories(self):
-        """Verify that required directories exist"""
-        for directory in [self.live_dir, self.metadata_dir, self.snapshots_dir]:
-            if not directory.exists():
-                logger.warning(f"Directory does not exist: {directory}")
-            else:
-                logger.debug(f"Directory verified: {directory}")
+    def _verify_and_create_directories(self) -> bool:
+        """
+        Verify that required directories exist and are accessible
+        Attempt to create missing directories if possible
+        """
+        required_dirs = [
+            (self.capture_dir, "base capture directory"),
+            (self.live_dir, "live images directory"),
+            (self.metadata_dir, "metadata directory"),
+            (self.snapshots_dir, "periodic snapshots directory")
+        ]
+        
+        all_dirs_ok = True
+        
+        for directory, description in required_dirs:
+            try:
+                if not directory.exists():
+                    logger.warning(f"{description} does not exist: {directory}")
+                    try:
+                        # Attempt to create missing directory
+                        directory.mkdir(parents=True, exist_ok=True)
+                        logger.info(f"Created missing {description}: {directory}")
+                    except PermissionError:
+                        logger.error(f"Permission denied creating {description}: {directory}")
+                        all_dirs_ok = False
+                    except Exception as e:
+                        logger.error(f"Failed to create {description} {directory}: {e}")
+                        all_dirs_ok = False
+                else:
+                    # Directory exists, check if it's accessible
+                    try:
+                        # Test read access
+                        list(directory.iterdir())
+                        logger.debug(f"Directory verified and accessible: {directory}")
+                        
+                        # Test write access if possible
+                        test_file = directory / ".write_test"
+                        try:
+                            test_file.touch()
+                            test_file.unlink()
+                            logger.debug(f"Write access verified for: {directory}")
+                        except PermissionError:
+                            logger.warning(f"No write access to {description}: {directory}")
+                            # This may be OK for some directories
+                        except Exception:
+                            pass  # Ignore other write test errors
+                            
+                    except PermissionError:
+                        logger.error(f"Permission denied accessing {description}: {directory}")
+                        all_dirs_ok = False
+                    except Exception as e:
+                        logger.error(f"Error accessing {description} {directory}: {e}")
+                        all_dirs_ok = False
+                        
+            except Exception as e:
+                logger.error(f"Unexpected error checking {description} {directory}: {e}")
+                all_dirs_ok = False
+        
+        if all_dirs_ok:
+            logger.info("All required directories verified successfully")
+        else:
+            logger.warning("Some directory issues detected - functionality may be limited")
+            
+        return all_dirs_ok
     
     def start_monitoring(self):
         """Start background monitoring of image directory"""
@@ -165,29 +225,104 @@ class SharedVolumeImageProvider:
             return False, None, None
     
     def _load_latest_image_from_disk(self, max_age_seconds: float) -> Tuple[bool, Optional[np.ndarray], Optional[Dict]]:
-        """Load the latest image directly from disk"""
+        """Load the latest image directly from disk with defensive error handling"""
         try:
-            # Get all image files
-            image_files = list(self.live_dir.glob("*.jpg"))
-            if not image_files:
-                logger.warning("No images found in capture directory")
-                return False, None, None
+            # Check if live directory exists and is accessible
+            if not self.live_dir.exists():
+                logger.error(f"Live directory does not exist: {self.live_dir}")
+                return False, None, {
+                    "error": "shared_volume_failed",
+                    "reason": "live_directory_missing",
+                    "directory": str(self.live_dir)
+                }
             
-            # Sort by modification time (newest first)
-            image_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            if not self.live_dir.is_dir():
+                logger.error(f"Live path is not a directory: {self.live_dir}")
+                return False, None, {
+                    "error": "shared_volume_failed", 
+                    "reason": "live_path_not_directory",
+                    "directory": str(self.live_dir)
+                }
+            
+            try:
+                # Get all image files with proper error handling
+                image_files = list(self.live_dir.glob("*.jpg"))
+            except PermissionError:
+                logger.error(f"Permission denied accessing directory: {self.live_dir}")
+                return False, None, {
+                    "error": "shared_volume_failed",
+                    "reason": "permission_denied",
+                    "directory": str(self.live_dir)
+                }
+            except Exception as e:
+                logger.error(f"Error listing files in {self.live_dir}: {e}")
+                return False, None, {
+                    "error": "shared_volume_failed",
+                    "reason": "directory_access_error",
+                    "directory": str(self.live_dir),
+                    "details": str(e)
+                }
+            
+            if not image_files:
+                logger.warning(f"No images found in capture directory: {self.live_dir}")
+                return False, None, {
+                    "error": "shared_volume_failed",
+                    "reason": "no_images_found", 
+                    "directory": str(self.live_dir),
+                    "checked_pattern": "*.jpg"
+                }
+            
+            # Sort by modification time (newest first) with error handling
+            try:
+                image_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            except Exception as e:
+                logger.error(f"Error sorting image files: {e}")
+                return False, None, {
+                    "error": "shared_volume_failed",
+                    "reason": "file_stat_error",
+                    "details": str(e)
+                }
             
             # Check age of newest image
             newest_file = image_files[0]
-            image_age = time.time() - newest_file.stat().st_mtime
+            try:
+                image_age = time.time() - newest_file.stat().st_mtime
+            except Exception as e:
+                logger.error(f"Error getting file stats for {newest_file}: {e}")
+                return False, None, {
+                    "error": "shared_volume_failed",
+                    "reason": "file_stat_error",
+                    "file": str(newest_file),
+                    "details": str(e)
+                }
             
             if image_age > max_age_seconds:
                 logger.warning(f"Latest image too old: {image_age:.1f}s > {max_age_seconds:.1f}s")
-                return False, None, None
+                return False, None, {
+                    "error": "image_too_old",
+                    "image_age_seconds": image_age,
+                    "max_age_seconds": max_age_seconds,
+                    "filename": newest_file.name
+                }
             
-            # Load the image
-            image = cv2.imread(str(newest_file))
-            if image is None:
-                logger.error(f"Failed to load image: {newest_file}")
+            # Load the image with proper error handling
+            try:
+                image = cv2.imread(str(newest_file))
+                if image is None:
+                    logger.error(f"OpenCV failed to load image: {newest_file}")
+                    return False, None, {
+                        "error": "image_load_failed",
+                        "reason": "opencv_load_failed",
+                        "file": str(newest_file)
+                    }
+            except Exception as e:
+                logger.error(f"Exception loading image {newest_file}: {e}")
+                return False, None, {
+                    "error": "image_load_failed",
+                    "reason": "exception",
+                    "file": str(newest_file),
+                    "details": str(e)
+                }
                 return False, None, None
             
             # Load metadata

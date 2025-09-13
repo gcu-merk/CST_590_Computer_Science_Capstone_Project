@@ -60,13 +60,17 @@ class HostCameraCapture:
         self.enable_periodic_snapshots = enable_periodic_snapshots
         self.snapshot_interval = snapshot_interval
         
-        # Create directories
+        # Initialize directory structure with defensive programming
         self.live_dir = self.capture_dir / "live"
         self.snapshots_dir = self.capture_dir / "periodic_snapshots"
         self.metadata_dir = self.capture_dir / "metadata"
+        self.processed_dir = self.capture_dir / "processed"
+        self.backups_dir = self.capture_dir / "backups"
+        self.logs_dir = self.capture_dir / "logs"
         
-        for directory in [self.live_dir, self.snapshots_dir, self.metadata_dir]:
-            directory.mkdir(parents=True, exist_ok=True)
+        # Create all required directories with proper error handling
+        if not self._initialize_directories():
+            raise RuntimeError("Failed to initialize camera capture directories")
         
         # State tracking
         self.running = False
@@ -83,6 +87,89 @@ class HostCameraCapture:
         logger.info(f"Host camera capture initialized: {self.capture_dir}")
         logger.info(f"Image resolution: {self.image_width}x{self.image_height}")
         logger.info(f"Capture interval: {self.capture_interval}s")
+    
+    def _initialize_directories(self) -> bool:
+        """Initialize camera capture directory structure with proper permissions"""
+        try:
+            # List of all required directories
+            required_dirs = [
+                self.live_dir,
+                self.snapshots_dir, 
+                self.metadata_dir,
+                self.processed_dir,
+                self.backups_dir,
+                self.logs_dir
+            ]
+            
+            # Check if base storage mount exists
+            storage_mount = Path("/mnt/storage")
+            if not storage_mount.exists():
+                logger.warning(f"Storage mount {storage_mount} does not exist - this may be a configuration issue")
+                # Continue anyway in case it's a development environment
+            
+            # Create base capture directory first
+            try:
+                self.capture_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created base directory: {self.capture_dir}")
+            except PermissionError:
+                logger.error(f"Permission denied creating base directory: {self.capture_dir}")
+                return False
+            except Exception as e:
+                logger.error(f"Failed to create base directory {self.capture_dir}: {e}")
+                return False
+            
+            # Create all subdirectories
+            for directory in required_dirs:
+                try:
+                    directory.mkdir(parents=True, exist_ok=True)
+                    logger.debug(f"Created directory: {directory}")
+                    
+                    # Test write permissions
+                    test_file = directory / ".write_test"
+                    try:
+                        test_file.touch()
+                        test_file.unlink()
+                        logger.debug(f"Write permissions verified for: {directory}")
+                    except PermissionError:
+                        logger.error(f"No write permissions for directory: {directory}")
+                        return False
+                        
+                except PermissionError:
+                    logger.error(f"Permission denied creating directory: {directory}")
+                    return False
+                except Exception as e:
+                    logger.error(f"Failed to create directory {directory}: {e}")
+                    return False
+            
+            # Set optimal permissions for Docker container compatibility
+            try:
+                import stat
+                for directory in [self.capture_dir] + required_dirs:
+                    # Set permissions to 755 (rwxr-xr-x) - readable by all, writable by owner
+                    directory.chmod(stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+                    logger.debug(f"Set permissions 755 for: {directory}")
+            except Exception as e:
+                logger.warning(f"Could not set optimal permissions: {e}")
+                # Continue anyway - basic functionality should still work
+            
+            # Log final directory structure
+            logger.info("Camera directory structure initialized:")
+            for directory in required_dirs:
+                size_info = ""
+                try:
+                    # Count existing files if directory has content
+                    files = list(directory.glob("*"))
+                    if files:
+                        size_info = f" ({len(files)} existing files)"
+                except:
+                    pass
+                logger.info(f"  {directory.name}: {directory}{size_info}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Unexpected error during directory initialization: {e}")
+            return False
     
     def start_capture(self):
         """Start the camera capture service"""

@@ -1,4 +1,5 @@
 # CST-590 Digital Poster Content
+
 ## Raspberry Pi 5 Edge ML Traffic Monitoring System
 
 ---
@@ -54,6 +55,7 @@ Multi-sensor edge AI processing combining Doppler radar with on-camera neural pr
 **Image Description:** *Processing pipeline flowchart showing: Radar Detection → Camera Trigger → AI Inference → Data Fusion → Analytics Generation → Output Distribution*
 
 **Processing Pipeline:**
+
 1. **Radar Continuous Monitoring:** 24/7 motion detection (1-2W power)
 2. **AI Camera Activation:** Triggered capture with on-sensor processing
 3. **Vehicle Classification:** Real-time AI inference (<100ms)
@@ -149,6 +151,7 @@ Demonstrates feasibility of edge AI for traffic monitoring, establishing foundat
 ## POSTER FORMATTING NOTES
 
 **Layout Guidelines:**
+
 - Maximum size: 3' wide by 4' high
 - Font size: Minimum 16pt for readability from 6 feet
 - Image to text ratio: Aim for 3:1 volume ratio (images:text)
@@ -156,6 +159,7 @@ Demonstrates feasibility of edge AI for traffic monitoring, establishing foundat
 - Logical flow: Ensure content follows a clear progression across blocks
 
 **Image Placement:**
+
 - Block 2: Architecture diagram (centered)
 - Block 3: Processing pipeline flowchart (centered)
 - Block 4: Performance metrics bar chart (centered)
