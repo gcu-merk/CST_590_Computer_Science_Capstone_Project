@@ -1,7 +1,4 @@
-# GitHub Actions CI/CD Workflow for Traffic Monitoring System
-# Deploys to Raspberry Pi 5 using hybrid architecture (host + containers)
 
-name: Deploy Traffic Monitoring System
 
 on:
   push:
@@ -99,8 +96,8 @@ jobs:
         echo "ready=true" >> $GITHUB_OUTPUT
         echo "✅ Deployment package validation passed (including Redis)"
 
-  deploy:
-    name: Deploy to Raspberry Pi
+  build_and_deploy:
+    name: Build Docker Image and Deploy to Raspberry Pi
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.outputs.deployment-ready == 'true'
@@ -109,25 +106,32 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push Docker image (arm64)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: gcumerk/cst590-capstone-public:latest
+        platforms: linux/arm64
+
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.7.0
       with:
         ssh-private-key: ${{ secrets.PI_SSH_KEY }}
-        
+
     - name: Add Pi to known hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ secrets.PI_HOST }} >> ~/.ssh/known_hosts
-        
+
     - name: Copy deployment files to Pi
       run: |
         echo "📦 Copying deployment files to Raspberry Pi..."
-        
-        # Create remote directory
         ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p ~/deployment-staging"
-        
-        # Copy project files
         rsync -avz --delete \
           --exclude='.git*' \
           --exclude='documentation/' \
@@ -135,58 +139,16 @@ jobs:
           --exclude='test_*' \
           --exclude='__pycache__/' \
           ./ $DEPLOY_USER@$DEPLOY_HOST:~/deployment-staging/
-          
-    - name: Deploy Host Camera Service
-      run: |
-        echo "📹 Deploying Host Camera Service..."
-        
-        ssh $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
-          set -e
-          cd ~/deployment-staging
-          
-          # Install and start host camera service
-          sudo cp deployment/host-camera-capture.service /etc/systemd/system/
-          sudo systemctl daemon-reload
-          sudo systemctl enable host-camera-capture
-          sudo systemctl restart host-camera-capture
-          
-          # Wait for first capture
-          echo "⏳ Waiting 70 seconds for first camera capture..."
-          sleep 70
-          
-          # Verify fresh image exists
-          if ! find /mnt/storage/camera_capture/live/ -name "capture_*.jpg" -mtime -1; then
-            echo "ERROR: Camera service failed to capture images"
-            sudo systemctl status host-camera-capture --no-pager -l
-            exit 1
-          fi
-          
-          echo "✅ Host camera service deployed and capturing images"
-        EOF
-        
+
     - name: Execute deployment on Pi
       id: deploy
       run: |
-        echo "🚀 Executing remaining deployment on Raspberry Pi..."
-        
-        # Execute deployment script with proper error handling
+        echo "🚀 Executing deployment on Raspberry Pi..."
         ssh $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
           set -e
           cd ~/deployment-staging
-          
-          # Make deployment script executable
           chmod +x deployment/deploy.sh
-          
-          # Run deployment with logging - use the staging directory as project root
-          echo "Starting CI/CD deployment at $(date)"
-          if ./deployment/deploy.sh 2>&1 | tee deployment.log; then
-            echo "✅ Deployment successful"
-            echo "deployment_status=success" >> deployment.env
-          else
-            echo "❌ Deployment failed"
-            echo "deployment_status=failed" >> deployment.env
-            exit 1
-          fi
+          ./deployment/deploy.sh 2>&1 | tee deployment.log
         EOF
         
     - name: Validate deployment
@@ -255,23 +217,20 @@ jobs:
   notify:
     name: Notify Deployment Status
     runs-on: ubuntu-latest
-    needs: [validate, deploy]
+    needs: [validate, build_and_deploy]
     if: always()
-    
     steps:
-    - name: Deployment Success Notification
-      if: needs.deploy.result == 'success'
-      run: |
-        echo "✅ Traffic Monitoring System deployed successfully!"
-        echo "🌐 Environment: ${{ github.event.inputs.environment || 'production' }}"
-        echo "📊 Commit: ${{ github.sha }}"
-        echo "👤 Triggered by: ${{ github.actor }}"
-        
-    - name: Deployment Failure Notification
-      if: needs.deploy.result == 'failure' || needs.validate.result == 'failure'
-      run: |
-        echo "❌ Traffic Monitoring System deployment failed!"
-        echo "🌐 Environment: ${{ github.event.inputs.environment || 'production' }}"
-        echo "📊 Commit: ${{ github.sha }}"
-        echo "👤 Triggered by: ${{ github.actor }}"
-        exit 1
+      - name: Deployment Success Notification
+        if: needs.build_and_deploy.result == 'success'
+        run: |
+          echo "✅ Traffic Monitoring System deployed successfully!"
+          echo "🌐 Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "📊 Commit: ${{ github.sha }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
+      - name: Deployment Failure Notification
+        if: needs.build_and_deploy.result == 'failure' || needs.validate.result == 'failure'
+        run: |
+          echo "❌ Traffic Monitoring System deployment failed!"
+          echo "🌐 Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "📊 Commit: ${{ github.sha }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
