@@ -38,40 +38,64 @@ jobs:
           cd "$DEPLOY_DIR"
           echo "Deployment directory: $DEPLOY_DIR"
           
-      - name: Download docker-compose.yml
+      - name: Download deployment files
         run: |
-          echo "=== Downloading docker-compose.yml ==="
+          echo "=== Downloading deployment files ==="
           DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
           cd "$DEPLOY_DIR"
+          
+          # Download docker-compose.yml
           curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/docker-compose.yml -o docker-compose.yml
           echo "Downloaded docker-compose.yml"
-          cat docker-compose.yml
           
-      - name: Remove all containers
+          # Create deployment directory
+          mkdir -p deployment
+          
+          # Download host camera capture service files
+          curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/scripts/host-camera-capture.py -o host-camera-capture.py
+          curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/deployment/host-camera-capture.service -o deployment/host-camera-capture.service
+          curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/deployment/deploy.sh -o deployment/deploy.sh
+          
+          # Set permissions
+          chmod +x host-camera-capture.py
+          chmod +x deployment/deploy.sh
+          
+          echo "Downloaded all deployment files"
+          
+      - name: Deploy Host Camera Capture Service
         run: |
-          echo "=== Removing all containers ==="
-          docker ps -a -q | xargs -r docker rm -f
-
-      - name: Stop existing containers
-        run: |
-          echo "=== Stopping existing containers ==="
+          echo "=== Deploying Host Camera Capture Service ==="
           DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
           cd "$DEPLOY_DIR"
-          docker compose down --remove-orphans || echo "No existing containers to stop"
           
-      - name: Pull latest Docker images
+          # Run the enhanced deployment script
+          ./deployment/deploy.sh
+          
+      - name: Verify Host Camera Integration
         run: |
-          echo "=== Pulling latest Docker images ==="
+          echo "=== Verifying Host Camera Integration ==="
           DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
           cd "$DEPLOY_DIR"
-          docker compose pull
           
-      - name: Deploy new containers
-        run: |
-          echo "=== Starting new containers ==="
-          DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
-          cd "$DEPLOY_DIR"
-          docker compose up -d
+          # Wait for services to stabilize
+          sleep 30
+          
+          # Check service status
+          sudo systemctl is-active host-camera-capture
+          echo "Host camera service status:"
+          sudo systemctl status host-camera-capture --no-pager -l | head -10
+          
+          # Check Docker services
+          echo "Docker services status:"
+          docker-compose ps
+          
+          # Test endpoints
+          echo "Testing API health endpoint:"
+          curl -f http://localhost:5000/api/health || echo "API not yet available"
+          
+          # Verify recent image capture
+          echo "Checking for recent captures:"
+          find /mnt/storage/camera_capture/live/ -name "capture_*.jpg" -mtime -1 | head -5 || echo "No recent captures found yet"
           
       - name: Install Pi-specific packages
         run: |
@@ -90,22 +114,24 @@ jobs:
           
       - name: Verify deployment
         run: |
-          echo "=== Verifying deployment ==="
+          echo "=== Verifying complete deployment ==="
           DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
           cd "$DEPLOY_DIR"
           
-          echo "Container status:"
-          docker compose ps
+          echo "=== Host Camera Service ==="
+          sudo systemctl status host-camera-capture --no-pager | head -8
           
-          echo "Container logs (last 20 lines):"
-          docker compose logs --tail=20
+          echo "=== Docker Services ==="
+          docker-compose ps
           
-          echo "System resources:"
-          docker stats --no-stream
+          echo "=== Recent Captures ==="
+          ls -la /mnt/storage/camera_capture/live/ | tail -5 || echo "Capture directory not yet populated"
           
-          # Test API endpoint if available
-          sleep 5
-          curl -f http://localhost:5000/api/health || echo "API health check failed or not available yet"
+          echo "=== Storage Usage ==="
+          du -sh /mnt/storage/camera_capture/ 2>/dev/null || echo "Storage info not available"
+          
+          echo "=== API Health ==="
+          curl -s http://localhost:5000/api/health | python3 -m json.tool 2>/dev/null || echo "API health check not available yet"
           
       - name: Verify maintenance system
         run: |

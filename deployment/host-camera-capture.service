@@ -1,0 +1,29 @@
+[Unit]
+Description=Host Camera Capture Service for Traffic Monitoring
+After=network.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=merk
+Group=merk
+WorkingDirectory=/home/merk/traffic-monitor-deploy
+ExecStart=/usr/bin/python3 /home/merk/traffic-monitor-deploy/host-camera-capture.py --interval 60 --max-images 100 --no-snapshots
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment Variables
+Environment=PYTHONUNBUFFERED=1
+Environment=CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
+Environment=LOG_LEVEL=INFO
+
+# Security (camera access requires some privileges)
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+
+[Install]
+WantedBy=multi-user.target

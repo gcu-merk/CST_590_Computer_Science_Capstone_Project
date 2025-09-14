@@ -6,6 +6,14 @@
 echo "🚗 Complete Camera Pipeline Test - $(date)"
 echo "=============================================="
 
+# Cleanup previous test files first
+echo -e "\n${BLUE}Cleaning up previous test files...${NC}"
+rm -f /tmp/test_capture.jpg /tmp/perf_test.jpg 2>/dev/null
+find /mnt/storage/camera_capture/live -name "test_*" -delete 2>/dev/null
+find /mnt/storage/camera_capture/live -name "provider_test_*" -delete 2>/dev/null
+find /mnt/storage/camera_capture/live -name "weather_test_*" -delete 2>/dev/null
+echo "  ✓ Previous test files cleaned up"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -784,9 +792,5 @@ echo "  • Check weather API: curl http://100.121.231.16:5000/api/weather"
 echo "  • View container logs: docker logs <container_name>"
 echo "  • System dashboard: http://100.121.231.16:5000"
 
-# Cleanup test files
-echo -e "\n${BLUE}Cleaning up test files...${NC}"
-rm -f /tmp/test_capture.jpg /tmp/perf_test.jpg
-find /mnt/storage/camera_capture/live -name "test_continuous_*.jpg" -delete 2>/dev/null
-
 echo -e "\n${GREEN}Test complete! $(date)${NC}"
+echo -e "${BLUE}Test images preserved in /mnt/storage/camera_capture/live/ for inspection${NC}"
