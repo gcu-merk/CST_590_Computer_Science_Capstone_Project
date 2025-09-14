@@ -44,7 +44,8 @@ jobs:
           DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
           cd "$DEPLOY_DIR"
           
-          # Download docker-compose.yml
+          # Download core deployment files only (excluding documentation)
+          echo "Downloading core application files..."
           curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/docker-compose.yml -o docker-compose.yml
           echo "Downloaded docker-compose.yml"
           
@@ -52,12 +53,23 @@ jobs:
           mkdir -p deployment
           
           # Download host camera capture service files
+          echo "Downloading host camera service files..."
           curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/scripts/host-camera-capture.py -o host-camera-capture.py
           curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/deployment/host-camera-capture.service -o deployment/host-camera-capture.service
           curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/deployment/deploy.sh -o deployment/deploy.sh
+          curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/deployment/verify-deployment.sh -o deployment/verify-deployment.sh
+          curl -fsSL https://raw.githubusercontent.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/main/deployment/health-check.sh -o deployment/health-check.sh
           
           # Set permissions
           chmod +x host-camera-capture.py
+          chmod +x deployment/deploy.sh
+          chmod +x deployment/verify-deployment.sh
+          chmod +x deployment/health-check.sh
+          
+          echo "✅ Downloaded production files only (documentation folder excluded)"
+          echo "📁 Files in deployment directory:"
+          ls -la
+          ls -la deployment/
           chmod +x deployment/deploy.sh
           
           echo "Downloaded all deployment files"

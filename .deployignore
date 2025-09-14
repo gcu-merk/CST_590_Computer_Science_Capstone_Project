@@ -1,0 +1,60 @@
+# Deployment ignore file - directories and files to exclude from production deployment
+
+# Documentation directories
+documentation/
+docs/
+archive/
+
+# Documentation files
+*.md
+!README.md
+!docker-compose.yml
+
+# Development and testing files
+test_*.py
+*_test.py
+tests/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD files (keep only what's needed)
+.github/
+!.github/workflows/
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Log files
+*.log
+logs/
+
+# Development configuration
+.env.local
+.env.development
+config/*.dev.*
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini

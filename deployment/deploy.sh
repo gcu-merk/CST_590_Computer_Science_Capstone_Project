@@ -1,5 +1,6 @@
 #!/bin/bash
 # Enhanced deployment script for host camera capture integration
+# Excludes documentation and development files from production deployment
 
 set -e  # Exit on error
 
@@ -9,6 +10,34 @@ echo "================================================================="
 DEPLOY_DIR="/home/merk/traffic-monitor-deploy"
 SERVICE_NAME="host-camera-capture"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+
+# Define production-only file patterns
+PRODUCTION_FILES=(
+    "docker-compose.yml"
+    "host-camera-capture.py"
+    "main_edge_app.py"
+    "deployment/*.service"
+    "deployment/*.sh"
+    "config/production.conf"
+    "config/maintenance.conf"
+)
+
+# Files/directories to exclude from production
+EXCLUDE_PATTERNS=(
+    "documentation/"
+    "docs/"
+    "archive/"
+    "*.md"
+    "test_*.py"
+    "*_test.py"
+    ".github/"
+    ".git/"
+    "__pycache__/"
+    "*.log"
+    "*.backup"
+)
+
+echo "📋 Production deployment - excluding documentation and development files"
 
 # 1. Pre-deployment checks
 echo "🔍 Pre-deployment validation..."
