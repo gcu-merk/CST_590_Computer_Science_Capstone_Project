@@ -1,0 +1,176 @@
+# CI/CD Configuration for Traffic Monitoring System
+# Architecture: Hybrid Host + Container Deployment
+# Version: 1.0
+# Last Updated: 2025-09-13
+
+deployment:
+  name: "Traffic Monitoring System"
+  version: "1.0"
+  architecture: "hybrid"
+  platform: "raspberry-pi-5"
+  
+  # Host Services (run outside containers for hardware access)
+  host_services:
+    - name: "host-camera-capture"
+      type: "systemd"
+      service_file: "deployment/host-camera-capture.service"
+      script: "scripts/host-camera-capture.py"
+      dependencies:
+        - camera_hardware
+        - storage_mount
+      health_check:
+        command: "systemctl is-active host-camera-capture"
+        interval: 30
+      
+  # Containerized Services (run in Docker)
+  containerized_services:
+    - name: "traffic-monitor"
+      type: "docker-compose"
+      container: "traffic-monitoring-edge"
+      image: "gcumerk/cst590-capstone-public:latest"
+      ports:
+        - "5000:5000"
+      health_check:
+        endpoint: "http://localhost:5000/api/health"
+        interval: 30
+        
+    - name: "data-maintenance"
+      type: "docker-compose"
+      container: "traffic-maintenance"
+      image: "gcumerk/cst590-capstone-public:latest"
+      health_check:
+        command: "docker exec traffic-maintenance python3 /app/scripts/container-maintenance.py --status"
+        interval: 300
+
+# Deployment Requirements
+requirements:
+  system:
+    os: "raspberry-pi-os"
+    architecture: "arm64"
+    python: ">=3.9"
+    docker: ">=20.10"
+    
+  hardware:
+    camera: "IMX500 AI Camera"
+    storage: "/mnt/storage (SSD recommended)"
+    memory: ">=4GB RAM"
+    
+  network:
+    ports:
+      - port: 5000
+        protocol: "http"
+        description: "API endpoint"
+        
+# Pre-deployment Checks
+validation:
+  pre_deployment:
+    - check: "camera_availability"
+      command: "rpicam-still --list-cameras"
+      required: true
+      
+    - check: "storage_mount"
+      path: "/mnt/storage"
+      required: true
+      min_space: "1GB"
+      
+    - check: "docker_service"
+      command: "systemctl is-active docker"
+      required: true
+      
+    - check: "required_files"
+      files:
+        - "scripts/host-camera-capture.py"
+        - "deployment/host-camera-capture.service"
+        - "docker-compose.yml"
+      required: true
+      
+  post_deployment:
+    - check: "host_service_status"
+      command: "systemctl is-active host-camera-capture"
+      timeout: 30
+      retries: 3
+      
+    - check: "container_status"
+      command: "docker-compose ps | grep Up"
+      timeout: 60
+      retries: 5
+      
+    - check: "api_endpoint"
+      url: "http://localhost:5000/api/health"
+      timeout: 10
+      retries: 6
+      delay: 10
+      
+    - check: "image_capture"
+      path: "/mnt/storage/camera_capture/live/"
+      pattern: "capture_*.jpg"
+      max_age: "90s"
+      required_after: 75  # seconds
+      
+# Rollback Strategy
+rollback:
+  enabled: true
+  triggers:
+    - "host_service_failure"
+    - "critical_container_failure"
+    - "validation_failure"
+    
+  actions:
+    - restore_previous_host_service
+    - restore_previous_containers
+    - notify_operators
+    
+# Monitoring
+monitoring:
+  logs:
+    host_service: "journalctl -u host-camera-capture -f"
+    containers: "docker-compose logs -f"
+    
+  metrics:
+    - service_uptime
+    - image_capture_rate
+    - storage_usage
+    - container_health
+    
+# CI/CD Integration
+cicd:
+  trigger_events:
+    - push_to_main
+    - manual_deployment
+    
+  deployment_stages:
+    1: "pre_deployment_validation"
+    2: "deploy_host_services"
+    3: "deploy_containerized_services"
+    4: "post_deployment_validation"
+    5: "deployment_summary"
+    
+  failure_handling:
+    auto_rollback: true
+    notification: true
+    exit_codes:
+      pre_check_failed: 10
+      host_service_failed: 20
+      container_deployment_failed: 30
+      validation_failed: 40
+      
+# Environment Configuration
+environments:
+  production:
+    deploy_dir: "/home/merk/traffic-monitor-deploy"
+    docker_compose_file: "docker-compose.yml"
+    log_level: "INFO"
+    
+  staging:
+    deploy_dir: "/home/merk/traffic-monitor-staging"
+    docker_compose_file: "docker-compose.staging.yml"
+    log_level: "DEBUG"
+
+# Security
+security:
+  systemd_hardening: true
+  container_security: true
+  file_permissions:
+    scripts: "755"
+    config: "644"
+    data_dirs: "777"  # Required for shared volume access

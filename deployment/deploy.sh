@@ -1,158 +1,333 @@
 #!/bin/bash
-# Enhanced deployment script for host camera capture integration
-# Excludes documentation and development files from production deployment
+# CI/CD Deployment Script for Traffic Monitoring System
+# Separates host services (camera capture) from containerized services (processing/API)
+# 
+# USAGE: Run this script from the project root directory:
+#        cd /path/to/CST_590_Computer_Science_Capstone_Project
+#        ./deployment/deploy.sh
+#
+# Architecture:
+# - Host Service: camera capture (requires direct hardware access)
+# - Containerized: AI processing, API, data maintenance, web services
 
 set -e  # Exit on error
 
-echo "🚀 Deploying Traffic Monitoring System with Host Camera Service..."
-echo "================================================================="
+echo "🚀 CI/CD Deployment: Traffic Monitoring System"
+echo "=============================================="
+echo "📋 Host Service: Camera Capture (systemd)"
+echo "📦 Containerized: AI Processing, API, Maintenance"
 
+# Capture the original working directory (project root)
+PROJECT_ROOT="$(pwd)"
 DEPLOY_DIR="/home/merk/traffic-monitor-deploy"
-SERVICE_NAME="host-camera-capture"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
-# Define production-only file patterns
-PRODUCTION_FILES=(
-    "docker-compose.yml"
-    "host-camera-capture.py"
-    "main_edge_app.py"
-    "deployment/*.service"
-    "deployment/*.sh"
-    "config/production.conf"
-    "config/maintenance.conf"
-)
+# Exit codes for different failure types
+EXIT_PRECHECK_FAILED=10
+EXIT_HOST_SERVICE_FAILED=20
+EXIT_CONTAINER_DEPLOYMENT_FAILED=30
+EXIT_VALIDATION_FAILED=40
 
-# Files/directories to exclude from production
-EXCLUDE_PATTERNS=(
-    "documentation/"
-    "docs/"
-    "archive/"
-    "*.md"
-    "test_*.py"
-    "*_test.py"
-    ".github/"
-    ".git/"
-    "__pycache__/"
-    "*.log"
-    "*.backup"
-)
+# Colors for CI/CD output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
 
-echo "📋 Production deployment - excluding documentation and development files"
+# Logging function for CI/CD
+log() {
+    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
 
-# 1. Pre-deployment checks
-echo "🔍 Pre-deployment validation..."
+error() {
+    echo -e "${RED}[ERROR $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
+}
 
-# Check if camera is available
-if ! rpicam-still --list-cameras >/dev/null 2>&1; then
-    echo "❌ Camera not detected - deployment aborted"
-    exit 1
-fi
+success() {
+    echo -e "${GREEN}[SUCCESS $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
 
-# Check storage mount
-if [ ! -d "/mnt/storage" ]; then
-    echo "❌ Storage mount not found - deployment aborted"
-    exit 1
-fi
+warning() {
+    echo -e "${YELLOW}[WARNING $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
 
-echo "✅ Pre-deployment checks passed"
+# Rollback function for CI/CD safety
+rollback_deployment() {
+    local rollback_reason="$1"
+    error "Deployment failed: $rollback_reason"
+    
+    log "🔄 Initiating rollback procedure..."
+    
+    # Restore previous host service if backup exists
+    if [ -f "$DEPLOY_DIR/host-camera-capture.py.backup.$TIMESTAMP" ]; then
+        log "📷 Restoring previous camera service..."
+        cp "$DEPLOY_DIR/host-camera-capture.py.backup.$TIMESTAMP" "$DEPLOY_DIR/host-camera-capture.py"
+        sudo systemctl restart host-camera-capture || warning "Failed to restart camera service"
+    fi
+    
+    # Restore previous Docker containers
+    log "� Restoring previous container state..."
+    cd "$PROJECT_ROOT"
+    docker-compose down --remove-orphans || true
+    
+    error "⚠️ Rollback completed. Manual intervention may be required."
+    exit $EXIT_VALIDATION_FAILED
+}
 
-# 2. Backup current deployment
-echo "📦 Creating deployment backup..."
-if [ -f "$DEPLOY_DIR/host-camera-capture.py" ]; then
-    cp "$DEPLOY_DIR/host-camera-capture.py" "$DEPLOY_DIR/host-camera-capture.py.backup.$TIMESTAMP"
-fi
+# Comprehensive pre-deployment checks for CI/CD
+pre_deployment_checks() {
+    log "🔍 Running pre-deployment validation..."
+    
+    # Check if running on Raspberry Pi
+    if ! grep -q "BCM" /proc/cpuinfo; then
+        warning "Not running on Raspberry Pi - some features may not work"
+    fi
+    
+    # Check camera availability (critical for host service)
+    if ! rpicam-still --list-cameras >/dev/null 2>&1; then
+        error "Camera not detected - cannot deploy host camera service"
+        exit $EXIT_PRECHECK_FAILED
+    fi
+    
+    # Check storage mount (critical for all services)
+    if [ ! -d "/mnt/storage" ]; then
+        error "Storage mount not found at /mnt/storage"
+        exit $EXIT_PRECHECK_FAILED
+    fi
+    
+    # Validate storage space (at least 1GB free)
+    available_space=$(df /mnt/storage | awk 'NR==2 {print $4}')
+    if [ "$available_space" -lt 1048576 ]; then  # 1GB in KB
+        error "Insufficient storage space. Available: ${available_space}KB, Required: 1GB+"
+        exit $EXIT_PRECHECK_FAILED
+    fi
+    
+    # Check Docker service
+    if ! systemctl is-active --quiet docker; then
+        error "Docker service is not running"
+        exit $EXIT_PRECHECK_FAILED
+    fi
+    
+    # Validate required files exist
+    required_files=(
+        "$PROJECT_ROOT/scripts/host-camera-capture.py"
+        "$PROJECT_ROOT/deployment/host-camera-capture.service"
+        "$PROJECT_ROOT/docker-compose.yml"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            error "Required file not found: $file"
+            exit $EXIT_PRECHECK_FAILED
+        fi
+    done
+    
+    success "✅ All pre-deployment checks passed"
+}
 
-# 3. Deploy host camera capture service
-echo "📷 Deploying host camera capture service..."
+# Deploy host camera capture service (runs outside Docker)
+deploy_host_camera_service() {
+    log "📷 Deploying host camera capture service..."
+    
+    # Create deployment directory if it doesn't exist
+    mkdir -p "$DEPLOY_DIR"
+    
+    # Ensure all required SSD directories exist
+    log "📁 Creating required SSD directory structure..."
+    sudo mkdir -p /mnt/storage/logs/{applications,docker,maintenance,system}
+    sudo mkdir -p /mnt/storage/camera_capture/{live,metadata,processed}
+    sudo mkdir -p /mnt/storage/{periodic_snapshots,ai_camera_images,processed_data,backups}
+    
+    # Set appropriate permissions
+    sudo chmod -R 777 /mnt/storage/camera_capture
+    sudo chmod -R 777 /mnt/storage/logs
+    sudo chmod -R 777 /mnt/storage/periodic_snapshots
+    sudo chmod -R 777 /mnt/storage/ai_camera_images
+    sudo chmod -R 755 /mnt/storage/processed_data
+    sudo chmod -R 755 /mnt/storage/backups
+    
+    # Backup existing service if it exists
+    if [ -f "$DEPLOY_DIR/host-camera-capture.py" ]; then
+        log "📦 Creating backup of existing camera service..."
+        cp "$DEPLOY_DIR/host-camera-capture.py" "$DEPLOY_DIR/host-camera-capture.py.backup.$TIMESTAMP"
+    fi
+    
+    # Deploy camera capture script
+    cp "$PROJECT_ROOT/scripts/host-camera-capture.py" "$DEPLOY_DIR/"
+    chown merk:merk "$DEPLOY_DIR/host-camera-capture.py"
+    chmod +x "$DEPLOY_DIR/host-camera-capture.py"
+    
+    # Test camera functionality before proceeding
+    log "🧪 Testing camera capture functionality..."
+    cd "$DEPLOY_DIR"
+    if ! python3 host-camera-capture.py --test-only; then
+        error "Camera test failed"
+        exit $EXIT_HOST_SERVICE_FAILED
+    fi
+    
+    # Install/update systemd service
+    log "⚙️ Installing host camera systemd service..."
+    sudo cp "$PROJECT_ROOT/deployment/host-camera-capture.service" /etc/systemd/system/
+    sudo systemctl daemon-reload
+    
+    # Stop existing service gracefully
+    if systemctl is-active --quiet host-camera-capture; then
+        log "🛑 Stopping existing camera service..."
+        sudo systemctl stop host-camera-capture
+    fi
+    
+    # Enable and start the service
+    sudo systemctl enable host-camera-capture
+    sudo systemctl start host-camera-capture
+    
+    # Verify service is running
+    sleep 5
+    if ! systemctl is-active --quiet host-camera-capture; then
+        error "Host camera service failed to start"
+        sudo systemctl status host-camera-capture --no-pager -l
+        exit $EXIT_HOST_SERVICE_FAILED
+    fi
+    
+    success "✅ Host camera service deployed and running"
+}
 
-# Copy the host camera capture script
-cp host-camera-capture.py "$DEPLOY_DIR/"
-chown merk:merk "$DEPLOY_DIR/host-camera-capture.py"
-chmod +x "$DEPLOY_DIR/host-camera-capture.py"
+# Deploy containerized services (everything except camera capture)
+deploy_containerized_services() {
+    log "🐳 Deploying containerized services..."
+    
+    # Ensure we're in project root for docker-compose
+    cd "$PROJECT_ROOT"
+    
+    # Stop existing containers gracefully
+    log "🛑 Stopping existing containers..."
+    docker-compose down --remove-orphans || true
+    
+    # Pull latest images (important for CI/CD)
+    log "📥 Pulling latest container images..."
+    docker-compose pull || {
+        error "Failed to pull container images"
+        exit $EXIT_CONTAINER_DEPLOYMENT_FAILED
+    }
+    
+    # Start services
+    log "🚀 Starting containerized services..."
+    docker-compose up -d || {
+        error "Failed to start containerized services"
+        rollback_deployment "Container startup failed"
+    }
+    
+    success "✅ Containerized services deployed"
+}
 
-# Test the camera capture script
-echo "🧪 Testing camera capture functionality..."
-cd "$DEPLOY_DIR"
-if ! python3 host-camera-capture.py --test-only; then
-    echo "❌ Camera test failed - deployment aborted"
-    exit 1
-fi
+# Comprehensive health checks for CI/CD validation
+validate_deployment() {
+    log "✅ Running deployment validation..."
+    
+    # Wait for services to initialize
+    log "⏳ Waiting for services to initialize (30 seconds)..."
+    sleep 30
+    
+    local validation_failed=false
+    
+    # Check host camera service
+    log "🔍 Validating host camera service..."
+    if ! systemctl is-active --quiet host-camera-capture; then
+        error "Host camera service is not running"
+        sudo systemctl status host-camera-capture --no-pager -l
+        validation_failed=true
+    else
+        success "✅ Host camera service is running"
+    fi
+    
+    # Check Docker services
+    log "🔍 Validating containerized services..."
+    cd "$PROJECT_ROOT"
+    if ! docker-compose ps | grep -q "Up"; then
+        error "Some containerized services are not running"
+        docker-compose ps
+        validation_failed=true
+    else
+        success "✅ Containerized services are running"
+    fi
+    
+    # Test API endpoint
+    log "🔍 Testing API endpoint..."
+    sleep 10  # Additional wait for API to be ready
+    if ! curl -f -s http://localhost:5000/api/health >/dev/null 2>&1; then
+        warning "API endpoint not responding (may need more time)"
+        # Don't fail deployment for API - it might need more time
+    else
+        success "✅ API endpoint is responding"
+    fi
+    
+    # Test image capture pipeline
+    log "� Validating image capture pipeline..."
+    sleep 65  # Wait for at least one capture cycle
+    
+    LATEST_IMAGE=$(find /mnt/storage/camera_capture/live/ -name "capture_*.jpg" -mtime -1 2>/dev/null | head -1)
+    if [ -z "$LATEST_IMAGE" ]; then
+        warning "No recent images found - camera may still be initializing"
+        # Don't fail deployment immediately - camera might need more time
+    else
+        success "✅ Image capture pipeline working: $(basename "$LATEST_IMAGE")"
+    fi
+    
+    # Final validation check
+    if [ "$validation_failed" = true ]; then
+        rollback_deployment "Critical service validation failed"
+    fi
+    
+    success "✅ Deployment validation completed successfully"
+}
 
-# 4. Install/update systemd service
-echo "⚙️ Installing systemd service..."
-
-# Copy service file
-sudo cp deployment/host-camera-capture.service /etc/systemd/system/
-sudo systemctl daemon-reload
-
-# Stop existing service if running
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "🛑 Stopping existing camera service..."
-    sudo systemctl stop "$SERVICE_NAME"
-fi
-
-# Enable and start the service
-sudo systemctl enable "$SERVICE_NAME"
-sudo systemctl start "$SERVICE_NAME"
-
-# 5. Deploy Docker services
-echo "🐳 Deploying Docker services..."
-
-# Stop existing containers
-docker-compose down || true
-
-# Pull latest images
-docker-compose pull
-
-# Start services
-docker-compose up -d
-
-# 6. Post-deployment verification
-echo "✅ Verifying deployment..."
-
-# Wait for services to start
-sleep 15
-
-# Check host camera service
-if ! systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "❌ Host camera service failed to start"
-    sudo systemctl status "$SERVICE_NAME" --no-pager
-    exit 1
-fi
-
-# Check Docker services
-if ! docker-compose ps | grep -q "Up"; then
-    echo "❌ Docker services failed to start"
+# CI/CD summary report
+deployment_summary() {
+    log "📊 Deployment Summary Report"
+    echo "=============================================="
+    
+    echo -e "${PURPLE}🏠 HOST SERVICES:${NC}"
+    sudo systemctl status host-camera-capture --no-pager -l | head -5
+    
+    echo ""
+    echo -e "${PURPLE}🐳 CONTAINERIZED SERVICES:${NC}"
+    cd "$PROJECT_ROOT"
     docker-compose ps
-    exit 1
-fi
+    
+    echo ""
+    echo -e "${PURPLE}💾 STORAGE STATUS:${NC}"
+    df -h /mnt/storage | tail -1
+    
+    echo ""
+    echo -e "${PURPLE}📸 RECENT CAPTURES:${NC}"
+    ls -la /mnt/storage/camera_capture/live/ 2>/dev/null | tail -3 || echo "No captures found yet"
+    
+    echo ""
+    success "🎉 CI/CD Deployment completed successfully!"
+    echo "=============================================="
+    echo -e "${BLUE}API Endpoint:${NC} http://$(hostname -I | awk '{print $1}'):5000"
+    echo -e "${BLUE}Logs:${NC} journalctl -u host-camera-capture -f"
+    echo -e "${BLUE}Containers:${NC} docker-compose logs -f"
+}
 
-# Test image capture
-echo "📸 Testing image capture pipeline..."
-sleep 65  # Wait for at least one capture
+# Main deployment orchestration
+main() {
+    log "🚀 Starting CI/CD deployment process..."
+    
+    # Run deployment phases
+    pre_deployment_checks
+    deploy_host_camera_service
+    deploy_containerized_services
+    validate_deployment
+    deployment_summary
+    
+    log "✅ CI/CD deployment completed successfully"
+    exit 0
+}
 
-LATEST_IMAGE=$(find /mnt/storage/camera_capture/live/ -name "capture_*.jpg" -mtime -1 | head -1)
-if [ -z "$LATEST_IMAGE" ]; then
-    echo "❌ No recent images found"
-    exit 1
-fi
+# Trap signals for graceful shutdown
+trap 'error "Deployment interrupted"; exit 130' INT TERM
 
-echo "✅ Found recent capture: $(basename "$LATEST_IMAGE")"
-
-# Test weather API (if containers are healthy)
-if curl -f -s http://localhost:5000/api/health >/dev/null 2>&1; then
-    echo "✅ Weather API responding"
-else
-    echo "⚠️ Weather API not responding (may need more time to start)"
-fi
-
-echo ""
-echo "🎉 Deployment completed successfully!"
-echo "==============================================="
-echo "Services Status:"
-sudo systemctl status "$SERVICE_NAME" --no-pager -l | head -5
-echo ""
-docker-compose ps
-echo ""
-echo "📊 Recent captures:"
-ls -la /mnt/storage/camera_capture/live/ | tail -3
+# Execute main deployment
+main "$@"

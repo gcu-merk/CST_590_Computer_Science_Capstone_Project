@@ -3,7 +3,7 @@ services:
   init-directories:
     image: busybox:latest
     container_name: traffic-init-directories
-    restart: "no"  # Run once only
+    restart: "no"  # Run once only - CI/CD compatible
     
     volumes:
       - /mnt/storage:/mnt/storage
@@ -13,7 +13,7 @@ services:
     
     command: >
       sh -c "
-        echo 'Initializing directory structure...' &&
+        echo 'Initializing directory structure for CI/CD deployment...' &&
         mkdir -p /mnt/storage/camera_capture/live &&
         mkdir -p /mnt/storage/camera_capture/metadata &&
         mkdir -p /mnt/storage/camera_capture/processed &&
@@ -22,6 +22,9 @@ services:
         mkdir -p /mnt/storage/processed_data &&
         mkdir -p /mnt/storage/backups &&
         mkdir -p /mnt/storage/logs/docker &&
+        mkdir -p /mnt/storage/logs/applications &&
+        mkdir -p /mnt/storage/logs/maintenance &&
+        mkdir -p /mnt/storage/logs/system &&
         mkdir -p /app/data &&
         mkdir -p /app/config &&
         mkdir -p /app/scripts &&
@@ -41,6 +44,7 @@ services:
         ls -la /mnt/storage/camera_capture/
       "
 
+  # Main Traffic Monitoring Service (Containerized AI Processing & API)
   traffic-monitor:
     image: gcumerk/cst590-capstone-public:latest
     container_name: traffic-monitoring-edge

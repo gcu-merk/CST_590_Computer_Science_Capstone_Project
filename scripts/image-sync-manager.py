@@ -25,12 +25,15 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import docker
 
-# Configure logging
+# Configure logging to SSD storage
+log_dir = Path("/mnt/storage/logs/applications")
+log_dir.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/var/log/image-sync-manager.log'),
+        logging.FileHandler(log_dir / 'image-sync-manager.log'),
         logging.StreamHandler()
     ]
 )

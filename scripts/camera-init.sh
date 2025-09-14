@@ -26,9 +26,14 @@ LOG_FILE="$LOG_DIR/camera-init.log"
 
 # Create log directory if SSD is available
 if [ -d "/mnt/storage" ]; then
-    mkdir -p "$LOG_DIR" 2>/dev/null || LOG_FILE="/var/log/camera-init.log"
+    mkdir -p "$LOG_DIR" 2>/dev/null || LOG_FILE="/mnt/storage/logs/camera-init.log"
 else
-    LOG_FILE="/var/log/camera-init.log"
+    # Fallback to SSD logs directory if mount exists
+    if [ -d "/mnt/storage/logs" ]; then
+        LOG_FILE="/mnt/storage/logs/camera-init.log"
+    else
+        LOG_FILE="/tmp/camera-init.log"  # Last resort to tmp instead of var/log
+    fi
 fi
 
 # Function to log messages

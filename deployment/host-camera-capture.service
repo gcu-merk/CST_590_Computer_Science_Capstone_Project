@@ -1,6 +1,7 @@
 [Unit]
-Description=Host Camera Capture Service for Traffic Monitoring
-After=network.target docker.service
+Description=Host Camera Capture Service for Traffic Monitoring (CI/CD Deployed)
+Documentation=https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project
+After=network.target docker.service multi-user.target
 Wants=network-online.target
 Requires=docker.service
 
@@ -9,21 +10,55 @@ Type=simple
 User=merk
 Group=merk
 WorkingDirectory=/home/merk/traffic-monitor-deploy
+
+# Main execution command - runs outside Docker for hardware access
 ExecStart=/usr/bin/python3 /home/merk/traffic-monitor-deploy/host-camera-capture.py --interval 60 --max-images 100 --no-snapshots
+
+# Service management
 Restart=always
-RestartSec=10
+RestartSec=15
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+# Logging configuration for CI/CD monitoring
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=host-camera-capture
 
-# Environment Variables
+# Environment Variables for CI/CD consistency
 Environment=PYTHONUNBUFFERED=1
 Environment=CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
 Environment=LOG_LEVEL=INFO
+Environment=DEPLOYMENT_MODE=CICD
+Environment=SERVICE_VERSION=1.0
 
-# Security (camera access requires some privileges)
+# Security hardening (while maintaining camera access)
 NoNewPrivileges=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+
+# File system protections
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/storage /home/merk/traffic-monitor-deploy /tmp
+ProtectProc=invisible
+ProcSubset=pid
+
+# Network restrictions (camera service doesn't need network)
+PrivateNetwork=false  # Kept false in case of future network logging needs
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Resource limits for stability
+LimitNOFILE=1024
+LimitNPROC=512
+
+# Health monitoring
+WatchdogSec=120
 
 [Install]
 WantedBy=multi-user.target
+Also=docker.service
