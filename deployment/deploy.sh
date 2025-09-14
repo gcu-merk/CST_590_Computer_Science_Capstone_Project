@@ -62,7 +62,7 @@ else
 fi
 
 log "🏗️ Deploy mode: $DEPLOY_MODE"
-DEPLOY_DIR="/home/merk/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
 # Exit codes for different failure types
@@ -145,6 +145,26 @@ pre_deployment_checks() {
             exit $EXIT_PRECHECK_FAILED
         fi
     done
+
+        # Validate required directories exist (from host-camera-capture.service)
+        required_dirs=(
+            "/mnt/storage/traffic-monitor-deploy"
+            "/mnt/storage/camera_capture"
+            "/mnt/storage"
+            "/tmp"
+        )
+
+        for dir in "${required_dirs[@]}"; do
+            if [ ! -d "$dir" ]; then
+                if [ "$dir" = "/tmp" ]; then
+                    warning "Critical system directory missing: $dir (should always exist)"
+                    exit $EXIT_PRECHECK_FAILED
+                else
+                    warning "Required directory not found: $dir. Creating..."
+                    sudo mkdir -p "$dir"
+                fi
+            fi
+        done
     
     success "✅ All pre-deployment checks passed"
 }
@@ -169,6 +189,7 @@ deploy_host_camera_service() {
     sudo chmod -R 777 /mnt/storage/ai_camera_images
     sudo chmod -R 755 /mnt/storage/processed_data
     sudo chmod -R 755 /mnt/storage/backups
+    sudo chmod -R 755 /mnt/storage/traffic-monitor-deploy
     
     # Backup existing service if it exists (only if we're going to replace it)
     if [ "$DEPLOY_MODE" = "project_checkout" ] && [ -f "$DEPLOY_DIR/host-camera-capture.py" ]; then
