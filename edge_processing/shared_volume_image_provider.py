@@ -19,6 +19,13 @@ from typing import Optional, Dict, Any, Tuple, List
 import numpy as np
 from collections import deque
 
+# Redis for real-time messaging
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class SharedVolumeImageProvider:
@@ -31,7 +38,8 @@ class SharedVolumeImageProvider:
                  capture_dir: str = "/app/data/camera_capture",
                  max_age_seconds: float = 5.0,
                  fallback_timeout: float = 10.0,
-                 image_cache_size: int = 10):
+                 image_cache_size: int = 10,
+                 use_redis: bool = True):
         
         self.capture_dir = Path(capture_dir)
         self.live_dir = self.capture_dir / "live"
@@ -41,10 +49,17 @@ class SharedVolumeImageProvider:
         self.max_age_seconds = max_age_seconds
         self.fallback_timeout = fallback_timeout
         self.image_cache_size = image_cache_size
+        self.use_redis = use_redis and REDIS_AVAILABLE
         
         # Image cache for performance
         self.image_cache = deque(maxlen=image_cache_size)
         self.cache_lock = threading.Lock()
+        
+        # Redis setup for real-time notifications
+        self.redis_client = None
+        self.redis_pubsub = None
+        self.redis_enabled = False
+        self.redis_thread = None
         
         # State tracking
         self.last_image_path = None
@@ -127,22 +142,147 @@ class SharedVolumeImageProvider:
             
         return all_dirs_ok
     
+    def _setup_redis(self):
+        """Initialize Redis connection for real-time image notifications"""
+        if not self.use_redis:
+            logger.info("Redis disabled - using file polling mode")
+            return
+            
+        try:
+            redis_host = os.getenv('REDIS_HOST', 'redis')
+            redis_port = int(os.getenv('REDIS_PORT', '6379'))
+            
+            self.redis_client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=0,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5
+            )
+            
+            # Test connection
+            self.redis_client.ping()
+            
+            # Setup pub/sub for camera capture events
+            self.redis_pubsub = self.redis_client.pubsub()
+            self.redis_pubsub.subscribe('traffic:camera:capture')
+            
+            self.redis_enabled = True
+            logger.info(f"Connected to Redis at {redis_host}:{redis_port} for real-time image notifications")
+            
+        except Exception as e:
+            logger.warning(f"Redis setup failed: {e} - falling back to file polling")
+            self.redis_enabled = False
+            self.redis_client = None
+            self.redis_pubsub = None
+    
+    def _redis_message_handler(self):
+        """Handle Redis messages in background thread"""
+        while self.monitoring_active and self.redis_enabled:
+            try:
+                if not self.redis_pubsub:
+                    break
+                    
+                message = self.redis_pubsub.get_message(timeout=1.0)
+                if message and message['type'] == 'message':
+                    try:
+                        # Parse the capture event
+                        data = json.loads(message['data'])
+                        if data.get('event_type') == 'image_captured':
+                            image_path = Path(data.get('image_path', ''))
+                            metadata = data.get('metadata', {})
+                            
+                            # Process the new image
+                            self._process_new_image(image_path, metadata)
+                            
+                    except json.JSONDecodeError:
+                        logger.warning("Invalid JSON in Redis message")
+                    except Exception as e:
+                        logger.error(f"Error processing Redis message: {e}")
+                        
+            except Exception as e:
+                logger.error(f"Redis message handler error: {e}")
+                time.sleep(1)
+    
+    def _process_new_image(self, image_path: Path, metadata: Dict[str, Any]):
+        """Process a newly captured image (from Redis event or file polling)"""
+        try:
+            if not image_path.exists():
+                return
+                
+            # Load and cache the image
+            image = cv2.imread(str(image_path))
+            if image is not None:
+                with self.cache_lock:
+                    # Add to cache with consistent structure
+                    cache_entry = {
+                        'path': image_path,
+                        'image': image,
+                        'metadata': metadata,
+                        'load_time': time.time(),  # Use load_time for consistency
+                        'timestamp': time.time()   # Keep both for compatibility
+                    }
+                    
+                    # Remove if already in cache (update with latest)
+                    self.image_cache = deque([
+                        entry for entry in self.image_cache 
+                        if entry['path'] != image_path
+                    ], maxlen=self.image_cache_size)
+                    
+                    # Add to front (most recent)
+                    self.image_cache.appendleft(cache_entry)
+                    self.last_image_path = image_path
+                    
+                logger.debug(f"Processed new image: {image_path.name}")
+                
+        except Exception as e:
+            logger.error(f"Error processing new image {image_path}: {e}")
+    
     def start_monitoring(self):
         """Start background monitoring of image directory"""
         if self.monitoring_active:
             return
         
+        # Setup Redis if enabled
+        self._setup_redis()
+        
         self.monitoring_active = True
-        self.monitoring_thread = threading.Thread(target=self._monitor_loop, daemon=True)
-        self.monitoring_thread.start()
-        logger.info("Started background image monitoring")
+        
+        if self.redis_enabled:
+            # Use Redis for real-time notifications
+            self.monitoring_thread = threading.Thread(target=self._redis_message_handler, daemon=True)
+            self.monitoring_thread.start()
+            logger.info("Started Redis-based real-time image monitoring")
+        else:
+            # Fallback to file polling
+            self.monitoring_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+            self.monitoring_thread.start()
+            logger.info("Started file polling image monitoring (Redis not available)")
     
     def stop_monitoring(self):
         """Stop background monitoring"""
         self.monitoring_active = False
+        
+        # Close Redis resources
+        if self.redis_pubsub:
+            try:
+                self.redis_pubsub.close()
+            except Exception as e:
+                logger.warning(f"Error closing Redis pubsub: {e}")
+        
+        if self.redis_client:
+            try:
+                self.redis_client.close()
+            except Exception as e:
+                logger.warning(f"Error closing Redis client: {e}")
+        
+        # Wait for monitoring thread
         if self.monitoring_thread and self.monitoring_thread.is_alive():
             self.monitoring_thread.join(timeout=5)
-        logger.info("Stopped background image monitoring")
+        
+        mode = "Redis" if self.redis_enabled else "file polling"
+        logger.info(f"Stopped {mode} image monitoring")
     
     def _monitor_loop(self):
         """Background monitoring loop"""
@@ -156,7 +296,7 @@ class SharedVolumeImageProvider:
                 time.sleep(5)
     
     def _update_image_cache(self):
-        """Update the image cache with recent images"""
+        """Update the image cache with recent images (file polling mode)"""
         try:
             # Get recent image files
             image_files = list(self.live_dir.glob("*.jpg"))
@@ -166,28 +306,21 @@ class SharedVolumeImageProvider:
             # Sort by modification time (newest first)
             image_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
             
-            # Check if we have new images to cache
+            # Process new images using the unified method
             with self.cache_lock:
+                cached_paths = {cached['path'] for cached in self.image_cache}
+                
                 for image_file in image_files[:self.image_cache_size]:
-                    # Check if already in cache
-                    if any(cached['path'] == image_file for cached in self.image_cache):
+                    # Skip if already in cache
+                    if image_file in cached_paths:
                         continue
                     
-                    # Load and cache the image
+                    # Load metadata and process the new image
                     try:
-                        image = cv2.imread(str(image_file))
-                        if image is not None:
-                            metadata = self._load_image_metadata(image_file)
-                            cache_entry = {
-                                'path': image_file,
-                                'image': image,
-                                'metadata': metadata,
-                                'load_time': time.time()
-                            }
-                            self.image_cache.appendleft(cache_entry)
-                            logger.debug(f"Cached image: {image_file.name}")
+                        metadata = self._load_image_metadata(image_file)
+                        self._process_new_image(image_file, metadata)
                     except Exception as e:
-                        logger.warning(f"Failed to cache image {image_file}: {e}")
+                        logger.warning(f"Failed to process image {image_file}: {e}")
         
         except Exception as e:
             logger.error(f"Cache update error: {e}")

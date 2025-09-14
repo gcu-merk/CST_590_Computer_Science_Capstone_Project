@@ -1,4 +1,36 @@
 services:
+  # Redis Message Broker for Real-time Inter-service Communication
+  redis:
+    image: redis:7-alpine
+    container_name: traffic-redis
+    restart: unless-stopped
+    
+    # Redis configuration for Raspberry Pi optimization
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 128mb --maxmemory-policy allkeys-lru
+    
+    # Expose Redis port for container communication
+    ports:
+      - "6379:6379"
+    
+    # Persistent Redis data on SSD
+    volumes:
+      - /mnt/storage/redis_data:/data
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
   # Directory initialization service - runs once to set up required directories
   init-directories:
     image: busybox:latest
@@ -25,6 +57,7 @@ services:
         mkdir -p /mnt/storage/logs/applications &&
         mkdir -p /mnt/storage/logs/maintenance &&
         mkdir -p /mnt/storage/logs/system &&
+        mkdir -p /mnt/storage/redis_data &&
         mkdir -p /app/data &&
         mkdir -p /app/config &&
         mkdir -p /app/scripts &&
@@ -34,6 +67,7 @@ services:
         chmod -R 777 /mnt/storage/processed_data &&
         chmod -R 777 /mnt/storage/backups &&
         chmod -R 777 /mnt/storage/logs &&
+        chmod -R 755 /mnt/storage/redis_data &&
         chmod -R 755 /app/data &&
         chmod -R 755 /app/config &&
         chmod -R 755 /app/scripts &&
@@ -51,6 +85,7 @@ services:
     restart: unless-stopped
     depends_on:
       - init-directories
+      - redis
 
     # Hardware access (removed direct camera devices - using host-capture architecture)
     devices:
@@ -102,6 +137,12 @@ services:
       # - DISPLAY=:0  # Removed: No GUI needed in container
       # - LIBCAMERA_LOG_LEVELS=ERROR  # Removed: No direct camera access
       # - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk  # Removed: Host handles IMX500
+      
+      # Redis configuration for real-time messaging
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - USE_REDIS_PUBSUB=true
       
       # SSD-based storage paths
       - CAMERA_CAPTURE_DIR=/app/data/camera_capture

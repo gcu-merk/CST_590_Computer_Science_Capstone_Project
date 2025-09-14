@@ -27,6 +27,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+# Redis messaging for real-time notifications
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    logging.warning("Redis not available - running without real-time messaging")
+
 # Configure logging (default to SSD, fallback to SSD logs directory)
 log_dir = Path("/mnt/storage/logs/applications")
 log_dir.mkdir(parents=True, exist_ok=True) if log_dir.parent.exists() else None
@@ -76,6 +84,11 @@ class HostCameraCapture:
         # Create all required directories with proper error handling
         if not self._initialize_directories():
             raise RuntimeError("Failed to initialize camera capture directories")
+        
+        # Redis messaging setup
+        self.redis_client = None
+        self.redis_enabled = False
+        self._setup_redis()
         
         # State tracking
         self.running = False
@@ -176,6 +189,66 @@ class HostCameraCapture:
             logger.error(f"Unexpected error during directory initialization: {e}")
             return False
     
+    def _setup_redis(self):
+        """Initialize Redis connection for real-time messaging"""
+        if not REDIS_AVAILABLE:
+            logger.info("Redis not available - continuing without real-time messaging")
+            return
+        
+        try:
+            # Try to connect to Redis (check if running in Docker environment)
+            redis_host = os.getenv('REDIS_HOST', 'localhost')
+            redis_port = int(os.getenv('REDIS_PORT', '6379'))
+            
+            # For host service, try localhost first, then docker network
+            for host in [redis_host, 'localhost', '127.0.0.1']:
+                try:
+                    self.redis_client = redis.Redis(
+                        host=host,
+                        port=redis_port,
+                        db=0,
+                        decode_responses=True,
+                        socket_connect_timeout=2,
+                        socket_timeout=2
+                    )
+                    
+                    # Test connection
+                    self.redis_client.ping()
+                    self.redis_enabled = True
+                    logger.info(f"Connected to Redis at {host}:{redis_port}")
+                    return
+                    
+                except redis.ConnectionError:
+                    continue
+            
+            logger.warning("Could not connect to Redis - continuing without real-time messaging")
+            
+        except Exception as e:
+            logger.warning(f"Redis setup failed: {e} - continuing without real-time messaging")
+            self.redis_client = None
+            self.redis_enabled = False
+    
+    def _publish_capture_event(self, image_path: Path, metadata: Dict[str, Any]):
+        """Publish camera capture event to Redis"""
+        if not self.redis_enabled or not self.redis_client:
+            return
+        
+        try:
+            message = {
+                'event_type': 'image_captured',
+                'image_path': str(image_path),
+                'metadata': metadata,
+                'timestamp': datetime.now().isoformat(),
+                'source': 'host_camera_capture'
+            }
+            
+            # Publish to camera capture channel
+            self.redis_client.publish('traffic:camera:capture', json.dumps(message))
+            logger.debug(f"Published capture event for {image_path.name}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to publish capture event: {e}")
+    
     def start_capture(self):
         """Start the camera capture service"""
         if self.running:
@@ -219,6 +292,14 @@ class HostCameraCapture:
             self.cleanup_thread.join(timeout=5)
         if self.snapshot_thread and self.snapshot_thread.is_alive():
             self.snapshot_thread.join(timeout=5)
+        
+        # Close Redis connection
+        if self.redis_client:
+            try:
+                self.redis_client.close()
+                logger.info("Closed Redis connection")
+            except Exception as e:
+                logger.warning(f"Error closing Redis connection: {e}")
         
         logger.info("Host camera capture service stopped")
     
@@ -333,6 +414,9 @@ class HostCameraCapture:
                 
                 with open(metadata_path, 'w') as f:
                     json.dump(metadata, f, indent=2)
+                
+                # Publish Redis event for real-time processing
+                self._publish_capture_event(image_path, metadata)
                 
                 logger.debug(f"Captured: {filename} ({file_size} bytes)")
                 return True
