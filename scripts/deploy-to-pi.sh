@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 DOCKER_IMAGE="gcumerk/cst590-capstone-public:latest"
-DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 COMPOSE_PROJECT_NAME="traffic-monitor"
 
 # Helper functions

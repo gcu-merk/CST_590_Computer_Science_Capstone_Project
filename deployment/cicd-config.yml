@@ -157,7 +157,7 @@ cicd:
 # Environment Configuration
 environments:
   production:
-    deploy_dir: "/home/merk/traffic-monitor-deploy"
+  deploy_dir: "/mnt/storage/traffic-monitor-deploy"
     docker_compose_file: "docker-compose.yml"
     log_level: "INFO"
     

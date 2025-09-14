@@ -12,7 +12,7 @@ echo "Time: $(date)"
 echo ""
 
 # Check if we're in the deployment directory
-DEPLOY_DIR="/home/$(whoami)/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 if [ -d "$DEPLOY_DIR" ]; then
     cd "$DEPLOY_DIR"
     echo "📁 Working from deployment directory: $DEPLOY_DIR"

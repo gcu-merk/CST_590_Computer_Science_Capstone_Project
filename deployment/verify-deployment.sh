@@ -6,7 +6,7 @@ set -e
 echo "🔍 Host Camera Capture Integration - Verification Script"
 echo "========================================================"
 
-DEPLOY_DIR="/home/merk/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 SERVICE_NAME="host-camera-capture"
 
 # Function to check service status

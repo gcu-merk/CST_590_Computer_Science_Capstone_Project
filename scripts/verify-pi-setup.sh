@@ -148,7 +148,7 @@ echo "================================================================="
 echo "📂 DEPLOYMENT DIRECTORY"
 echo "================================================================="
 
-DEPLOY_DIR="$HOME/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 if [ -d "$DEPLOY_DIR" ]; then
     print_status 0 "Deployment directory exists: $DEPLOY_DIR"
     
@@ -311,7 +311,7 @@ echo "   Dashboard: http://$LOCAL_IP:5000"
 echo "   API Health: http://$LOCAL_IP:5000/api/health"
 echo ""
 print_info "Monitor deployment:"
-echo "   Logs: cd ~/traffic-monitor-deploy && docker compose logs -f"
+echo "   Logs: cd /mnt/storage/traffic-monitor-deploy && docker compose logs -f"
 echo "   Status: docker compose ps"
 echo ""
 

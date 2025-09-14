@@ -13,7 +13,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-DEPLOY_DIR="${HOME}/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 DOCKER_IMAGE="gcumerk/cst590-capstone-public:latest"
 
 print_header() {
