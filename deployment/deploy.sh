@@ -170,16 +170,24 @@ deploy_host_camera_service() {
     sudo chmod -R 755 /mnt/storage/processed_data
     sudo chmod -R 755 /mnt/storage/backups
     
-    # Backup existing service if it exists
-    if [ -f "$DEPLOY_DIR/host-camera-capture.py" ]; then
+    # Backup existing service if it exists (only if we're going to replace it)
+    if [ "$DEPLOY_MODE" = "project_checkout" ] && [ -f "$DEPLOY_DIR/host-camera-capture.py" ]; then
         log "📦 Creating backup of existing camera service..."
         cp "$DEPLOY_DIR/host-camera-capture.py" "$DEPLOY_DIR/host-camera-capture.py.backup.$TIMESTAMP"
     fi
     
-    # Deploy camera capture script
-    cp "$HOST_CAMERA_SCRIPT" "$DEPLOY_DIR/"
-    chown merk:merk "$DEPLOY_DIR/host-camera-capture.py"
-    chmod +x "$DEPLOY_DIR/host-camera-capture.py"
+    # Deploy camera capture script (only if not already in deploy directory)
+    if [ "$DEPLOY_MODE" = "deployment_directory" ]; then
+        log "📷 Camera script already in deploy directory, ensuring permissions..."
+        # Script is already in place, just fix ownership and permissions
+        chown merk:merk "$DEPLOY_DIR/host-camera-capture.py"
+        chmod +x "$DEPLOY_DIR/host-camera-capture.py"
+    else
+        log "📷 Copying camera script from source to deploy directory..."
+        cp "$HOST_CAMERA_SCRIPT" "$DEPLOY_DIR/"
+        chown merk:merk "$DEPLOY_DIR/host-camera-capture.py"
+        chmod +x "$DEPLOY_DIR/host-camera-capture.py"
+    fi
     
     # Test camera functionality before proceeding
     log "🧪 Testing camera capture functionality..."
