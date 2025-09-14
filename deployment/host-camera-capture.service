@@ -9,6 +9,9 @@ Requires=docker.service
 Type=simple
 User=merk
 Group=merk
+
+# Ensure WorkingDirectory exists before starting
+ExecStartPre=/bin/mkdir -p /home/merk/traffic-monitor-deploy
 WorkingDirectory=/home/merk/traffic-monitor-deploy
 
 # Main execution command - runs outside Docker for hardware access
