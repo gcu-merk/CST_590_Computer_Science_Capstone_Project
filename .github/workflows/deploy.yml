@@ -132,7 +132,7 @@ jobs:
           # Make deployment script executable
           chmod +x deployment/deploy.sh
           
-          # Run deployment with logging
+          # Run deployment with logging - use the staging directory as project root
           echo "Starting CI/CD deployment at $(date)"
           if ./deployment/deploy.sh 2>&1 | tee deployment.log; then
             echo "✅ Deployment successful"

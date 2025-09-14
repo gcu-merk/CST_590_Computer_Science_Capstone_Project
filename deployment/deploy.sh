@@ -1,6 +1,8 @@
 #!/bin/bash
 # CI/CD Deployment Script for Traffic Monitoring System
-# Separates host services (camera capture) from containerized services (processing/API)
+# Separates host se    # Restore previous Docker containers
+    log "🐳 Restoring previous container state..."
+    docker-compose -f "$COMPOSE_FILE" down --remove-orphans || truees (camera capture) from containerized services (processing/API)
 # 
 # USAGE: Run this script from the project root directory:
 #        cd /path/to/CST_590_Computer_Science_Capstone_Project
@@ -19,6 +21,24 @@ echo "📦 Containerized: AI Processing, API, Maintenance"
 
 # Capture the original working directory (project root)
 PROJECT_ROOT="$(pwd)"
+
+# Check if we're running from a full project checkout or deployment directory
+if [ ! -f "$PROJECT_ROOT/scripts/host-camera-capture.py" ] && [ -f "$PROJECT_ROOT/host-camera-capture.py" ]; then
+    # We're running from a deployment directory, adjust paths
+    warning "Running from deployment directory, adjusting file paths..."
+    DEPLOY_MODE="deployment_directory"
+    HOST_CAMERA_SCRIPT="$PROJECT_ROOT/host-camera-capture.py"
+    SERVICE_FILE="$PROJECT_ROOT/deployment/host-camera-capture.service"
+    COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
+else
+    # We're running from full project checkout (normal GitHub Actions case)
+    DEPLOY_MODE="project_checkout"
+    HOST_CAMERA_SCRIPT="$PROJECT_ROOT/scripts/host-camera-capture.py"
+    SERVICE_FILE="$PROJECT_ROOT/deployment/host-camera-capture.service"
+    COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
+fi
+
+log "🏗️ Deploy mode: $DEPLOY_MODE"
 DEPLOY_DIR="/home/merk/traffic-monitor-deploy"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
@@ -110,16 +130,20 @@ pre_deployment_checks() {
         exit $EXIT_PRECHECK_FAILED
     fi
     
-    # Validate required files exist
+    # Validate required files exist (using dynamic paths based on deploy mode)
     required_files=(
-        "$PROJECT_ROOT/scripts/host-camera-capture.py"
-        "$PROJECT_ROOT/deployment/host-camera-capture.service"
-        "$PROJECT_ROOT/docker-compose.yml"
+        "$HOST_CAMERA_SCRIPT"
+        "$SERVICE_FILE"
+        "$COMPOSE_FILE"
     )
     
     for file in "${required_files[@]}"; do
         if [ ! -f "$file" ]; then
             error "Required file not found: $file"
+            error "Deploy mode: $DEPLOY_MODE"
+            error "PROJECT_ROOT: $PROJECT_ROOT"
+            error "Available files:"
+            ls -la "$PROJECT_ROOT" | head -10
             exit $EXIT_PRECHECK_FAILED
         fi
     done
@@ -155,7 +179,7 @@ deploy_host_camera_service() {
     fi
     
     # Deploy camera capture script
-    cp "$PROJECT_ROOT/scripts/host-camera-capture.py" "$DEPLOY_DIR/"
+    cp "$HOST_CAMERA_SCRIPT" "$DEPLOY_DIR/"
     chown merk:merk "$DEPLOY_DIR/host-camera-capture.py"
     chmod +x "$DEPLOY_DIR/host-camera-capture.py"
     
@@ -169,7 +193,7 @@ deploy_host_camera_service() {
     
     # Install/update systemd service
     log "⚙️ Installing host camera systemd service..."
-    sudo cp "$PROJECT_ROOT/deployment/host-camera-capture.service" /etc/systemd/system/
+    sudo cp "$SERVICE_FILE" /etc/systemd/system/
     sudo systemctl daemon-reload
     
     # Stop existing service gracefully
@@ -202,18 +226,18 @@ deploy_containerized_services() {
     
     # Stop existing containers gracefully
     log "🛑 Stopping existing containers..."
-    docker-compose down --remove-orphans || true
+    docker-compose -f "$COMPOSE_FILE" down --remove-orphans || true
     
     # Pull latest images (important for CI/CD)
     log "📥 Pulling latest container images..."
-    docker-compose pull || {
+    docker-compose -f "$COMPOSE_FILE" pull || {
         error "Failed to pull container images"
         exit $EXIT_CONTAINER_DEPLOYMENT_FAILED
     }
     
     # Start services
     log "🚀 Starting containerized services..."
-    docker-compose up -d || {
+    docker-compose -f "$COMPOSE_FILE" up -d || {
         error "Failed to start containerized services"
         rollback_deployment "Container startup failed"
     }
@@ -243,10 +267,9 @@ validate_deployment() {
     
     # Check Docker services
     log "🔍 Validating containerized services..."
-    cd "$PROJECT_ROOT"
-    if ! docker-compose ps | grep -q "Up"; then
+    if ! docker-compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
         error "Some containerized services are not running"
-        docker-compose ps
+        docker-compose -f "$COMPOSE_FILE" ps
         validation_failed=true
     else
         success "✅ Containerized services are running"
@@ -292,8 +315,7 @@ deployment_summary() {
     
     echo ""
     echo -e "${PURPLE}🐳 CONTAINERIZED SERVICES:${NC}"
-    cd "$PROJECT_ROOT"
-    docker-compose ps
+    docker-compose -f "$COMPOSE_FILE" ps
     
     echo ""
     echo -e "${PURPLE}💾 STORAGE STATUS:${NC}"
