@@ -79,11 +79,25 @@ jobs:
         # Validate Python syntax
         python3 -m py_compile scripts/host-camera-capture.py
         
-        # Validate docker-compose syntax (using newer docker compose command)
+        # Validate docker-compose syntax and Redis service (using newer docker compose command)
+        echo "Validating docker-compose configuration..."
         docker compose -f docker-compose.yml config > /dev/null
         
+        # Check that Redis service is properly defined
+        if ! docker compose -f docker-compose.yml config | grep -q "redis:"; then
+          echo "❌ Redis service not found in docker-compose.yml"
+          exit 1
+        fi
+        
+        # Validate Redis requirements in Python files
+        echo "Validating Redis dependencies..."
+        if ! grep -q "redis" edge_processing/requirements-cloud.txt; then
+          echo "❌ Redis not found in edge_processing requirements"
+          exit 1
+        fi
+        
         echo "ready=true" >> $GITHUB_OUTPUT
-        echo "✅ Deployment package validation passed"
+        echo "✅ Deployment package validation passed (including Redis)"
 
   deploy:
     name: Deploy to Raspberry Pi
@@ -191,8 +205,11 @@ jobs:
           fi
           echo "✅ Host camera service is running"
           
-          # Check containers
+          # Check containers and Redis specifically
           cd ~/deployment-staging
+          echo "🔍 Checking container status..."
+          docker-compose ps
+          
           if ! docker-compose ps | grep -q "Up"; then
             echo "❌ Containers not running properly"
             docker-compose ps
@@ -200,7 +217,26 @@ jobs:
           fi
           echo "✅ Containers are running"
           
+          # Specific Redis health check
+          echo "🔍 Checking Redis service..."
+          if ! docker-compose exec -T redis redis-cli ping | grep -q "PONG"; then
+            echo "❌ Redis service not responding"
+            docker-compose logs redis
+            exit 1
+          fi
+          echo "✅ Redis service is responding"
+          
+          # Check Redis connections from traffic-monitor
+          echo "🔍 Testing Redis connectivity from main service..."
+          sleep 5  # Give services time to connect
+          if ! docker-compose logs traffic-monitor | grep -q "Connected to Redis\|Redis"; then
+            echo "⚠️ No Redis connection logs found (may still be connecting)"
+          else
+            echo "✅ Traffic monitor connected to Redis"
+          fi
+          
           # Check API endpoint
+          echo "🔍 Testing API endpoint..."
           sleep 10
           if ! curl -f -s http://localhost:5000/api/health >/dev/null; then
             echo "⚠️ API not responding immediately (may need more time)"
@@ -208,7 +244,7 @@ jobs:
             echo "✅ API is responding"
           fi
           
-          echo "🎉 Deployment validation completed"
+          echo "🎉 Deployment validation completed (Redis + API + Host Service)"
         EOF
         
     - name: Cleanup staging files

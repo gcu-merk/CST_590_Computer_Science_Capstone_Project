@@ -33,7 +33,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    logging.warning("Redis not available - running without real-time messaging")
+    # Note: logging not yet configured, will log this later
 
 # Configure logging (default to SSD, fallback to SSD logs directory)
 log_dir = Path("/mnt/storage/logs/applications")
@@ -50,6 +50,12 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Log Redis availability after logger is configured
+if not REDIS_AVAILABLE:
+    logger.warning("Redis not available - running without real-time messaging")
+else:
+    logger.info("Redis available for real-time messaging")
 
 class HostCameraCapture:
     """Host-side camera capture service for Docker container processing"""

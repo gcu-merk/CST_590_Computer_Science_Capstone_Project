@@ -25,6 +25,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate Redis dependencies
+        run: |
+          echo "🔍 Validating Redis integration..."
+          
+          # Check Redis in requirements files
+          if ! grep -q "redis" edge_processing/requirements-cloud.txt; then
+            echo "❌ Redis missing from edge_processing requirements"
+            exit 1
+          fi
+          
+          if ! grep -q "redis" edge_api/requirements.txt; then
+            echo "❌ Redis missing from edge_api requirements"
+            exit 1
+          fi
+          
+          # Check Redis service in docker-compose
+          if ! grep -q "redis:" docker-compose.yml; then
+            echo "❌ Redis service not found in docker-compose.yml"
+            exit 1
+          fi
+          
+          # Check Redis imports in Python code
+          if ! find edge_processing -name "*.py" -exec grep -l "import redis\|from.*redis" {} \; | head -1; then
+            echo "⚠️ No Redis imports found in edge_processing (may be optional)"
+          fi
+          
+          echo "✅ Redis dependencies validated"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -41,3 +69,23 @@ jobs:
           push: true
           tags: gcumerk/cst590-capstone-public:latest
           platforms: linux/arm64
+
+      - name: Verify Redis dependencies in image
+        run: |
+          echo "🔍 Verifying Redis dependencies in built image..."
+          
+          # Pull the image we just built and test Redis import
+          docker run --rm gcumerk/cst590-capstone-public:latest python3 -c "
+          try:
+              import redis
+              print('✅ Redis package successfully imported')
+              client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+              print('✅ Redis client created successfully')
+          except ImportError as e:
+              print('❌ Redis import failed:', e)
+              exit(1)
+          except Exception as e:
+              print('✅ Redis imported, connection test expected to fail without server:', e)
+          "
+          
+          echo "✅ Docker image Redis integration verified"
