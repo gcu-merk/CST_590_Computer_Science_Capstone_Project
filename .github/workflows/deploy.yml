@@ -122,10 +122,38 @@ jobs:
           --exclude='__pycache__/' \
           ./ $DEPLOY_USER@$DEPLOY_HOST:~/deployment-staging/
           
+    - name: Deploy Host Camera Service
+      run: |
+        echo "📹 Deploying Host Camera Service..."
+        
+        ssh $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
+          set -e
+          cd ~/deployment-staging
+          
+          # Install and start host camera service
+          sudo cp deployment/host-camera-capture.service /etc/systemd/system/
+          sudo systemctl daemon-reload
+          sudo systemctl enable host-camera-capture
+          sudo systemctl restart host-camera-capture
+          
+          # Wait for first capture
+          echo "⏳ Waiting 70 seconds for first camera capture..."
+          sleep 70
+          
+          # Verify fresh image exists
+          if ! find /mnt/storage/camera_capture/live/ -name "capture_*.jpg" -mtime -1; then
+            echo "ERROR: Camera service failed to capture images"
+            sudo systemctl status host-camera-capture --no-pager -l
+            exit 1
+          fi
+          
+          echo "✅ Host camera service deployed and capturing images"
+        EOF
+        
     - name: Execute deployment on Pi
       id: deploy
       run: |
-        echo "🚀 Executing deployment on Raspberry Pi..."
+        echo "🚀 Executing remaining deployment on Raspberry Pi..."
         
         # Execute deployment script with proper error handling
         ssh $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
