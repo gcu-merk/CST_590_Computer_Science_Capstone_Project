@@ -1,8 +1,6 @@
 #!/bin/bash
 # CI/CD Deployment Script for Traffic Monitoring System
-# Separates host se    # Restore previous Docker containers
-    log "🐳 Restoring previous container state..."
-    docker-compose -f "$COMPOSE_FILE" down --remove-orphans || truees (camera capture) from containerized services (processing/API)
+# Separates host services (camera capture) from containerized services (processing/API)
 # 
 # USAGE: Run this script from the project root directory:
 #        cd /path/to/CST_590_Computer_Science_Capstone_Project
@@ -13,6 +11,31 @@
 # - Containerized: AI processing, API, data maintenance, web services
 
 set -e  # Exit on error
+
+# Colors for CI/CD output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Logging function for CI/CD
+log() {
+    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[ERROR $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
+}
+
+success() {
+    echo -e "${GREEN}[SUCCESS $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
+
+warning() {
+    echo -e "${YELLOW}[WARNING $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
 
 echo "🚀 CI/CD Deployment: Traffic Monitoring System"
 echo "=============================================="
@@ -47,31 +70,6 @@ EXIT_PRECHECK_FAILED=10
 EXIT_HOST_SERVICE_FAILED=20
 EXIT_CONTAINER_DEPLOYMENT_FAILED=30
 EXIT_VALIDATION_FAILED=40
-
-# Colors for CI/CD output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-NC='\033[0m' # No Color
-
-# Logging function for CI/CD
-log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
-}
-
-success() {
-    echo -e "${GREEN}[SUCCESS $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
-}
-
-warning() {
-    echo -e "${YELLOW}[WARNING $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
-}
 
 # Rollback function for CI/CD safety
 rollback_deployment() {
