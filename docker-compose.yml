@@ -31,60 +31,12 @@ services:
         max-size: "5m"
         max-file: "2"
 
-  # Directory initialization service - runs once to set up required directories
-  init-directories:
-    image: busybox:latest
-    container_name: traffic-init-directories
-    restart: "no"  # Run once only - CI/CD compatible
-    
-    volumes:
-      - /mnt/storage:/mnt/storage
-      - ./data:/data
-      - ./config:/config
-      - ./scripts:/scripts
-    
-    command: >
-      sh -c "
-        echo 'Initializing directory structure for CI/CD deployment...' &&
-        mkdir -p /mnt/storage/camera_capture/live &&
-        mkdir -p /mnt/storage/camera_capture/metadata &&
-        mkdir -p /mnt/storage/camera_capture/processed &&
-        mkdir -p /mnt/storage/ai_camera_images &&
-        mkdir -p /mnt/storage/processed_data &&
-        mkdir -p /mnt/storage/backups &&
-        mkdir -p /mnt/storage/logs/docker &&
-        mkdir -p /mnt/storage/logs/applications &&
-        mkdir -p /mnt/storage/logs/maintenance &&
-        mkdir -p /mnt/storage/logs/system &&
-        mkdir -p /mnt/storage/redis_data &&
-        mkdir -p /mnt/storage/data &&
-        mkdir -p /mnt/storage/config &&
-        mkdir -p /mnt/storage/scripts &&
-        mkdir -p /mnt/storage/periodic_snapshots &&
-        chmod -R 777 /mnt/storage/camera_capture &&
-        chmod -R 777 /mnt/storage/periodic_snapshots &&
-        chmod -R 777 /mnt/storage/ai_camera_images &&
-        chmod -R 777 /mnt/storage/processed_data &&
-        chmod -R 777 /mnt/storage/backups &&
-        chmod -R 777 /mnt/storage/logs &&
-        chmod -R 755 /mnt/storage/redis_data &&
-        chmod -R 755 /mnt/storage/data &&
-        chmod -R 755 /mnt/storage/config &&
-        chmod -R 755 /mnt/storage/scripts &&
-        echo 'Directory structure initialized successfully!' &&
-        echo 'Created directories:' &&
-        ls -la /mnt/storage/ &&
-        echo 'Camera capture subdirectories:' &&
-        ls -la /mnt/storage/camera_capture/
-      "
-
   # Main Traffic Monitoring Service (Containerized AI Processing & API)
   traffic-monitor:
     image: gcumerk/cst590-capstone-public:latest
     container_name: traffic-monitoring-edge
     restart: unless-stopped
     depends_on:
-      - init-directories
       - redis
 
     # Hardware access (removed direct camera devices - using host-capture architecture)
@@ -111,9 +63,9 @@ services:
 
     # Volume mounts for persistent data and shared image capture (ALL ON SSD)
     volumes:
-      - ./data:/data
+      - ./data:/app/data
       - /mnt/storage/logs/docker:/mnt/storage/logs/docker
-      - ./config:/config
+      - ./config:/app/config
       - /mnt/storage/camera_capture:/mnt/storage/camera_capture
       - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
       - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images
@@ -183,7 +135,6 @@ services:
     container_name: traffic-maintenance
     restart: unless-stopped
     depends_on:
-      - init-directories
       - traffic-monitor
     
     # Run maintenance as separate service
@@ -193,7 +144,7 @@ services:
     # Only need access to storage volumes
     volumes:
       - /mnt/storage:/mnt/storage  # Full SSD access for maintenance
-      - ./config:./config       # Configuration files
+      - ./config:/app/config       # Configuration files - FIXED: Added absolute path
     
     # Minimal environment for maintenance
     environment:
