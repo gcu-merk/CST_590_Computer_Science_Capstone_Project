@@ -87,9 +87,9 @@ jobs:
         run: |
           echo "📦 Preparing deployment staging directory on SSD..."
           # Ensure all required directories exist and have correct permissions
-          mkdir -p /mnt/storage/deployment-staging
-          chmod 755 /mnt/storage/deployment-staging
-          chown merk:merk /mnt/storage/deployment-staging
+            sudo mkdir -p /mnt/storage/deployment-staging
+            sudo chmod 755 /mnt/storage/deployment-staging
+            sudo chown merk:merk /mnt/storage/deployment-staging
           rsync -avz --delete \
             --exclude='.git*' \
             --exclude='documentation/' \
@@ -104,19 +104,19 @@ jobs:
           set -e
           
           # Ensure all required directories exist and have correct permissions
-          mkdir -p /mnt/storage/camera_capture/live
-          chmod 775 /mnt/storage/camera_capture/live
-          chown merk:merk /mnt/storage/camera_capture/live
-          mkdir -p /mnt/storage/camera_capture/processed
-          chmod 775 /mnt/storage/camera_capture/processed
-          chown merk:merk /mnt/storage/camera_capture/processed
-          mkdir -p /mnt/storage/periodic_snapshots
-          chmod 775 /mnt/storage/periodic_snapshots
-          chown merk:merk /mnt/storage/periodic_snapshots
+            sudo mkdir -p /mnt/storage/camera_capture/live
+            sudo chmod 775 /mnt/storage/camera_capture/live
+            sudo chown merk:merk /mnt/storage/camera_capture/live
+            sudo mkdir -p /mnt/storage/camera_capture/processed
+            sudo chmod 775 /mnt/storage/camera_capture/processed
+            sudo chown merk:merk /mnt/storage/camera_capture/processed
+            sudo mkdir -p /mnt/storage/periodic_snapshots
+            sudo chmod 775 /mnt/storage/periodic_snapshots
+            sudo chown merk:merk /mnt/storage/periodic_snapshots
           
           cd /mnt/storage/deployment-staging
-          chmod +x deployment/deploy.sh
-          ./deployment/deploy.sh 2>&1 | tee deployment.log
+            sudo chmod +x deployment/deploy.sh
+            sudo ./deployment/deploy.sh 2>&1 | tee deployment.log
           
       - name: Validate deployment
         run: |
@@ -166,42 +166,42 @@ jobs:
           fi
           
           # Additional recommended SSD-based directories
-          mkdir -p /mnt/storage/traffic-monitor-deploy
-          chmod 755 /mnt/storage/traffic-monitor-deploy
-          chown merk:merk /mnt/storage/traffic-monitor-deploy
-          mkdir -p /mnt/storage/database/backups
-          chmod 770 /mnt/storage/database/backups
-          chown merk:merk /mnt/storage/database/backups
-          mkdir -p /mnt/storage/database/schema
-          chmod 770 /mnt/storage/database/schema
-          chown merk:merk /mnt/storage/database/schema
-          mkdir -p /mnt/storage/logs
-          chmod 775 /mnt/storage/logs
-          chown merk:merk /mnt/storage/logs
-          mkdir -p /mnt/storage/tmp
-          chmod 777 /mnt/storage/tmp
-          chown merk:merk /mnt/storage/tmp
-          mkdir -p /mnt/storage/cache
-          chmod 777 /mnt/storage/cache
-          chown merk:merk /mnt/storage/cache
-          mkdir -p /mnt/storage/data-maintenance
-          chmod 770 /mnt/storage/data-maintenance
-          chown merk:merk /mnt/storage/data-maintenance
-          mkdir -p /mnt/storage/data-consolidator
-          chmod 770 /mnt/storage/data-consolidator
-          chown merk:merk /mnt/storage/data-consolidator
-          mkdir -p /mnt/storage/license-plate-data-collection
-          chmod 770 /mnt/storage/license-plate-data-collection
-          chown merk:merk /mnt/storage/license-plate-data-collection
-          mkdir -p /mnt/storage/speed-data-collection
-          chmod 770 /mnt/storage/speed-data-collection
-          chown merk:merk /mnt/storage/speed-data-collection
-          mkdir -p /mnt/storage/stop-sign-data-collection
-          chmod 770 /mnt/storage/stop-sign-data-collection
-          chown merk:merk /mnt/storage/stop-sign-data-collection
-          mkdir -p /mnt/storage/utils
-          chmod 770 /mnt/storage/utils
-          chown merk:merk /mnt/storage/utils
+            sudo mkdir -p /mnt/storage/traffic-monitor-deploy
+            sudo chmod 755 /mnt/storage/traffic-monitor-deploy
+            sudo chown merk:merk /mnt/storage/traffic-monitor-deploy
+            sudo mkdir -p /mnt/storage/database/backups
+            sudo chmod 770 /mnt/storage/database/backups
+            sudo chown merk:merk /mnt/storage/database/backups
+            sudo mkdir -p /mnt/storage/database/schema
+            sudo chmod 770 /mnt/storage/database/schema
+            sudo chown merk:merk /mnt/storage/database/schema
+            sudo mkdir -p /mnt/storage/logs
+            sudo chmod 775 /mnt/storage/logs
+            sudo chown merk:merk /mnt/storage/logs
+            sudo mkdir -p /mnt/storage/tmp
+            sudo chmod 777 /mnt/storage/tmp
+            sudo chown merk:merk /mnt/storage/tmp
+            sudo mkdir -p /mnt/storage/cache
+            sudo chmod 777 /mnt/storage/cache
+            sudo chown merk:merk /mnt/storage/cache
+            sudo mkdir -p /mnt/storage/data-maintenance
+            sudo chmod 770 /mnt/storage/data-maintenance
+            sudo chown merk:merk /mnt/storage/data-maintenance
+            sudo mkdir -p /mnt/storage/data-consolidator
+            sudo chmod 770 /mnt/storage/data-consolidator
+            sudo chown merk:merk /mnt/storage/data-consolidator
+            sudo mkdir -p /mnt/storage/license-plate-data-collection
+            sudo chmod 770 /mnt/storage/license-plate-data-collection
+            sudo chown merk:merk /mnt/storage/license-plate-data-collection
+            sudo mkdir -p /mnt/storage/speed-data-collection
+            sudo chmod 770 /mnt/storage/speed-data-collection
+            sudo chown merk:merk /mnt/storage/speed-data-collection
+            sudo mkdir -p /mnt/storage/stop-sign-data-collection
+            sudo chmod 770 /mnt/storage/stop-sign-data-collection
+            sudo chown merk:merk /mnt/storage/stop-sign-data-collection
+            sudo mkdir -p /mnt/storage/utils
+            sudo chmod 770 /mnt/storage/utils
+            sudo chown merk:merk /mnt/storage/utils
           
           echo "🎉 Deployment validation completed (Redis + API + Host Service)"
           
