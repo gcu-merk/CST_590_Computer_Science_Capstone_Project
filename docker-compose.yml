@@ -39,9 +39,9 @@ services:
     
     volumes:
       - /mnt/storage:/mnt/storage
-      - ./data:./data
-      - ./config:./config
-      - ./scripts:./scripts
+      - ./data:/data
+      - ./config:/config
+      - ./scripts:/scripts
     
     command: >
       sh -c "
@@ -111,9 +111,9 @@ services:
 
     # Volume mounts for persistent data and shared image capture (ALL ON SSD)
     volumes:
-      - ./data:./data
+      - ./data:/data
       - /mnt/storage/logs/docker:/mnt/storage/logs/docker
-      - ./config:./config
+      - ./config:/config
       - /mnt/storage/camera_capture:/mnt/storage/camera_capture
       - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
       - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images

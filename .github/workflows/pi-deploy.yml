@@ -90,6 +90,9 @@ jobs:
             sudo mkdir -p /mnt/storage/deployment-staging
             sudo chmod 755 /mnt/storage/deployment-staging
             sudo chown merk:merk /mnt/storage/deployment-staging
+            sudo mkdir -p /mnt/storage/deployment-staging/config
+            sudo chmod 755 /mnt/storage/deployment-staging/config
+            sudo chown merk:merk /mnt/storage/deployment-staging/config
             sudo mkdir -p /mnt/storage/camera_capture/live
             sudo chmod 775 /mnt/storage/camera_capture/live
             sudo chown merk:merk /mnt/storage/camera_capture/live
