@@ -403,7 +403,7 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     echo -e "\n${BLUE}Testing: Volume Mount in Container${NC}"
     
     check_container_volume() {
-        local expected_paths=("/app/data/camera_capture" "/app/data/camera_capture/live" "/app/data/camera_capture/metadata")
+    local expected_paths=("/mnt/storage/camera_capture" "/mnt/storage/camera_capture/live" "/mnt/storage/camera_capture/metadata")
         local missing_paths=()
         
         for path in "${expected_paths[@]}"; do

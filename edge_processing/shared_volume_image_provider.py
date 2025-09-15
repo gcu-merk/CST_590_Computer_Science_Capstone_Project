@@ -35,7 +35,7 @@ class SharedVolumeImageProvider:
     """
     
     def __init__(self, 
-                 capture_dir: str = "/app/data/camera_capture",
+                 capture_dir: str = "/mnt/storage/camera_capture",
                  max_age_seconds: float = 5.0,
                  fallback_timeout: float = 10.0,
                  image_cache_size: int = 10,

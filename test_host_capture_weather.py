@@ -76,7 +76,6 @@ def test_shared_volume_path():
     
     shared_volume_paths = [
         "/mnt/storage/camera_capture",
-        "/app/data/camera_capture",
         "/tmp/camera_capture"
     ]
     
