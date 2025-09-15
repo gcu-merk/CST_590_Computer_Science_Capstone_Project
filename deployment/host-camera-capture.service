@@ -11,17 +11,16 @@ User=merk
 Group=merk
 
 # Ensure WorkingDirectory exists before starting
-ExecStartPre=/bin/mkdir -p /mnt/storage/traffic-monitor-deploy
-WorkingDirectory=/home/merk/traffic-monitor-deploy
 
 # Main execution command - runs outside Docker for hardware access
+WorkingDirectory=/mnt/storage/traffic-monitor-deploy
 ExecStart=/usr/bin/python3 /mnt/storage/traffic-monitor-deploy/host-camera-capture.py --interval 60 --max-images 100 --no-snapshots
 
 # Service management
 Restart=always
 RestartSec=15
 StartLimitBurst=5
-StartLimitIntervalSec=300
+StartLimitInterval=300
 
 # Logging configuration for CI/CD monitoring
 StandardOutput=journal
@@ -47,12 +46,12 @@ LockPersonality=true
 # File system protections
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/mnt/storage /home/merk/traffic-monitor-deploy /tmp
+ReadWritePaths=/mnt/storage /mnt/storage/traffic-monitor-deploy /tmp
 ProtectProc=invisible
 ProcSubset=pid
 
 # Network restrictions (camera service doesn't need network)
-PrivateNetwork=false  # Kept false in case of future network logging needs
+PrivateNetwork=false
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 # Resource limits for stability
