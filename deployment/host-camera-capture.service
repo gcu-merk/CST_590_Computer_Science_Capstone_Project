@@ -50,7 +50,7 @@ ReadWritePaths=/mnt/storage /mnt/storage/traffic-monitor-deploy /tmp
 ProtectProc=invisible
 ProcSubset=pid
 
-# Network restrictions (camera service doesn't need network)
+ # Kept false in case of future network logging needs
 PrivateNetwork=false
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
