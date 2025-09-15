@@ -209,7 +209,7 @@ jobs:
         if: always()
         run: |
           echo "🧹 Cleaning up deployment staging directory..."
-          rm -rf /mnt/storage/deployment-staging
+          sudo rm -rf /mnt/storage/deployment-staging
 
   notify_status:
     name: Notify Deployment Status
