@@ -416,7 +416,7 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
         done
         
         # Check if volume is writable from container
-        local test_file="/app/data/camera_capture/live/container_write_test_$(date +%s).tmp"
+        local test_file="/mnt/storage/camera_capture/live/container_write_test_$(date +%s).tmp"
         if docker exec "$container_name" touch "$test_file" 2>/dev/null; then
             echo "    ✓ Container can write to volume"
             docker exec "$container_name" rm -f "$test_file" 2>/dev/null
@@ -427,10 +427,10 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
         
         # Check if host-container volume sharing is working
         local host_test_file="/mnt/storage/camera_capture/live/host_container_sync_test_$(date +%s).tmp"
-        local container_test_path="/app/data/camera_capture/live/host_container_sync_test_$(date +%s).tmp"
+        local container_test_path="/mnt/storage/camera_capture/live/host_container_sync_test_$(date +%s).tmp"
         
         # Create file on host, check if visible in container
-        if touch "$host_test_file" 2>/dev/null && docker exec "$container_name" test -f "/app/data/camera_capture/live/$(basename "$host_test_file")" 2>/dev/null; then
+        if touch "$host_test_file" 2>/dev/null && docker exec "$container_name" test -f "/mnt/storage/camera_capture/live/$(basename "$host_test_file")" 2>/dev/null; then
             echo "    ✓ Host-container volume sync working"
             rm -f "$host_test_file" 2>/dev/null
         else
@@ -453,9 +453,9 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
     echo -e "\n${BLUE}Testing: Container Image Access${NC}"
     
     check_container_image_access() {
-        local image_count=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l)
-        local recent_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l)
-        local any_images=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" -newermt "24 hours ago" 2>/dev/null | wc -l)
+        local image_count=$(docker exec "$container_name" find /mnt/storage/camera_capture/live -name "*.jpg" 2>/dev/null | wc -l)
+        local recent_images=$(docker exec "$container_name" find /mnt/storage/camera_capture/live -name "*.jpg" -newermt "5 minutes ago" 2>/dev/null | wc -l)
+        local any_images=$(docker exec "$container_name" find /mnt/storage/camera_capture/live -name "*.jpg" -newermt "24 hours ago" 2>/dev/null | wc -l)
         
         echo "    Total images found: $image_count"
         echo "    Recent images (last 5 min): $recent_images"
@@ -464,12 +464,12 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
         if [ "$image_count" -gt 0 ]; then
             # Show sample of available images
             echo "    Sample images:"
-            docker exec "$container_name" ls -la /app/data/camera_capture/live/ 2>/dev/null | tail -3 | while read line; do
+            docker exec "$container_name" ls -la /mnt/storage/camera_capture/live/ 2>/dev/null | tail -3 | while read line; do
                 echo "      $line"
             done
             
             # Test that container can actually read image files
-            local test_image=$(docker exec "$container_name" find /app/data/camera_capture/live -name "*.jpg" 2>/dev/null | head -1)
+            local test_image=$(docker exec "$container_name" find /mnt/storage/camera_capture/live -name "*.jpg" 2>/dev/null | head -1)
             if [ -n "$test_image" ]; then
                 local file_size=$(docker exec "$container_name" stat -c%s "$test_image" 2>/dev/null || echo "0")
                 if [ "$file_size" -gt 10000 ]; then  # > 10KB indicates real image
@@ -485,7 +485,7 @@ if [ $container_result -eq 0 ] && [ -n "$container_name" ]; then
             fi
         else
             echo "    Directory contents:"
-            docker exec "$container_name" ls -la /app/data/camera_capture/ 2>/dev/null || echo "      Cannot list directory"
+            docker exec "$container_name" ls -la /mnt/storage/camera_capture/ 2>/dev/null || echo "      Cannot list directory"
             echo "    Note: This is expected if host camera capture service is not running"
             return 1
         fi

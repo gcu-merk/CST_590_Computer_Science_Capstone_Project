@@ -124,9 +124,9 @@ services:
          - PYTHONUNBUFFERED=1
          - DISPLAY=:0
       volumes:
-         - ./data:/app/data
-         - ./logs:/app/logs
-         - ./config:/app/config
+         - /mnt/storage/data:/mnt/storage/data
+         - /mnt/storage/logs/docker:/mnt/storage/logs/docker
+         - /mnt/storage/config:/mnt/storage/config
          - /opt/vc:/opt/vc
       healthcheck:
          test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
@@ -742,8 +742,8 @@ Add the following secrets to your GitHub repository (Settings → Secrets and va
          - "5000:5000"
        volumes:
          - /dev:/dev
-         - ./data:/app/data
-         - ./logs:/app/logs
+         - /mnt/storage/data:/mnt/storage/data
+         - /mnt/storage/logs/docker:/mnt/storage/logs/docker
        privileged: true
        environment:
          - PYTHONUNBUFFERED=1

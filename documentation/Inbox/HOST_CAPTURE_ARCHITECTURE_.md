@@ -63,7 +63,7 @@ Implement a **host-capture/container-process** architecture where:
 │  ┌────────────────┐    ┌──────────────────┐    ┌─────────────┐ │
 │  │ Shared Volume  │───▶│ Image Provider   │───▶│ Processing  │ │
 │  │ Mount          │    │ Service          │    │ Services    │ │
-│  │ /app/data/     │    └──────────────────┘    └─────────────┘ │
+│  │ /mnt/storage/data/     │    └──────────────────┘    └─────────────┘ │
 │  │ camera_capture │              │                     ▲       │
 │  └────────────────┘              ▼                     │       │
 │                           ┌──────────────┐             │       │
@@ -344,13 +344,13 @@ services:
     
     # Added shared volume mount
     volumes:
-      - /mnt/storage/camera_capture:/app/data/camera_capture
+  - /mnt/storage/camera_capture:/mnt/storage/camera_capture
     
     # Added configuration
     environment:
       - USE_SHARED_VOLUME_IMAGES=true
       - HOST_CAPTURE_ARCHITECTURE=true
-      - CAMERA_CAPTURE_DIR=/app/data/camera_capture
+  - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
 ```
 
 Deploy updated configuration:
@@ -363,7 +363,7 @@ docker-compose down
 docker-compose up -d
 
 # Verify container access to shared volume
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
 ```
 
 #### 3. Optional: Deploy Image Sync Manager
@@ -423,7 +423,7 @@ docker ps | grep traffic-monitoring
 docker logs -f traffic-monitoring-edge
 
 # Verify shared volume access
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/live/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
 ```
 
 #### Image Sync Manager

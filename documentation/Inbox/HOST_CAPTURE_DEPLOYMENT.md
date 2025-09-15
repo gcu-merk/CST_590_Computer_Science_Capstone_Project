@@ -130,16 +130,16 @@ services:
 
     # ADDED: Shared volume mount
     volumes:
-      - /mnt/storage/camera_capture:/app/data/camera_capture:rw
-      - ./config:/app/config:ro
-      - ./logs:/app/logs:rw
+  - /mnt/storage/camera_capture:/mnt/storage/camera_capture:rw
+  - ./config:/mnt/storage/config:ro
+  - ./logs:/mnt/storage/logs/docker:rw
 
     # ADDED: Environment configuration
     environment:
-      - USE_SHARED_VOLUME_IMAGES=true
-      - HOST_CAPTURE_ARCHITECTURE=true
-      - CAMERA_CAPTURE_DIR=/app/data/camera_capture
-      - IMAGE_MAX_AGE_SECONDS=5.0
+  - USE_SHARED_VOLUME_IMAGES=true
+  - HOST_CAPTURE_ARCHITECTURE=true
+  - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
+  - IMAGE_MAX_AGE_SECONDS=5.0
 ```
 
 #### Deploy Updated Configuration
@@ -177,15 +177,15 @@ docker-compose logs traffic-monitor
 
 ```bash
 # Check shared volume mount
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
 
 # Verify image access
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/live/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
 
 # Test image loading
 docker exec traffic-monitoring-edge python3 -c "
 from shared_volume_image_provider import SharedVolumeImageProvider
-provider = SharedVolumeImageProvider()
+provider = SharedVolumeImageProvider('/mnt/storage/camera_capture')
 success, image, metadata = provider.get_latest_image()
 print(f'Image loaded: {success}, Shape: {image.shape if success else None}')
 "
@@ -267,7 +267,7 @@ age=$(($(date +%s) - $(stat -c %Y "$newest")))
 echo "Newest image age: $age seconds"
 
 # 3. Verify container can access images
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/live/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
 ```
 
 #### Test Processing Services
@@ -315,7 +315,7 @@ python3 scripts/host-camera-capture.py --help
 from shared_volume_image_provider import SharedVolumeImageProvider
 
 provider = SharedVolumeImageProvider(
-    shared_volume_dir="/app/data/camera_capture",
+  shared_volume_dir="/mnt/storage/camera_capture",
     cache_size=10,                    # Number of images to cache
     background_monitoring=True,        # Enable background monitoring
     monitor_interval=0.1,             # Monitor interval in seconds
@@ -330,7 +330,7 @@ provider = SharedVolumeImageProvider(
 environment:
   - USE_SHARED_VOLUME_IMAGES=true
   - HOST_CAPTURE_ARCHITECTURE=true
-  - CAMERA_CAPTURE_DIR=/app/data/camera_capture
+  - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
   - IMAGE_MAX_AGE_SECONDS=5.0
   - IMAGE_CACHE_SIZE=10
   - ENABLE_PERFORMANCE_MONITORING=true
@@ -448,7 +448,7 @@ ls -la /mnt/storage/camera_capture/
 docker inspect traffic-monitoring-edge | grep -A 10 Mounts
 
 # Verify directory structure in container
-docker exec traffic-monitoring-edge find /app/data/camera_capture -type f
+docker exec traffic-monitoring-edge find /mnt/storage/camera_capture -type f
 
 # Check file permissions
 ls -la /mnt/storage/camera_capture/live/

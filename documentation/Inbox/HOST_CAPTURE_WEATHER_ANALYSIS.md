@@ -181,7 +181,7 @@ Docker container must have access to shared volume:
 ```yaml
 # docker-compose.yml
 volumes:
-  - /mnt/storage/camera_capture:/app/data/camera_capture
+  - /mnt/storage/camera_capture:/mnt/storage/camera_capture
 ```
 
 ### 3. Recent Images Available
@@ -214,7 +214,7 @@ curl http://100.121.231.16:5000/api/weather?max_age_seconds=30
 #### No Recent Images
 
 - Check host camera capture service: `sudo systemctl status host-camera-capture`
-- Verify shared volume mount: `docker exec container ls -la /app/data/camera_capture/live/`
+- Verify shared volume mount: `docker exec container ls -la /mnt/storage/camera_capture/live/`
 - Check disk space: `df -h /mnt/storage/`
 
 #### Analysis Errors  

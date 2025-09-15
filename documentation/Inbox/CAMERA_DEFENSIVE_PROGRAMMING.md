@@ -190,7 +190,7 @@ ls -lt /mnt/storage/camera_capture/live/ | head -5
 rpicam-still -o /tmp/test.jpg --immediate
 
 # Check container access
-docker exec <container> ls -la /app/data/camera_capture/live/
+docker exec <container> ls -la /mnt/storage/camera_capture/live/
 ```
 
 This defensive programming approach ensures the camera pipeline is robust, self-healing, and provides clear diagnostic information when issues occur.

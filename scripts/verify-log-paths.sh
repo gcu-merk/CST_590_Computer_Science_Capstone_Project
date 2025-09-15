@@ -50,7 +50,7 @@ success "Log directory structure created"
 echo ""
 info "Checking Docker Compose logging configuration..."
 
-if grep -q "/mnt/storage/logs/docker:/app/logs" docker-compose.yml; then
+if grep -q "/mnt/storage/logs/docker:/mnt/storage/logs/docker" docker-compose.yml; then
     success "Docker container logs configured for SSD"
 else
     error "Docker container logs not configured for SSD"
@@ -162,7 +162,7 @@ if command -v docker-compose >/dev/null 2>&1; then
             docker-compose ps
             echo ""
             info "Container logs location: /var/lib/docker/containers/"
-            info "Application logs in containers: /app/logs -> /mnt/storage/logs/docker"
+            info "Application logs in containers: /mnt/storage/logs/docker -> /mnt/storage/logs/docker"
         else
             info "No Docker services currently running"
         fi

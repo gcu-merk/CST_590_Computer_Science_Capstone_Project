@@ -35,7 +35,7 @@ class SharedVolumeImageProvider:
 ```python
 def __init__(
     self,
-    shared_volume_dir: str = "/app/data/camera_capture",
+    shared_volume_dir: str = "/mnt/storage/camera_capture",
     cache_size: int = 10,
     background_monitoring: bool = True,
     monitor_interval: float = 0.1,
@@ -193,7 +193,7 @@ class ContainerCameraInterface:
 ```python
 def __init__(
     self,
-    shared_volume_dir: str = "/app/data/camera_capture",
+    shared_volume_dir: str = "/mnt/storage/camera_capture",
     max_age_seconds: float = 5.0
 ):
     """
@@ -513,7 +513,7 @@ def trigger_cleanup(self) -> Dict[str, int]:
 @dataclass
 class ImageProviderConfig:
     """Configuration for SharedVolumeImageProvider."""
-    shared_volume_dir: str = "/app/data/camera_capture"
+    shared_volume_dir: str = "/mnt/storage/camera_capture"
     cache_size: int = 10
     background_monitoring: bool = True
     monitor_interval: float = 0.1

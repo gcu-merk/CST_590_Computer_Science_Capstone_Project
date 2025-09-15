@@ -56,8 +56,8 @@ echo
 
 # Check container access
 echo "4. Container Access:"
-if docker exec traffic-monitoring-edge ls /app/data/camera_capture/live/ >/dev/null 2>&1; then
-    container_count=$(docker exec traffic-monitoring-edge ls /app/data/camera_capture/live/ | wc -l)
+if docker exec traffic-monitoring-edge ls /mnt/storage/camera_capture/live/ >/dev/null 2>&1; then
+    container_count=$(docker exec traffic-monitoring-edge ls /mnt/storage/camera_capture/live/ | wc -l)
     echo "Container can access shared volume: $container_count files visible"
 else
     echo "Container cannot access shared volume"
@@ -375,7 +375,7 @@ ls -la /tmp/q*.jpg
 **Symptoms:**
 
 - Container services report "No images found"
-- `docker exec` shows empty `/app/data/camera_capture/live/` directory
+- `docker exec` shows empty `/mnt/storage/camera_capture/live/` directory
 
 **Diagnosis:**
 
@@ -384,10 +384,10 @@ ls -la /tmp/q*.jpg
 docker inspect traffic-monitoring-edge | grep -A 10 "Mounts"
 
 # Verify mount point exists in container
-docker exec traffic-monitoring-edge ls -la /app/data/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/data/
 
 # Check if mount point is empty
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
 ```
 
 **Solutions:**
@@ -402,7 +402,7 @@ docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
    grep -A 5 "volumes:" docker-compose.yml
    
    # Should include:
-   # - /mnt/storage/camera_capture:/app/data/camera_capture:rw
+    # - /mnt/storage/camera_capture:/mnt/storage/camera_capture:rw
    
    # Restart with updated configuration
    docker-compose up -d
@@ -434,7 +434,7 @@ echo "Host view:"
 ls -la /mnt/storage/camera_capture/live/ | tail -3
 
 echo "Container view:"
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/live/ | tail -3
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/ | tail -3
 
 # Check if clocks are synchronized
 docker exec traffic-monitoring-edge date
@@ -728,7 +728,7 @@ else
     exit 1
 fi
 
-if docker exec traffic-monitoring-edge ls /app/data/camera_capture/live/ >/dev/null 2>&1; then
+if docker exec traffic-monitoring-edge ls /mnt/storage/camera_capture/live/ >/dev/null 2>&1; then
     echo "SUCCESS: Container can access images"
 else
     echo "FAILURE: Container cannot access images"

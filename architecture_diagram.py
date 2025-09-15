@@ -136,8 +136,8 @@ def print_architecture():
 ║  │                            Docker Container                                     │  ║
 ║  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────┐  │  ║
 ║  │  │Base Image       │ │Hardware Access  │ │Volume Mounts    │ │Environment  │  │  ║
-║  │  │python:3.11-slim │ │/dev/video0      │ │./data:/app/data │ │Variables    │  │  ║
-║  │  │                 │ │/dev/ttyACM0     │ │./logs:/app/logs │ │             │  │  ║
+║  │  │python:3.11-slim │ │/dev/video0      │ │/mnt/storage/data:/mnt/storage/data │ │Variables    │  │  ║
+║  │  │                 │ │/dev/ttyACM0     │ │/mnt/storage/logs/docker:/mnt/storage/logs/docker │ │             │  │  ║
 ║  │  │                 │ │/dev/gpiomem     │ │./config:/config │ │             │  │  ║
 ║  │  └─────────────────┘ └─────────────────┘ └─────────────────┘ └─────────────┘  │  ║
 ║  └─────────────────────────────────────────────────────────────────────────────────┘  ║

@@ -66,13 +66,13 @@ echo "🔧 Maintenance System Verification"
 echo "-----------------------------------"
 
 # Test maintenance script availability
-if docker exec traffic-monitoring-edge test -f /app/scripts/container-maintenance.py 2>/dev/null; then
+if docker exec traffic-monitoring-edge test -f /mnt/storage/scripts/container-maintenance.py 2>/dev/null; then
     echo "✅ Maintenance scripts: Available in main container"
     
     # Test maintenance status
     echo ""
     echo "📊 Current maintenance status:"
-    docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --status 2>/dev/null | head -20 || echo "❌ Status check failed"
+    docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/container-maintenance.py --status 2>/dev/null | head -20 || echo "❌ Status check failed"
     
 else
     echo "❌ Maintenance scripts: Not found in container"
@@ -84,7 +84,7 @@ if docker ps | grep -q -E "(traffic-maintenance|data-maintenance)"; then
     MAINTENANCE_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "(traffic-maintenance|data-maintenance)" | head -1)
     echo ""
     echo "📊 Maintenance service status ($MAINTENANCE_CONTAINER):"
-    docker exec "$MAINTENANCE_CONTAINER" python3 /app/scripts/container-maintenance.py --status 2>/dev/null | head -20 || echo "❌ Maintenance service status check failed"
+    docker exec "$MAINTENANCE_CONTAINER" python3 /mnt/storage/scripts/container-maintenance.py --status 2>/dev/null | head -20 || echo "❌ Maintenance service status check failed"
 fi
 
 echo ""
@@ -160,18 +160,18 @@ echo "-------------------------"
 echo "Testing manual maintenance execution..."
 MAINTENANCE_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "(traffic-maintenance|data-maintenance)" | head -1)
 
-if docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --status >/dev/null 2>&1; then
+if docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/container-maintenance.py --status >/dev/null 2>&1; then
     echo "✅ Manual maintenance execution: Working (main container)"
     echo ""
     echo "🧹 You can run manual maintenance with:"
-    echo "  docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --daily-cleanup"
-    echo "  docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --emergency-cleanup"
-elif [ -n "$MAINTENANCE_CONTAINER" ] && docker exec "$MAINTENANCE_CONTAINER" python3 /app/scripts/container-maintenance.py --status >/dev/null 2>&1; then
+    echo "  docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/container-maintenance.py --daily-cleanup"
+    echo "  docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup"
+elif [ -n "$MAINTENANCE_CONTAINER" ] && docker exec "$MAINTENANCE_CONTAINER" python3 /mnt/storage/scripts/container-maintenance.py --status >/dev/null 2>&1; then
     echo "✅ Manual maintenance execution: Working (via maintenance service: $MAINTENANCE_CONTAINER)"
     echo ""
     echo "🧹 You can run manual maintenance with:"
-    echo "  docker exec $MAINTENANCE_CONTAINER python3 /app/scripts/container-maintenance.py --daily-cleanup"
-    echo "  docker exec $MAINTENANCE_CONTAINER python3 /app/scripts/container-maintenance.py --emergency-cleanup"
+    echo "  docker exec $MAINTENANCE_CONTAINER python3 /mnt/storage/scripts/container-maintenance.py --daily-cleanup"
+    echo "  docker exec $MAINTENANCE_CONTAINER python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup"
 else
     echo "❌ Manual maintenance execution: Failed"
     echo "   Check if maintenance scripts are included in Docker image"
@@ -185,7 +185,7 @@ echo "============"
 MAINTENANCE_CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "(traffic-maintenance|data-maintenance)" | head -1)
 
 # Check if both main container has scripts AND maintenance service is running
-MAIN_HAS_SCRIPTS=$(docker exec traffic-monitoring-edge test -f /app/scripts/container-maintenance.py 2>/dev/null && echo "true" || echo "false")
+MAIN_HAS_SCRIPTS=$(docker exec traffic-monitoring-edge test -f /mnt/storage/scripts/container-maintenance.py 2>/dev/null && echo "true" || echo "false")
 MAINTENANCE_SERVICE_RUNNING=$([ -n "$MAINTENANCE_CONTAINER" ] && docker ps | grep -q -E "(traffic-maintenance|data-maintenance).*Up" && echo "true" || echo "false")
 
 if [ "$MAIN_HAS_SCRIPTS" = "true" ] && [ "$MAINTENANCE_SERVICE_RUNNING" = "true" ]; then
@@ -204,7 +204,7 @@ if [ "$MAIN_HAS_SCRIPTS" = "true" ] && [ "$MAINTENANCE_SERVICE_RUNNING" = "true"
     echo ""
     echo "📊 Monitor with:"
     echo "  docker logs $MAINTENANCE_CONTAINER -f"
-    echo "  docker exec $MAINTENANCE_CONTAINER python3 /app/scripts/container-maintenance.py --status"
+    echo "  docker exec $MAINTENANCE_CONTAINER python3 /mnt/storage/scripts/container-maintenance.py --status"
     
 elif [ "$MAINTENANCE_SERVICE_RUNNING" = "true" ] && [ -n "$MAINTENANCE_CONTAINER" ]; then
     echo "🎉 Maintenance service is fully operational!"
@@ -221,9 +221,9 @@ elif [ "$MAINTENANCE_SERVICE_RUNNING" = "true" ] && [ -n "$MAINTENANCE_CONTAINER
     echo ""
     echo "📊 Monitor with:"
     echo "  docker logs $MAINTENANCE_CONTAINER -f"
-    echo "  docker exec $MAINTENANCE_CONTAINER python3 /app/scripts/container-maintenance.py --status"
+    echo "  docker exec $MAINTENANCE_CONTAINER python3 /mnt/storage/scripts/container-maintenance.py --status"
     
-elif docker exec traffic-monitoring-edge test -f /app/scripts/container-maintenance.py 2>/dev/null; then
+elif docker exec traffic-monitoring-edge test -f /mnt/storage/scripts/container-maintenance.py 2>/dev/null; then
     echo "⚠️  Single-container deployment detected"
     echo ""
     echo "✅ Maintenance scripts are in main container"
@@ -234,7 +234,7 @@ elif docker exec traffic-monitoring-edge test -f /app/scripts/container-maintena
     echo "  2. Restart deployment: docker compose down && docker compose up -d"
     echo ""
     echo "🧹 For now, you can run manual maintenance:"
-    echo "  docker exec traffic-monitoring-edge python3 /app/scripts/container-maintenance.py --daily-cleanup"
+    echo "  docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/container-maintenance.py --daily-cleanup"
     
 else
     echo "❌ Maintenance system not detected"

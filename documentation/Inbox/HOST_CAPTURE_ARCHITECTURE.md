@@ -190,13 +190,13 @@ services:
     
     # Shared volume for images
     volumes:
-      - /mnt/storage/camera_capture:/app/data/camera_capture
+  - /mnt/storage/camera_capture:/mnt/storage/camera_capture
     
     # Configuration
     environment:
       - USE_SHARED_VOLUME_IMAGES=true
       - HOST_CAPTURE_ARCHITECTURE=true
-      - CAMERA_CAPTURE_DIR=/app/data/camera_capture
+  - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
 ```
 
 ## Service Integration
@@ -334,7 +334,7 @@ docker-compose down
 docker-compose up -d
 
 # Verify container can access shared volume
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
 ```
 
 ### 4. Validate System
@@ -371,7 +371,7 @@ ls -la /mnt/storage/camera_capture/
 docker inspect traffic-monitoring-edge | grep camera_capture
 
 # Check directory permissions
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/
+docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
 ```
 
 ### 3. Old Images Accumulating

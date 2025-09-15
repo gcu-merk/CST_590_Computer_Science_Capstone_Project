@@ -14,7 +14,7 @@ services:
     
     # Persistent Redis data on SSD
     volumes:
-      - /mnt/storage/redis_data:/data
+      - /mnt/storage/redis_data:/mnt/storage/redis_data
     
     # Health check
     healthcheck:
@@ -39,9 +39,9 @@ services:
     
     volumes:
       - /mnt/storage:/mnt/storage
-      - ./data:/app/data
-      - ./config:/app/config
-      - ./scripts:/app/scripts
+      - ./data:./data
+      - ./config:./config
+      - ./scripts:./scripts
     
     command: >
       sh -c "
@@ -58,9 +58,9 @@ services:
         mkdir -p /mnt/storage/logs/maintenance &&
         mkdir -p /mnt/storage/logs/system &&
         mkdir -p /mnt/storage/redis_data &&
-        mkdir -p /app/data &&
-        mkdir -p /app/config &&
-        mkdir -p /app/scripts &&
+  mkdir -p /mnt/storage/data &&
+  mkdir -p /mnt/storage/config &&
+  mkdir -p /mnt/storage/scripts &&
         chmod -R 777 /mnt/storage/camera_capture &&
         chmod -R 777 /mnt/storage/periodic_snapshots &&
         chmod -R 777 /mnt/storage/ai_camera_images &&
@@ -68,9 +68,9 @@ services:
         chmod -R 777 /mnt/storage/backups &&
         chmod -R 777 /mnt/storage/logs &&
         chmod -R 755 /mnt/storage/redis_data &&
-        chmod -R 755 /app/data &&
-        chmod -R 755 /app/config &&
-        chmod -R 755 /app/scripts &&
+  chmod -R 755 /mnt/storage/data &&
+  chmod -R 755 /mnt/storage/config &&
+  chmod -R 755 /mnt/storage/scripts &&
         echo 'Directory structure initialized successfully!' &&
         echo 'Created directories:' &&
         ls -la /mnt/storage/ &&
@@ -111,16 +111,14 @@ services:
 
     # Volume mounts for persistent data and shared image capture (ALL ON SSD)
     volumes:
-      - ./data:/app/data
-      - /mnt/storage/logs/docker:/app/logs  # Docker logs on SSD
-      - ./config:/app/config
-      # Shared volume for host-captured images (main change)
-      - /mnt/storage/camera_capture:/app/data/camera_capture
+      - ./data:./data
+      - /mnt/storage/logs/docker:/mnt/storage/logs/docker
+      - ./config:./config
+      - /mnt/storage/camera_capture:/mnt/storage/camera_capture
       - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
       - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images
-      # Additional SSD storage mounts
-      - /mnt/storage/processed_data:/app/data/processed
-      - /mnt/storage/backups:/app/data/backups
+      - /mnt/storage/processed_data:/mnt/storage/processed_data
+      - /mnt/storage/backups:/mnt/storage/backups
 
     # Container logging configuration (logs to SSD)
     logging:
@@ -145,17 +143,17 @@ services:
       - USE_REDIS_PUBSUB=true
       
       # SSD-based storage paths
-      - CAMERA_CAPTURE_DIR=/app/data/camera_capture
+  - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
       - USE_SHARED_VOLUME_IMAGES=true
       - HOST_CAPTURE_ARCHITECTURE=true
-      - LOG_DIRECTORY=/app/logs  # Logs stored on SSD
+  - LOG_DIRECTORY=/mnt/storage/logs/docker  # Logs stored on SSD
       
       # Legacy paths for compatibility (all on SSD)
       - PERIODIC_SNAPSHOT_PATH=/mnt/storage/periodic_snapshots
       - SNAPSHOT_INTERVAL_MINUTES=5
       - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images
-      - PROCESSED_DATA_PATH=/app/data/processed
-      - BACKUP_PATH=/app/data/backups
+  - PROCESSED_DATA_PATH=/mnt/storage/data/processed
+  - BACKUP_PATH=/mnt/storage/data/backups
       
       # Data maintenance configuration
       - DATA_VOLUME=/mnt/storage
@@ -195,7 +193,7 @@ services:
     # Only need access to storage volumes
     volumes:
       - /mnt/storage:/mnt/storage  # Full SSD access for maintenance
-      - ./config:/app/config       # Configuration files
+      - ./config:./config       # Configuration files
     
     # Minimal environment for maintenance
     environment:
@@ -215,7 +213,7 @@ services:
     
     # Maintenance service health check
     healthcheck:
-      test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
+  test: ["CMD", "python3", "/mnt/storage/scripts/container-maintenance.py", "--status"]
       interval: 300s  # Every 5 minutes
       timeout: 30s
       retries: 3

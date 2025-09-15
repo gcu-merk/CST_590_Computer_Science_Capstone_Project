@@ -39,7 +39,7 @@ deployment:
       container: "traffic-maintenance"
       image: "gcumerk/cst590-capstone-public:latest"
       health_check:
-        command: "docker exec traffic-maintenance python3 /app/scripts/container-maintenance.py --status"
+  command: "docker exec traffic-maintenance python3 /mnt/storage/scripts/container-maintenance.py --status"
         interval: 300
 
 # Deployment Requirements

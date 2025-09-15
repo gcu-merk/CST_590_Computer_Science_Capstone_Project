@@ -178,25 +178,6 @@ deploy_host_camera_service() {
     
     # Ensure all required SSD directories exist
     log "📁 Creating required SSD directory structure..."
-    sudo mkdir -p /mnt/storage/logs/{applications,docker,maintenance,system}
-    sudo mkdir -p /mnt/storage/camera_capture/{live,metadata,processed}
-    sudo mkdir -p /mnt/storage/{periodic_snapshots,ai_camera_images,processed_data,backups}
-    
-    # Set appropriate permissions (aligned with workflow)
-    sudo chmod 775 /mnt/storage/camera_capture
-    sudo chown merk:merk /mnt/storage/camera_capture
-    sudo chmod 775 /mnt/storage/logs
-    sudo chown merk:merk /mnt/storage/logs
-    sudo chmod 775 /mnt/storage/periodic_snapshots
-    sudo chown merk:merk /mnt/storage/periodic_snapshots
-    sudo chmod 777 /mnt/storage/ai_camera_images  # Keep 777 for AI write access
-    sudo chown merk:merk /mnt/storage/ai_camera_images
-    sudo chmod 755 /mnt/storage/processed_data
-    sudo chown merk:merk /mnt/storage/processed_data
-    sudo chmod 770 /mnt/storage/backups
-    sudo chown merk:merk /mnt/storage/backups
-    sudo chmod 755 /mnt/storage/traffic-monitor-deploy
-    sudo chown merk:merk /mnt/storage/traffic-monitor-deploy
     
     # Backup existing service if it exists (only if we're going to replace it)
     if [ "$DEPLOY_MODE" = "project_checkout" ] && [ -f "$DEPLOY_DIR/host-camera-capture.py" ]; then

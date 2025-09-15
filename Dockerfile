@@ -93,7 +93,7 @@ RUN pip install --no-cache-dir -r edge_processing/requirements-pi.txt || echo "P
 COPY . /app/
 
 # Create necessary directories
-RUN mkdir -p /app/logs /app/data/exports /app/data/backups /app/data/models /app/config
+RUN mkdir -p /mnt/storage/logs/docker /mnt/storage/data/exports /mnt/storage/data/backups /mnt/storage/data/models /mnt/storage/config
 
 # Set environment variables
 ENV PYTHONPATH=/app

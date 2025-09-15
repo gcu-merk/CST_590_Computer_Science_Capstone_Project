@@ -15,7 +15,7 @@ echo -e "${BLUE}🕐 Setting up Container Maintenance Scheduler${NC}"
 echo "================================================"
 
 # Configuration
-MAINTENANCE_SCRIPT="/app/scripts/container-maintenance.py"
+MAINTENANCE_SCRIPT="/mnt/storage/scripts/container-maintenance.py"
 LOG_DIR="/mnt/storage/logs/maintenance"
 
 # Ensure log directory exists
@@ -59,7 +59,7 @@ echo -e "${GREEN}✓ Container cron jobs installed${NC}"
 # Create maintenance status endpoint script
 echo -e "\n${BLUE}🔍 Creating status monitoring script${NC}"
 
-cat > /app/scripts/maintenance-status.py << 'EOF'
+cat > /mnt/storage/scripts/maintenance-status.py << 'EOF'
 #!/usr/bin/env python3
 """
 Maintenance Status API Endpoint
@@ -69,7 +69,7 @@ Provides maintenance status for container health checks and monitoring
 import json
 import sys
 import os
-sys.path.append('/app/scripts')
+sys.path.append('/mnt/storage/scripts')
 
 try:
     from container_maintenance import ContainerMaintenanceConfig, ContainerMaintenance
@@ -133,14 +133,14 @@ except ImportError as e:
     sys.exit(1)
 EOF
 
-chmod +x /app/scripts/maintenance-status.py
+chmod +x /mnt/storage/scripts/maintenance-status.py
 
 echo -e "${GREEN}✓ Status monitoring endpoint created${NC}"
 
 # Create startup script for container
 echo -e "\n${BLUE}🚀 Creating container startup script${NC}"
 
-cat > /app/scripts/start-with-maintenance.sh << 'EOF'
+cat > /mnt/storage/scripts/start-with-maintenance.sh << 'EOF'
 #!/bin/bash
 # Container Startup with Maintenance
 # Starts both the main application and maintenance scheduler
@@ -163,12 +163,12 @@ echo "✓ Cron service started"
 
 # Run initial maintenance check (non-blocking)
 echo "🔧 Running initial maintenance check..."
-python3 /app/scripts/container-maintenance.py --status > /mnt/storage/logs/maintenance/startup-status.json 2>&1 || true
+python3 /mnt/storage/scripts/container-maintenance.py --status > /mnt/storage/logs/maintenance/startup-status.json 2>&1 || true
 
 # Check if emergency cleanup is needed
-if python3 /app/scripts/container-maintenance.py --status | grep -q "needs_emergency_cleanup.*true" 2>/dev/null; then
+if python3 /mnt/storage/scripts/container-maintenance.py --status | grep -q "needs_emergency_cleanup.*true" 2>/dev/null; then
     echo "⚠️  Emergency cleanup needed - running now..."
-    python3 /app/scripts/container-maintenance.py --emergency-cleanup >> /mnt/storage/logs/maintenance/startup-emergency.log 2>&1 || true
+    python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup >> /mnt/storage/logs/maintenance/startup-emergency.log 2>&1 || true
 fi
 
 echo "✓ Initial maintenance check completed"
@@ -184,14 +184,14 @@ else
 fi
 EOF
 
-chmod +x /app/scripts/start-with-maintenance.sh
+chmod +x /mnt/storage/scripts/start-with-maintenance.sh
 
 echo -e "${GREEN}✓ Container startup script created${NC}"
 
 # Create maintenance monitoring dashboard script
 echo -e "\n${BLUE}📊 Creating maintenance dashboard script${NC}"
 
-cat > /app/scripts/maintenance-dashboard.sh << 'EOF'
+cat > /mnt/storage/scripts/maintenance-dashboard.sh << 'EOF'
 #!/bin/bash
 # Container Maintenance Dashboard
 # Shows real-time maintenance status inside container
@@ -203,14 +203,14 @@ echo "Time: $(date)"
 echo ""
 
 # Check if maintenance script exists
-if [ ! -f "/app/scripts/container-maintenance.py" ]; then
+if [ ! -f "/mnt/storage/scripts/container-maintenance.py" ]; then
     echo "❌ Maintenance script not found"
     exit 1
 fi
 
 # Get maintenance status
 echo "🔍 Maintenance Status:"
-python3 /app/scripts/maintenance-status.py 2>/dev/null || echo "❌ Failed to get status"
+python3 /mnt/storage/scripts/maintenance-status.py 2>/dev/null || echo "❌ Failed to get status"
 
 echo ""
 echo "💾 Disk Usage:"
@@ -245,12 +245,12 @@ fi
 
 echo ""
 echo "🎯 Quick Actions:"
-echo "  Force cleanup:    python3 /app/scripts/container-maintenance.py --daily-cleanup"
-echo "  Emergency clean:  python3 /app/scripts/container-maintenance.py --emergency-cleanup"
-echo "  Status check:     python3 /app/scripts/maintenance-status.py"
+echo "  Force cleanup:    python3 /mnt/storage/scripts/container-maintenance.py --daily-cleanup"
+echo "  Emergency clean:  python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup"
+echo "  Status check:     python3 /mnt/storage/scripts/maintenance-status.py"
 EOF
 
-chmod +x /app/scripts/maintenance-dashboard.sh
+chmod +x /mnt/storage/scripts/maintenance-dashboard.sh
 
 echo -e "${GREEN}✓ Maintenance dashboard created${NC}"
 
@@ -280,10 +280,10 @@ echo ""
 echo -e "${GREEN}🎉 Container Maintenance Setup Complete!${NC}"
 echo ""
 echo -e "${BLUE}📋 Usage:${NC}"
-echo "  Dashboard:        bash /app/scripts/maintenance-dashboard.sh"
-echo "  Status:           python3 /app/scripts/maintenance-status.py"
-echo "  Manual cleanup:   python3 /app/scripts/container-maintenance.py --daily-cleanup"
-echo "  Emergency:        python3 /app/scripts/container-maintenance.py --emergency-cleanup"
+echo "  Dashboard:        bash /mnt/storage/scripts/maintenance-dashboard.sh"
+echo "  Status:           python3 /mnt/storage/scripts/maintenance-status.py"
+echo "  Manual cleanup:   python3 /mnt/storage/scripts/container-maintenance.py --daily-cleanup"
+echo "  Emergency:        python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup"
 echo ""
 echo -e "${BLUE}🔄 Automatic Schedule:${NC}"
 echo "  Daily cleanup:    2:00 AM"

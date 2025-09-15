@@ -6,8 +6,8 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
+User=merk
+Group=merk
 WorkingDirectory=/home/pi/CST_590_Computer_Science_Capstone_Project
 ExecStart=/usr/bin/python3 /home/pi/CST_590_Computer_Science_Capstone_Project/scripts/host-camera-capture.py --capture-dir /mnt/storage/camera_capture --interval 1.0
 ExecStop=/bin/kill -TERM $MAINPID

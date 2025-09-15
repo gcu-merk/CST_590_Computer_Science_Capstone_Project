@@ -26,7 +26,7 @@ docker-compose up -d
 docker logs traffic-maintenance
 
 # View maintenance dashboard
-docker exec traffic-maintenance bash /app/scripts/maintenance-dashboard.sh
+docker exec traffic-maintenance bash /mnt/storage/scripts/maintenance-dashboard.sh
 ```
 
 ### **Option 2: Single Container with Built-in Maintenance**
@@ -106,10 +106,10 @@ environment:
 
 ```bash
 # View maintenance dashboard inside container
-docker exec traffic-monitor bash /app/scripts/maintenance-dashboard.sh
+docker exec traffic-monitor bash /mnt/storage/scripts/maintenance-dashboard.sh
 
 # Get JSON status report
-docker exec traffic-monitor python3 /app/scripts/maintenance-status.py
+docker exec traffic-monitor python3 /mnt/storage/scripts/maintenance-status.py
 
 # Check maintenance service logs
 docker logs traffic-maintenance
@@ -119,13 +119,13 @@ docker logs traffic-maintenance
 
 ```bash
 # Force immediate cleanup
-docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --daily-cleanup
+docker exec traffic-monitor python3 /mnt/storage/scripts/container-maintenance.py --daily-cleanup
 
 # Emergency cleanup (aggressive)
-docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --emergency-cleanup
+docker exec traffic-monitor python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup
 
 # Check status only
-docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --status
+docker exec traffic-monitor python3 /mnt/storage/scripts/container-maintenance.py --status
 ```
 
 ### **Health Check Integration**
@@ -151,23 +151,23 @@ To add maintenance to your existing Dockerfile:
 RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
 
 # Copy maintenance scripts
-COPY scripts/container-maintenance.py /app/scripts/
-COPY scripts/setup-container-cron.sh /app/scripts/
-COPY scripts/maintenance-dashboard.sh /app/scripts/
-COPY scripts/start-with-maintenance.sh /app/scripts/
+COPY scripts/container-maintenance.py /mnt/storage/scripts/
+COPY scripts/setup-container-cron.sh /mnt/storage/scripts/
+COPY scripts/maintenance-dashboard.sh /mnt/storage/scripts/
+COPY scripts/start-with-maintenance.sh /mnt/storage/scripts/
 
 # Make scripts executable
-RUN chmod +x /app/scripts/*.sh /app/scripts/*.py
+RUN chmod +x /mnt/storage/scripts/*.sh /mnt/storage/scripts/*.py
 
 # Set up maintenance automation
-RUN bash /app/scripts/setup-container-cron.sh
+RUN bash /mnt/storage/scripts/setup-container-cron.sh
 
 # Add health check with maintenance status
 HEALTHCHECK --interval=300s --timeout=30s --start-period=60s --retries=3 \
-  CMD python3 /app/scripts/maintenance-status.py || exit 1
+    CMD python3 /mnt/storage/scripts/maintenance-status.py || exit 1
 
 # Start with maintenance support
-CMD ["bash", "/app/scripts/start-with-maintenance.sh"]
+CMD ["bash", "/mnt/storage/scripts/start-with-maintenance.sh"]
 ```
 
 ## 📊 Monitoring Examples
@@ -190,7 +190,7 @@ fi
 docker exec traffic-monitor df -h /mnt/storage
 
 # Check for warnings
-docker exec traffic-monitor python3 /app/scripts/maintenance-status.py | \
+docker exec traffic-monitor python3 /mnt/storage/scripts/maintenance-status.py | \
     jq -r '.health.warnings[]?' || echo "No warnings"
 ```
 
@@ -198,7 +198,7 @@ docker exec traffic-monitor python3 /app/scripts/maintenance-status.py | \
 
 ```bash
 # Monitor for critical maintenance issues
-HEALTH_STATUS=$(docker exec traffic-monitor python3 /app/scripts/maintenance-status.py | jq -r '.health_summary.overall_status')
+HEALTH_STATUS=$(docker exec traffic-monitor python3 /mnt/storage/scripts/maintenance-status.py | jq -r '.health_summary.overall_status')
 
 case $HEALTH_STATUS in
     "critical")
@@ -231,7 +231,7 @@ docker logs traffic-maintenance
 docker-compose restart data-maintenance
 
 # Check if scripts are executable
-docker exec traffic-monitor ls -la /app/scripts/
+docker exec traffic-monitor ls -la /mnt/storage/scripts/
 ```
 
 #### Cron Jobs Not Running
@@ -249,7 +249,7 @@ docker exec traffic-monitor crontab -l
 #### High Disk Usage Despite Maintenance
 ```bash
 # Force emergency cleanup
-docker exec traffic-monitor python3 /app/scripts/container-maintenance.py --emergency-cleanup
+docker exec traffic-monitor python3 /mnt/storage/scripts/container-maintenance.py --emergency-cleanup
 
 # Check what's using space
 docker exec traffic-monitor du -sh /mnt/storage/*
@@ -264,7 +264,7 @@ docker exec traffic-monitor find /mnt/storage/camera_capture/live -name "*.jpg" 
 docker inspect traffic-monitor | jq '.[0].State.Health'
 
 # Test health check manually
-docker exec traffic-monitor python3 /app/scripts/maintenance-status.py
+docker exec traffic-monitor python3 /mnt/storage/scripts/maintenance-status.py
 
 # Check maintenance script errors
 docker exec traffic-monitor tail -50 /mnt/storage/logs/maintenance/container-maintenance.log

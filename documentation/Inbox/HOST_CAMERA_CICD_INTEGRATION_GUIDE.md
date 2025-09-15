@@ -270,7 +270,7 @@ ExecStart=/usr/bin/python3 /home/merk/traffic-monitor-deploy/host-camera-capture
 4. **Weather API not working:**
    ```bash
    # Check if containers can see images
-   docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/live/
+   docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
    
    # Test weather endpoint
    curl http://localhost:5000/api/weather

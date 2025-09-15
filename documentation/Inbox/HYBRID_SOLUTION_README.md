@@ -164,17 +164,17 @@ sudo chown merk:merk /mnt/storage -R
 ### Custom Processing
 ```bash
 # Process specific image
-docker exec traffic-monitoring-edge python3 /app/scripts/process_traffic.py /mnt/storage/image.jpg
+docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/process_traffic.py /mnt/storage/image.jpg
 
 # Process with custom output
-docker exec traffic-monitoring-edge python3 /app/scripts/process_traffic.py /mnt/storage/image.jpg --output /mnt/storage/custom/
+docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/process_traffic.py /mnt/storage/image.jpg --output /mnt/storage/custom/
 ```
 
 ### Batch Processing
 ```bash
 # Process all images in directory
 for img in /mnt/storage/periodic_snapshots/*.jpg; do
-    docker exec traffic-monitoring-edge python3 /app/scripts/process_traffic.py "$img"
+    docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/process_traffic.py "$img"
 done
 ```
 

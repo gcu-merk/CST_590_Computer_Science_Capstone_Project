@@ -7,28 +7,28 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy maintenance scripts (add after copying main application)
-COPY scripts/container-maintenance.py /app/scripts/
-COPY scripts/setup-container-cron.sh /app/scripts/
-COPY scripts/maintenance-dashboard.sh /app/scripts/
-COPY scripts/maintenance-status.py /app/scripts/
-COPY scripts/start-with-maintenance.sh /app/scripts/
+COPY scripts/container-maintenance.py /mnt/storage/scripts/
+COPY scripts/setup-container-cron.sh /mnt/storage/scripts/
+COPY scripts/maintenance-dashboard.sh /mnt/storage/scripts/
+COPY scripts/maintenance-status.py /mnt/storage/scripts/
+COPY scripts/start-with-maintenance.sh /mnt/storage/scripts/
 
 # Make scripts executable
-RUN chmod +x /app/scripts/*.sh /app/scripts/*.py
+RUN chmod +x /mnt/storage/scripts/*.sh /mnt/storage/scripts/*.py
 
 # Set up maintenance automation during build
-RUN bash /app/scripts/setup-container-cron.sh
+RUN bash /mnt/storage/scripts/setup-container-cron.sh
 
 # Create maintenance log directory
 RUN mkdir -p /mnt/storage/logs/maintenance
 
 # Add maintenance health check endpoint
 HEALTHCHECK --interval=300s --timeout=30s --start-period=60s --retries=3 \
-  CMD python3 /app/scripts/maintenance-status.py || exit 1
+  CMD python3 /mnt/storage/scripts/maintenance-status.py || exit 1
 
 # Default command with maintenance support
 # Option 1: Use startup script that enables maintenance
-CMD ["bash", "/app/scripts/start-with-maintenance.sh"]
+CMD ["bash", "/mnt/storage/scripts/start-with-maintenance.sh"]
 
 # Option 2: Or keep existing CMD and run maintenance as daemon in background
-# CMD ["sh", "-c", "python3 /app/scripts/container-maintenance.py --daemon & exec python3 /app/main.py"]
+# CMD ["sh", "-c", "python3 /mnt/storage/scripts/container-maintenance.py --daemon & exec python3 /app/main.py"]

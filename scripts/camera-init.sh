@@ -256,7 +256,7 @@ display_summary() {
     du -sh "$BASE_DIR"
     
     echo -e "\n🐳 Docker Integration:"
-    echo "  Volume mount: $BASE_DIR:/app/data/camera_capture"
+    echo "  Volume mount: $BASE_DIR:$BASE_DIR"
     
     echo -e "\n🚀 Next Steps:"
     echo "  1. Test camera: rpicam-hello -t 5s"
