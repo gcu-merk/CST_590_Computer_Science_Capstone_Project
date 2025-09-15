@@ -86,7 +86,10 @@ jobs:
       - name: Prepare deployment staging
         run: |
           echo "📦 Preparing deployment staging directory on SSD..."
+          # Ensure all required directories exist and have correct permissions
           mkdir -p /mnt/storage/deployment-staging
+          chmod 755 /mnt/storage/deployment-staging
+          chown merk:merk /mnt/storage/deployment-staging
           rsync -avz --delete \
             --exclude='.git*' \
             --exclude='documentation/' \
@@ -101,9 +104,6 @@ jobs:
           set -e
           
           # Ensure all required directories exist and have correct permissions
-          mkdir -p /mnt/storage/deployment-staging
-          chmod 755 /mnt/storage/deployment-staging
-          chown merk:merk /mnt/storage/deployment-staging
           mkdir -p /mnt/storage/camera_capture/live
           chmod 775 /mnt/storage/camera_capture/live
           chown merk:merk /mnt/storage/camera_capture/live
