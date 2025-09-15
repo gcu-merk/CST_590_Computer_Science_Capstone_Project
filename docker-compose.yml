@@ -14,7 +14,7 @@ services:
     
     # Persistent Redis data on SSD
     volumes:
-      - /mnt/storage/redis_data:/mnt/storage/redis_data
+      - /mnt/storage/redis_data:/data
     
     # Health check
     healthcheck:
@@ -49,7 +49,6 @@ services:
         mkdir -p /mnt/storage/camera_capture/live &&
         mkdir -p /mnt/storage/camera_capture/metadata &&
         mkdir -p /mnt/storage/camera_capture/processed &&
-        mkdir -p /mnt/storage/periodic_snapshots &&
         mkdir -p /mnt/storage/ai_camera_images &&
         mkdir -p /mnt/storage/processed_data &&
         mkdir -p /mnt/storage/backups &&
@@ -58,9 +57,10 @@ services:
         mkdir -p /mnt/storage/logs/maintenance &&
         mkdir -p /mnt/storage/logs/system &&
         mkdir -p /mnt/storage/redis_data &&
-  mkdir -p /mnt/storage/data &&
-  mkdir -p /mnt/storage/config &&
-  mkdir -p /mnt/storage/scripts &&
+        mkdir -p /mnt/storage/data &&
+        mkdir -p /mnt/storage/config &&
+        mkdir -p /mnt/storage/scripts &&
+        mkdir -p /mnt/storage/periodic_snapshots &&
         chmod -R 777 /mnt/storage/camera_capture &&
         chmod -R 777 /mnt/storage/periodic_snapshots &&
         chmod -R 777 /mnt/storage/ai_camera_images &&
@@ -68,9 +68,9 @@ services:
         chmod -R 777 /mnt/storage/backups &&
         chmod -R 777 /mnt/storage/logs &&
         chmod -R 755 /mnt/storage/redis_data &&
-  chmod -R 755 /mnt/storage/data &&
-  chmod -R 755 /mnt/storage/config &&
-  chmod -R 755 /mnt/storage/scripts &&
+        chmod -R 755 /mnt/storage/data &&
+        chmod -R 755 /mnt/storage/config &&
+        chmod -R 755 /mnt/storage/scripts &&
         echo 'Directory structure initialized successfully!' &&
         echo 'Created directories:' &&
         ls -la /mnt/storage/ &&
@@ -143,17 +143,17 @@ services:
       - USE_REDIS_PUBSUB=true
       
       # SSD-based storage paths
-  - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
+      - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
       - USE_SHARED_VOLUME_IMAGES=true
       - HOST_CAPTURE_ARCHITECTURE=true
-  - LOG_DIRECTORY=/mnt/storage/logs/docker  # Logs stored on SSD
+      - LOG_DIRECTORY=/mnt/storage/logs/docker  # Logs stored on SSD
       
       # Legacy paths for compatibility (all on SSD)
       - PERIODIC_SNAPSHOT_PATH=/mnt/storage/periodic_snapshots
       - SNAPSHOT_INTERVAL_MINUTES=5
       - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images
-  - PROCESSED_DATA_PATH=/mnt/storage/data/processed
-  - BACKUP_PATH=/mnt/storage/data/backups
+      - PROCESSED_DATA_PATH=/mnt/storage/data/processed
+      - BACKUP_PATH=/mnt/storage/data/backups
       
       # Data maintenance configuration
       - DATA_VOLUME=/mnt/storage
@@ -213,7 +213,7 @@ services:
     
     # Maintenance service health check
     healthcheck:
-  test: ["CMD", "python3", "/mnt/storage/scripts/container-maintenance.py", "--status"]
+      test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
       interval: 300s  # Every 5 minutes
       timeout: 30s
       retries: 3
