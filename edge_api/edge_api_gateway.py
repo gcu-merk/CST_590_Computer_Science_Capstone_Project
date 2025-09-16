@@ -4,7 +4,7 @@ Edge API Gateway
 Flask-SocketIO server providing real-time API endpoints for the traffic monitoring system
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import time
@@ -13,6 +13,9 @@ import threading
 import json
 import os
 import subprocess
+import socket
+import platform
+import sys
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -52,6 +55,19 @@ class EdgeAPIGateway:
         # Runtime state
         self.is_running = False
         self.client_count = 0
+        
+        # Initialize Redis client with error handling
+        self.redis_client = None
+        try:
+            import redis
+            self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            # Test connection
+            self.redis_client.ping()
+            logger.info("Redis connection established")
+        except ImportError:
+            logger.warning("Redis not available - weather:latest endpoint will not work")
+        except Exception as e:
+            logger.warning(f"Redis connection failed: {e} - weather:latest endpoint will not work")
         
         # Setup routes
         self._setup_routes()
@@ -123,7 +139,8 @@ class EdgeAPIGateway:
                         'speed_analysis': self.speed_analysis_service is not None,
                         'data_fusion': self.data_fusion_engine is not None,
                         'system_health': self.system_health_monitor is not None,
-                        'weather_analysis': self.sky_analyzer is not None
+                        'weather_analysis': self.sky_analyzer is not None,
+                        'redis': self.redis_client is not None
                     },
                     'client_count': self.client_count
                 }
@@ -174,9 +191,9 @@ class EdgeAPIGateway:
                         
                         health_data.update({
                             'system_info': {
-                                'hostname': __import__('socket').gethostname(),
-                                'python_version': __import__('sys').version.split()[0],
-                                'platform': __import__('platform').platform(),
+                                'hostname': socket.gethostname(),
+                                'python_version': sys.version.split()[0],
+                                'platform': platform.platform(),
                                 'uptime': basic_metrics.get('uptime_seconds', 0) if isinstance(basic_metrics, dict) else 0
                             },
                             'docker_info': self._get_docker_info(),
@@ -200,6 +217,28 @@ class EdgeAPIGateway:
                 'timestamp': datetime.now().isoformat(),
                 'status': 'running'
             })
+
+        @self.app.route('/api/weather/latest', methods=['GET'])
+        def get_weather_latest():
+            """Get latest weather data from Redis key 'weather:latest'"""
+            try:
+                if not self.redis_client:
+                    return jsonify({'error': 'Redis not available', 'key': 'weather:latest'}), 503
+                
+                value = self.redis_client.get('weather:latest')
+                if value is None:
+                    return jsonify({'error': 'No latest weather data found', 'key': 'weather:latest'}), 404
+                
+                # Try to parse as JSON, fallback to string
+                try:
+                    data = json.loads(value)
+                except json.JSONDecodeError:
+                    data = {'value': value}
+                
+                return jsonify({'weather_latest': data, 'key': 'weather:latest'})
+            except Exception as e:
+                logger.error(f"Error reading weather:latest from Redis: {e}")
+                return jsonify({'error': str(e), 'key': 'weather:latest'}), 500
         
         @self.app.route('/hello', methods=['GET'])
         def hello():
@@ -214,18 +253,21 @@ class EdgeAPIGateway:
                 detections = []
                 
                 if self.vehicle_detection_service:
-                    camera_detections = self.vehicle_detection_service.get_recent_detections(seconds)
-                    detections.extend([
-                        {
-                            'id': d.detection_id,
-                            'timestamp': d.timestamp,
-                            'bbox': d.bbox,
-                            'confidence': d.confidence,
-                            'vehicle_type': d.vehicle_type,
-                            'source': 'camera'
-                        }
-                        for d in camera_detections
-                    ])
+                    try:
+                        camera_detections = self.vehicle_detection_service.get_recent_detections(seconds)
+                        detections.extend([
+                            {
+                                'id': d.detection_id,
+                                'timestamp': d.timestamp,
+                                'bbox': d.bbox,
+                                'confidence': d.confidence,
+                                'vehicle_type': d.vehicle_type,
+                                'source': 'camera'
+                            }
+                            for d in camera_detections
+                        ])
+                    except AttributeError as e:
+                        logger.warning(f"Detection service method missing: {e}")
                 
                 return jsonify({
                     'detections': detections,
@@ -244,19 +286,22 @@ class EdgeAPIGateway:
                 speeds = []
                 
                 if self.speed_analysis_service:
-                    speed_detections = self.speed_analysis_service.get_recent_detections(seconds)
-                    speeds.extend([
-                        {
-                            'id': s.detection_id,
-                            'start_time': s.start_time,
-                            'end_time': s.end_time,
-                            'avg_speed_mps': s.avg_speed_mps,
-                            'max_speed_mps': s.max_speed_mps,
-                            'direction': s.direction,
-                            'confidence': s.confidence
-                        }
-                        for s in speed_detections
-                    ])
+                    try:
+                        speed_detections = self.speed_analysis_service.get_recent_detections(seconds)
+                        speeds.extend([
+                            {
+                                'id': s.detection_id,
+                                'start_time': s.start_time,
+                                'end_time': s.end_time,
+                                'avg_speed_mps': s.avg_speed_mps,
+                                'max_speed_mps': s.max_speed_mps,
+                                'direction': s.direction,
+                                'confidence': s.confidence
+                            }
+                            for s in speed_detections
+                        ])
+                    except AttributeError as e:
+                        logger.warning(f"Speed service method missing: {e}")
                 
                 return jsonify({
                     'speeds': speeds,
@@ -274,21 +319,24 @@ class EdgeAPIGateway:
                 tracks = []
                 
                 if self.data_fusion_engine:
-                    active_tracks = self.data_fusion_engine.get_active_tracks()
-                    tracks = [
-                        {
-                            'id': t.track_id,
-                            'start_time': t.start_time,
-                            'last_update': t.last_update,
-                            'current_bbox': t.current_bbox,
-                            'current_speed': t.current_speed,
-                            'position_estimate': t.position_estimate,
-                            'velocity_estimate': t.velocity_estimate,
-                            'vehicle_type': t.vehicle_type,
-                            'confidence': t.confidence
-                        }
-                        for t in active_tracks
-                    ]
+                    try:
+                        active_tracks = self.data_fusion_engine.get_active_tracks()
+                        tracks = [
+                            {
+                                'id': t.track_id,
+                                'start_time': t.start_time,
+                                'last_update': t.last_update,
+                                'current_bbox': t.current_bbox,
+                                'current_speed': t.current_speed,
+                                'position_estimate': t.position_estimate,
+                                'velocity_estimate': t.velocity_estimate,
+                                'vehicle_type': t.vehicle_type,
+                                'confidence': t.confidence
+                            }
+                            for t in active_tracks
+                        ]
+                    except AttributeError as e:
+                        logger.warning(f"Data fusion service method missing: {e}")
                 
                 return jsonify({
                     'tracks': tracks,
@@ -315,8 +363,12 @@ class EdgeAPIGateway:
                 
                 # Calculate analytics from recent data
                 if self.data_fusion_engine:
-                    fusion_stats = self.data_fusion_engine.get_track_statistics()
-                    analytics.update(fusion_stats)
+                    try:
+                        fusion_stats = self.data_fusion_engine.get_track_statistics()
+                        if isinstance(fusion_stats, dict):
+                            analytics.update(fusion_stats)
+                    except AttributeError as e:
+                        logger.warning(f"Data fusion statistics method missing: {e}")
                 
                 return jsonify(analytics)
             except Exception as e:
@@ -327,9 +379,6 @@ class EdgeAPIGateway:
         def get_camera_snapshot(filename):
             """Serve camera snapshot images"""
             try:
-                import os
-                from flask import send_file
-                
                 # Check multiple possible locations for snapshots
                 possible_paths = [
                     "/mnt/storage/periodic_snapshots",  # Primary SSD location
@@ -372,46 +421,59 @@ class EdgeAPIGateway:
                 # Use host-capture architecture - analyze current sky from shared volume
                 # This gets images captured on the host and analyzes them in the container
                 max_age = request.args.get('max_age_seconds', 10.0, type=float)
-                sky_result = self.sky_analyzer.analyze_current_sky(max_age_seconds=max_age)
+                
+                try:
+                    sky_result = self.sky_analyzer.analyze_current_sky(max_age_seconds=max_age)
+                except AttributeError as e:
+                    logger.warning(f"Sky analyzer method missing: {e}")
+                    sky_result = {'error': 'Sky analyzer not properly initialized'}
                 
                 # Check if we got a valid analysis result
                 if 'error' in sky_result:
                     # Try to get basic system metrics without camera image
-                    weather_metrics = self.system_status.get_weather_metrics(camera_image=None)
+                    try:
+                        weather_metrics = self.system_status.get_weather_metrics(camera_image=None)
+                    except AttributeError as e:
+                        logger.warning(f"System status method missing: {e}")
+                        weather_metrics = {}
                     
                     return jsonify({
                         'weather_enabled': True,
                         'timestamp': datetime.now().isoformat(),
                         'sky_condition': sky_result,
                         'weather_metrics': weather_metrics,
-                        'visibility_estimate': self.sky_analyzer.get_visibility_estimate(
-                            sky_result.get('condition', 'unknown'),
-                            sky_result.get('confidence', 0)
-                        ),
+                        'visibility_estimate': 'unknown',
                         'camera_available': False,
                         'image_source': 'shared_volume_failed',
                         'max_age_seconds': max_age
                     })
                 
                 # Get enhanced system metrics (without passing camera image since we already analyzed it)
-                weather_metrics = self.system_status.get_weather_metrics(camera_image=None)
+                try:
+                    weather_metrics = self.system_status.get_weather_metrics(camera_image=None)
+                except AttributeError as e:
+                    logger.warning(f"System status method missing: {e}")
+                    weather_metrics = {}
                 
                 # Update weather metrics with our sky analysis
                 weather_metrics['sky_condition'] = sky_result
-                weather_metrics['visibility_estimate'] = self.sky_analyzer.get_visibility_estimate(
-                    sky_result.get('condition', 'unknown'),
-                    sky_result.get('confidence', 0)
-                )
+                
+                try:
+                    visibility_estimate = self.sky_analyzer.get_visibility_estimate(
+                        sky_result.get('condition', 'unknown'),
+                        sky_result.get('confidence', 0)
+                    )
+                except AttributeError:
+                    visibility_estimate = 'unknown'
+                
+                weather_metrics['visibility_estimate'] = visibility_estimate
                 
                 return jsonify({
                     'weather_enabled': True,
                     'timestamp': datetime.now().isoformat(),
                     'sky_condition': sky_result,
                     'weather_metrics': weather_metrics,
-                    'visibility_estimate': self.sky_analyzer.get_visibility_estimate(
-                        sky_result.get('condition', 'unknown'),
-                        sky_result.get('confidence', 0)
-                    ),
+                    'visibility_estimate': visibility_estimate,
                     'camera_available': True,
                     'image_source': sky_result.get('image_source', 'shared_volume'),
                     'image_age_seconds': sky_result.get('image_age_seconds'),
@@ -440,7 +502,11 @@ class EdgeAPIGateway:
                 hours = max(1, min(hours, 168))  # 1 hour to 7 days
                 limit = max(1, min(limit, 1000))  # 1 to 1000 records
                 
-                history = self.weather_storage.get_weather_history(hours=hours, limit=limit)
+                try:
+                    history = self.weather_storage.get_weather_history(hours=hours, limit=limit)
+                except AttributeError as e:
+                    logger.warning(f"Weather storage method missing: {e}")
+                    history = []
                 
                 return jsonify({
                     'weather_enabled': True,
@@ -493,7 +559,11 @@ class EdgeAPIGateway:
                 hours = request.args.get('hours', 24, type=int)
                 hours = max(1, min(hours, 168))  # 1 hour to 7 days
                 
-                correlation_data = self.weather_storage.get_weather_traffic_correlation(hours=hours)
+                try:
+                    correlation_data = self.weather_storage.get_weather_traffic_correlation(hours=hours)
+                except AttributeError as e:
+                    logger.warning(f"Weather storage correlation method missing: {e}")
+                    correlation_data = {}
                 
                 return jsonify({
                     'weather_enabled': True,
@@ -515,7 +585,11 @@ class EdgeAPIGateway:
                         'weather_enabled': bool(self.sky_analyzer)
                     }), 503
                 
-                stats = self.weather_storage.get_database_stats()
+                try:
+                    stats = self.weather_storage.get_database_stats()
+                except AttributeError as e:
+                    logger.warning(f"Weather storage stats method missing: {e}")
+                    stats = {}
                 
                 return jsonify({
                     'weather_enabled': True,
@@ -622,6 +696,12 @@ class EdgeAPIGateway:
                                     "url": f"{base_url}/api/weather"
                                 },
                                 {
+                                    "path": "/api/weather/latest",
+                                    "method": "GET",
+                                    "description": "Get latest weather data from Redis",
+                                    "url": f"{base_url}/api/weather/latest"
+                                },
+                                {
                                     "path": "/api/weather/history",
                                     "method": "GET",
                                     "description": "Get weather analysis history", 
@@ -698,7 +778,7 @@ class EdgeAPIGateway:
         @self.socketio.on('disconnect')
         def handle_disconnect():
             """Client disconnected"""
-            self.client_count -= 1
+            self.client_count = max(0, self.client_count - 1)  # Prevent negative count
             logger.info(f"Client disconnected. Total clients: {self.client_count}")
         
         @self.socketio.on('subscribe_detections')
@@ -718,34 +798,58 @@ class EdgeAPIGateway:
             """Subscribe to real-time weather updates"""
             emit('status', {'message': 'Subscribed to weather updates'})
             # Client will receive updates via broadcast_weather_update
+        
+        @self.socketio.on('subscribe_tracks')
+        def handle_subscribe_tracks():
+            """Subscribe to real-time track updates"""
+            emit('status', {'message': 'Subscribed to track updates'})
+            # Client will receive updates via broadcast_track_update
+        
+        @self.socketio.on('subscribe_analytics')
+        def handle_subscribe_analytics():
+            """Subscribe to real-time analytics updates"""
+            emit('status', {'message': 'Subscribed to analytics updates'})
+            # Client will receive updates via broadcast methods
     
     def broadcast_detection_update(self, detection_data):
         """Broadcast detection update to all connected clients"""
         try:
-            self.socketio.emit('detection_update', detection_data)
+            if self.client_count > 0:
+                self.socketio.emit('detection_update', detection_data)
         except Exception as e:
             logger.error(f"Error broadcasting detection update: {e}")
     
     def broadcast_speed_update(self, speed_data):
         """Broadcast speed update to all connected clients"""
         try:
-            self.socketio.emit('speed_update', speed_data)
+            if self.client_count > 0:
+                self.socketio.emit('speed_update', speed_data)
         except Exception as e:
             logger.error(f"Error broadcasting speed update: {e}")
     
     def broadcast_weather_update(self, weather_data):
         """Broadcast weather update to all connected clients"""
         try:
-            self.socketio.emit('weather_update', weather_data)
+            if self.client_count > 0:
+                self.socketio.emit('weather_update', weather_data)
         except Exception as e:
             logger.error(f"Error broadcasting weather update: {e}")
     
     def broadcast_track_update(self, track_data):
         """Broadcast track update to all connected clients"""
         try:
-            self.socketio.emit('track_update', track_data)
+            if self.client_count > 0:
+                self.socketio.emit('track_update', track_data)
         except Exception as e:
             logger.error(f"Error broadcasting track update: {e}")
+    
+    def broadcast_analytics_update(self, analytics_data):
+        """Broadcast analytics update to all connected clients"""
+        try:
+            if self.client_count > 0:
+                self.socketio.emit('analytics_update', analytics_data)
+        except Exception as e:
+            logger.error(f"Error broadcasting analytics update: {e}")
     
     def start_server(self):
         """Start the API server"""
@@ -754,8 +858,7 @@ class EdgeAPIGateway:
             logger.info(f"Starting Edge API Gateway on {self.host}:{self.port}")
             
             # Start background update broadcaster
-            update_thread = threading.Thread(target=self._update_broadcaster)
-            update_thread.daemon = True
+            update_thread = threading.Thread(target=self._update_broadcaster, daemon=True)
             update_thread.start()
             
             # Start the server
@@ -769,39 +872,68 @@ class EdgeAPIGateway:
         except Exception as e:
             logger.error(f"Failed to start API server: {e}")
             self.is_running = False
+            raise
     
     def _update_broadcaster(self):
         """Background thread to broadcast periodic updates"""
+        last_detection_count = 0
+        last_speed_count = 0
+        last_track_count = 0
+        
         while self.is_running:
             try:
                 if self.client_count > 0:
-                    # Broadcast recent detections
+                    # Broadcast recent detections (only new ones)
                     if self.vehicle_detection_service:
-                        recent_detections = self.vehicle_detection_service.get_recent_detections(1)
-                        for detection in recent_detections:
-                            self.broadcast_detection_update({
-                                'id': detection.detection_id,
-                                'timestamp': detection.timestamp,
-                                'bbox': detection.bbox,
-                                'confidence': detection.confidence,
-                                'vehicle_type': detection.vehicle_type
-                            })
+                        try:
+                            recent_detections = self.vehicle_detection_service.get_recent_detections(2)
+                            if len(recent_detections) > last_detection_count:
+                                for detection in recent_detections[last_detection_count:]:
+                                    self.broadcast_detection_update({
+                                        'id': detection.detection_id,
+                                        'timestamp': detection.timestamp,
+                                        'bbox': detection.bbox,
+                                        'confidence': detection.confidence,
+                                        'vehicle_type': detection.vehicle_type
+                                    })
+                                last_detection_count = len(recent_detections)
+                        except AttributeError:
+                            pass  # Service method not available
                     
-                    # Broadcast recent speeds
+                    # Broadcast recent speeds (only new ones)
                     if self.speed_analysis_service:
-                        recent_speeds = self.speed_analysis_service.get_recent_detections(1)
-                        for speed in recent_speeds:
-                            self.broadcast_speed_update({
-                                'id': speed.detection_id,
-                                'avg_speed_mps': speed.avg_speed_mps,
-                                'direction': speed.direction,
-                                'confidence': speed.confidence
-                            })
+                        try:
+                            recent_speeds = self.speed_analysis_service.get_recent_detections(2)
+                            if len(recent_speeds) > last_speed_count:
+                                for speed in recent_speeds[last_speed_count:]:
+                                    self.broadcast_speed_update({
+                                        'id': speed.detection_id,
+                                        'avg_speed_mps': speed.avg_speed_mps,
+                                        'direction': speed.direction,
+                                        'confidence': speed.confidence
+                                    })
+                                last_speed_count = len(recent_speeds)
+                        except AttributeError:
+                            pass  # Service method not available
+                    
+                    # Broadcast track updates (only when count changes)
+                    if self.data_fusion_engine:
+                        try:
+                            active_tracks = self.data_fusion_engine.get_active_tracks()
+                            if len(active_tracks) != last_track_count:
+                                self.broadcast_track_update({
+                                    'active_track_count': len(active_tracks),
+                                    'timestamp': datetime.now().isoformat()
+                                })
+                                last_track_count = len(active_tracks)
+                        except AttributeError:
+                            pass  # Service method not available
                 
-                time.sleep(1)  # Broadcast every second
+                time.sleep(2)  # Broadcast every 2 seconds to reduce load
                 
             except Exception as e:
                 logger.error(f"Update broadcaster error: {e}")
+                time.sleep(5)  # Wait longer on error
     
     def stop_server(self):
         """Stop the API server"""
@@ -826,7 +958,6 @@ class EdgeAPIGateway:
                 
                 # Try to get container ID from hostname (often used in Docker)
                 try:
-                    import socket
                     hostname = socket.gethostname()
                     # In Docker, hostname is often the container ID (first 12 chars)
                     if len(hostname) == 12 and all(c in '0123456789abcdef' for c in hostname):
@@ -847,7 +978,7 @@ class EdgeAPIGateway:
                                     if len(part) == 64 and all(c in '0123456789abcdef' for c in part):
                                         docker_info['container_id'] = part[:12]  # Short form
                                         break
-                except Exception:
+                except (FileNotFoundError, PermissionError):
                     pass
                 
                 # Method 2: Try to get image name from environment variables or common locations
@@ -878,8 +1009,10 @@ class EdgeAPIGateway:
                                     break
                         
                         # Get ticks per second
-                        import os
-                        ticks_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
+                        try:
+                            ticks_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
+                        except (KeyError, AttributeError):
+                            ticks_per_sec = 100  # Default fallback
                         
                         # Calculate start time
                         start_seconds = boot_time + (starttime_ticks / ticks_per_sec)
@@ -889,7 +1022,7 @@ class EdgeAPIGateway:
                         # Format created_at timestamp
                         docker_info['created_at'] = datetime.fromtimestamp(start_seconds).isoformat()
                         
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, ValueError, IndexError) as e:
                     logger.debug(f"Error calculating container uptime: {e}")
                 
                 # Method 4: Try docker command if available (less likely to work inside container)
@@ -942,8 +1075,6 @@ class EdgeAPIGateway:
     def _get_latest_camera_snapshot(self):
         """Get information about the latest periodic camera snapshot"""
         try:
-            import os
-            
             # Check multiple possible locations for snapshots
             possible_paths = [
                 "/mnt/storage/periodic_snapshots",  # Primary SSD location
@@ -990,11 +1121,7 @@ class EdgeAPIGateway:
                 file_size = os.path.getsize(snapshot_full_path)
                 
                 # Create URL based on the actual path
-                if snapshot_path == "/mnt/storage/periodic_snapshots":
-                    url_path = f'/api/camera/snapshot/{latest_snapshot}'
-                else:
-                    # For fallback locations, we'll need to serve from different endpoints
-                    url_path = f'/api/camera/snapshot/{latest_snapshot}'
+                url_path = f'/api/camera/snapshot/{latest_snapshot}'
                 
                 return {
                     'available': True,
@@ -1016,25 +1143,7 @@ class EdgeAPIGateway:
                 'available': False,
                 'message': f'Error: {str(e)}'
             }
-    
-    def _convert_performance_temps(self, performance_data):
-        """Convert temperature values in performance data to Fahrenheit"""
-        if not performance_data or not isinstance(performance_data, (list, tuple)):
-            return performance_data
-            
-        # Convert temperature fields to Fahrenheit
-        temp_fields = ['cpu_temp', 'gpu_temp', 'temperature']
-        
-        for entry in performance_data:
-            if isinstance(entry, dict):
-                for field in temp_fields:
-                    if field in entry and entry[field] is not None:
-                        celsius = entry[field]
-                        fahrenheit = round((celsius * 9/5) + 32, 1)
-                        entry[field] = fahrenheit
-                        entry[f'{field}_celsius'] = celsius  # Keep original Celsius value
-        
-        return performance_data
+
 
 if __name__ == "__main__":
     # Test the API gateway
@@ -1043,4 +1152,8 @@ if __name__ == "__main__":
     try:
         api_gateway.start_server()
     except KeyboardInterrupt:
+        print("\nShutting down gracefully...")
+        api_gateway.stop_server()
+    except Exception as e:
+        logger.error(f"Server startup failed: {e}")
         api_gateway.stop_server()
