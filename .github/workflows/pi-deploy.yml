@@ -138,6 +138,17 @@ jobs:
           sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/config
           sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/config
           
+          # DHT22 weather service directory
+          sudo mkdir -p /mnt/storage/dht22-weather
+          sudo chmod 755 /mnt/storage/dht22-weather
+          sudo chown merk:merk /mnt/storage/dht22-weather
+          sudo mkdir -p /mnt/storage/dht22-weather/logs
+          sudo chmod 755 /mnt/storage/dht22-weather/logs
+          sudo chown merk:merk /mnt/storage/dht22-weather/logs
+          sudo mkdir -p /mnt/storage/dht22-weather/config
+          sudo chmod 755 /mnt/storage/dht22-weather/config
+          sudo chown merk:merk /mnt/storage/dht22-weather/config
+          
           # Camera capture directories (from both sources)
           sudo mkdir -p /mnt/storage/camera_capture/live
           sudo chmod 775 /mnt/storage/camera_capture/live
