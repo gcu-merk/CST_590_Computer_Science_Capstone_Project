@@ -242,41 +242,41 @@ class EdgeAPIGateway:
                 logger.error(f"Error reading weather:latest from Redis: {e}")
                 return jsonify({'error': str(e), 'key': 'weather:latest'}), 500
 
-            @self.app.route('/api/weather/dht22', methods=['GET'])
-            def get_weather_dht22():
-                """Get latest DHT22 weather data from Redis key 'weather:dht22:latest'"""
+        @self.app.route('/api/weather/dht22', methods=['GET'])
+        def get_weather_dht22():
+            """Get latest DHT22 weather data from Redis key 'weather:dht22:latest'"""
+            try:
+                if not self.redis_client:
+                    return jsonify({'error': 'Redis not available', 'key': 'weather:dht22:latest'}), 503
+                value = self.redis_client.get('weather:dht22:latest')
+                if value is None:
+                    return jsonify({'error': 'No latest DHT22 weather data found', 'key': 'weather:dht22:latest'}), 404
                 try:
-                    if not self.redis_client:
-                        return jsonify({'error': 'Redis not available', 'key': 'weather:dht22:latest'}), 503
-                    value = self.redis_client.get('weather:dht22:latest')
-                    if value is None:
-                        return jsonify({'error': 'No latest DHT22 weather data found', 'key': 'weather:dht22:latest'}), 404
-                    try:
-                        data = json.loads(value)
-                    except json.JSONDecodeError:
-                        data = {'value': value}
-                    return jsonify({'weather_dht22': data, 'key': 'weather:dht22:latest'})
-                except Exception as e:
-                    logger.error(f"Error reading weather:dht22:latest from Redis: {e}")
-                    return jsonify({'error': str(e), 'key': 'weather:dht22:latest'}), 500
+                    data = json.loads(value)
+                except json.JSONDecodeError:
+                    data = {'value': value}
+                return jsonify({'weather_dht22': data, 'key': 'weather:dht22:latest'})
+            except Exception as e:
+                logger.error(f"Error reading weather:dht22:latest from Redis: {e}")
+                return jsonify({'error': str(e), 'key': 'weather:dht22:latest'}), 500
 
-            @self.app.route('/api/weather/airport', methods=['GET'])
-            def get_weather_airport():
-                """Get latest airport weather data from Redis key 'weather:airport:latest'"""
+        @self.app.route('/api/weather/airport', methods=['GET'])
+        def get_weather_airport():
+            """Get latest airport weather data from Redis key 'weather:airport:latest'"""
+            try:
+                if not self.redis_client:
+                    return jsonify({'error': 'Redis not available', 'key': 'weather:airport:latest'}), 503
+                value = self.redis_client.get('weather:airport:latest')
+                if value is None:
+                    return jsonify({'error': 'No latest airport weather data found', 'key': 'weather:airport:latest'}), 404
                 try:
-                    if not self.redis_client:
-                        return jsonify({'error': 'Redis not available', 'key': 'weather:airport:latest'}), 503
-                    value = self.redis_client.get('weather:airport:latest')
-                    if value is None:
-                        return jsonify({'error': 'No latest airport weather data found', 'key': 'weather:airport:latest'}), 404
-                    try:
-                        data = json.loads(value)
-                    except json.JSONDecodeError:
-                        data = {'value': value}
-                    return jsonify({'weather_airport': data, 'key': 'weather:airport:latest'})
-                except Exception as e:
-                    logger.error(f"Error reading weather:airport:latest from Redis: {e}")
-                    return jsonify({'error': str(e), 'key': 'weather:airport:latest'}), 500
+                    data = json.loads(value)
+                except json.JSONDecodeError:
+                    data = {'value': value}
+                return jsonify({'weather_airport': data, 'key': 'weather:airport:latest'})
+            except Exception as e:
+                logger.error(f"Error reading weather:airport:latest from Redis: {e}")
+                return jsonify({'error': str(e), 'key': 'weather:airport:latest'}), 500
         
         @self.app.route('/hello', methods=['GET'])
         def hello():
@@ -738,6 +738,18 @@ class EdgeAPIGateway:
                                     "method": "GET",
                                     "description": "Get latest weather data from Redis",
                                     "url": f"{base_url}/api/weather/latest"
+                                },
+                                {
+                                    "path": "/api/weather/dht22",
+                                    "method": "GET",
+                                    "description": "Get latest DHT22 weather data from Redis",
+                                    "url": f"{base_url}/api/weather/dht22"
+                                },
+                                {
+                                    "path": "/api/weather/airport",
+                                    "method": "GET",
+                                    "description": "Get latest airport weather data from Redis",
+                                    "url": f"{base_url}/api/weather/airport"
                                 },
                                 {
                                     "path": "/api/weather/history",
