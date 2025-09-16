@@ -177,6 +177,28 @@ services:
         max-size: "5m"
         max-file: "2"
 
+  # Airport Weather Service
+  airport-weather:
+    image: gcumerk/cst590-capstone-public:latest
+    container_name: airport-weather
+    restart: unless-stopped
+    depends_on:
+      - redis
+    working_dir: /app
+    command: ["python3", "edge_processing/airport_weather_service.py"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - FETCH_INTERVAL_MINUTES=5
+    volumes:
+      - ./edge_processing:/app/edge_processing
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
 # Optional: Add database service for more complex setups
   # database:
   #   image: postgres:15-alpine
