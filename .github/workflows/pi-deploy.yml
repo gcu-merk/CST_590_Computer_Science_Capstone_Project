@@ -95,6 +95,48 @@ jobs:
           sudo mkdir -p /mnt/storage/deployment-staging/config
           sudo chmod 755 /mnt/storage/deployment-staging/config
           sudo chown merk:merk /mnt/storage/deployment-staging/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/data_fusion
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/data_fusion
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/data_fusion
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/data_fusion/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/data_fusion/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/data_fusion/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/messaging
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/messaging
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/messaging
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/messaging/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/messaging/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/messaging/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/speed_analysis
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/speed_analysis
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/speed_analysis
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/speed_analysis/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/speed_analysis/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/speed_analysis/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/system_health
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/system_health
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/system_health
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/system_health/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/system_health/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/system_health/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/vehicle_detection
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/vehicle_detection
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/vehicle_detection
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/vehicle_detection/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/vehicle_detection/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/vehicle_detection/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/weather_analysis
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/weather_analysis
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/weather_analysis
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/weather_analysis/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/weather_analysis/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/weather_analysis/config
+          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/config
+          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/config
+          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/config
           
           # Camera capture directories (from both sources)
           sudo mkdir -p /mnt/storage/camera_capture/live
