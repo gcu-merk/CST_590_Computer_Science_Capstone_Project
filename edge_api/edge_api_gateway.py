@@ -60,10 +60,12 @@ class EdgeAPIGateway:
         self.redis_client = None
         try:
             import redis
-            self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            # Use Docker hostname for Redis if available
+            redis_host = os.environ.get('REDIS_HOST', 'traffic-redis')
+            self.redis_client = redis.Redis(host=redis_host, port=6379, db=0, decode_responses=True)
             # Test connection
             self.redis_client.ping()
-            logger.info("Redis connection established")
+            logger.info(f"Redis connection established to host: {redis_host}")
         except ImportError:
             logger.warning("Redis not available - weather:latest endpoint will not work")
         except Exception as e:
