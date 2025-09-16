@@ -228,7 +228,6 @@ The weather integration uses SQLite with three main tables:
 
 - **Default**: 10,000 weather records
 - **Automatic cleanup**: Removes oldest records when limit exceeded
-- **Configurable**: Adjust `max_records` in WeatherDataStorage initialization
 
 ## Configuration
 
@@ -311,8 +310,6 @@ print('Sky analyzer initialized successfully')
 
 # Test weather storage
 python -c "
-from edge_processing.weather_analysis.weather_data_storage import WeatherDataStorage
-storage = WeatherDataStorage()
 print('Weather storage initialized successfully')
 print(storage.get_database_stats())
 "

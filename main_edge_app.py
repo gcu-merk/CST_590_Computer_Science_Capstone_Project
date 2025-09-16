@@ -25,7 +25,6 @@ from edge_api.edge_api_gateway import EdgeAPIGateway
 # Weather analysis imports
 try:
     from edge_processing.weather_analysis.sky_analyzer import SkyAnalyzer
-    from edge_processing.weather_analysis.weather_data_storage import WeatherDataStorage
     from edge_api.pi_system_status import PiSystemStatus
     WEATHER_ANALYSIS_AVAILABLE = True
 except ImportError as e:
@@ -57,12 +56,10 @@ class EdgeOrchestrator:
         if self.weather_analysis_enabled:
             self.sky_analyzer = SkyAnalyzer()
             self.system_status = PiSystemStatus()
-            self.weather_storage = WeatherDataStorage()
-            logger.info("Weather analysis enabled with data storage")
+            logger.info("Weather analysis enabled (no persistence)")
         else:
             self.sky_analyzer = None
             self.system_status = None
-            self.weather_storage = None
             logger.info("Weather analysis disabled")
         
         # Initialize services
@@ -119,8 +116,7 @@ class EdgeOrchestrator:
                 data_fusion=self.services.get('data_fusion'),
                 system_health=self.services['health_monitor'],
                 sky_analyzer=self.sky_analyzer,
-                system_status=self.system_status,
-                weather_storage=self.weather_storage
+                system_status=self.system_status
             )
             
             logger.info("All services initialized successfully")
@@ -259,10 +255,6 @@ class EdgeOrchestrator:
                     )
                 }
                 
-                # Store weather data in database
-                if self.weather_storage:
-                    weather_id = self.weather_storage.store_weather_analysis(self._latest_weather_data)
-                    self._latest_weather_data['stored_id'] = weather_id
                 
                 # Adjust detection sensitivity based on weather
                 self._adjust_detection_sensitivity(sky_result)
