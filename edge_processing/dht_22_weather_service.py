@@ -3,6 +3,7 @@ import adafruit_dht
 import board
 import redis
 import os
+import json
 
 # Configuration
 GPIO_PIN = int(os.getenv("DHT22_GPIO_PIN", 4))  # Default to GPIO4
@@ -30,8 +31,9 @@ while True:
                 "temperature_f": round(temperature_f, 1),
                 "humidity": round(humidity, 1)
             }
-            r.hmset(REDIS_KEY, data)
-            print(f"Updated Redis: {data}")
+            # Write latest DHT22 data as JSON string to weather:dht22:latest
+            r.set("weather:dht22:latest", json.dumps(data))
+            print(f"Updated Redis weather:dht22:latest: {data}")
         else:
             print("Sensor read failed: None values")
     except Exception as e:

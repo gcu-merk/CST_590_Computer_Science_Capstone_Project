@@ -49,7 +49,7 @@ def fetch_weather_api():
 
 def store_in_redis(payload):
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
-    r.set(REDIS_KEY, json.dumps(payload))
+    r.set("weather:airport:latest", json.dumps(payload))
 
 
 def main():
