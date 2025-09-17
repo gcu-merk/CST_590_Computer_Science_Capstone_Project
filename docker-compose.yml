@@ -176,8 +176,31 @@ services:
       options:
         max-size: "5m"
         max-file: "2"
+# DHT22 Weather Sensor Service
+  dht22-weather:
+    image: gcumerk/cst590-capstone-public:latest
+    container_name: dht22-weather
+    restart: unless-stopped
+    depends_on:
+      - redis
+    working_dir: /app
+    command: ["python3", "edge_processing/dht_22_weather_service.py"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - DHT22_GPIO_PIN=4
+      - DHT22_UPDATE_INTERVAL=300
+      - DHT22_REDIS_KEY=weather:dht22:latest
+    volumes:
+      - ./edge_processing:/app/edge_processing
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
-  # Airport Weather Service
+# Airport Weather Service
   airport-weather:
     image: gcumerk/cst590-capstone-public:latest
     container_name: airport-weather
