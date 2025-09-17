@@ -165,6 +165,67 @@ run_rsync_with_retry() {
     done
 }
 
+# Ensure only one Redis instance will be present on the host. If another process/container
+# is bound to host port 6379 attempt to stop it. This is intentionally conservative:
+# - Prefer stopping containers that advertise port 6379 in their ports mapping
+# - If a systemd 'redis' service is active, stop it (and leave it disabled if requested)
+# - If the port is still occupied after attempts, fail with diagnostics so operator can inspect
+ensure_single_redis_instance() {
+    log "🔎 Checking for existing Redis instances bound to host port 6379..."
+
+    # Helper to check whether port 6379 is in use on the host
+    port_in_use() {
+        # Prefer ss, fallback to netstat
+        if command -v ss >/dev/null 2>&1; then
+            ss -tulpn 2>/dev/null | grep -w ':6379' >/dev/null 2>&1
+        else
+            sudo netstat -tulpn 2>/dev/null | grep -w ':6379' >/dev/null 2>&1
+        fi
+    }
+
+    # Attempt to stop any containers that expose/mapped host port 6379
+    conflicting_containers=$(docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' | grep '0.0.0.0:6379\|:6379->' || true)
+    if [ -n "$conflicting_containers" ]; then
+        log "⚠️ Found containers exposing host port 6379. Attempting to stop/remove them:"
+        echo "$conflicting_containers" | while read -r line; do
+            cid=$(echo "$line" | awk '{print $1}')
+            name=$(echo "$line" | awk '{print $2}')
+            log "🛑 Stopping container $name ($cid) that exposes 6379"
+            docker stop "$cid" || warning "Failed to stop container $cid"
+            docker rm "$cid" || warning "Failed to remove container $cid"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') STOPPED_CONFLICTING_CONTAINER cid=$cid name=$name" | sudo tee -a "$CONTAINER_AUDIT_LOG" >/dev/null || true
+        done
+    fi
+
+    # If a system Redis service is active, stop it (but do not remove packages)
+    if systemctl is-active --quiet redis 2>/dev/null; then
+        log "🛑 Stopping system redis service to free port 6379"
+        sudo systemctl stop redis || warning "Failed to stop system redis service"
+        # Avoid disabling automatically; operator may want control. Log it for auditing.
+        echo "$(date '+%Y-%m-%d %H:%M:%S') STOPPED_SYSTEM_REDIS" | sudo tee -a "$CONTAINER_AUDIT_LOG" >/dev/null || true
+    fi
+
+    # Give the kernel a moment to release sockets
+    sleep 1
+
+    if port_in_use; then
+        error "Port 6379 is still in use after attempting to stop conflicting containers/services."
+        # Print diagnostics to help operator debug
+        log "📋 Diagnostics: processes/listening sockets on 6379"
+        if command -v ss >/dev/null 2>&1; then
+            ss -tulpn | grep ':6379' || true
+        else
+            sudo netstat -tulpn | grep ':6379' || true
+        fi
+        log "📋 Docker containers (all):"
+        docker ps --format 'table {{.ID}}	{{.Names}}	{{.Image}}	{{.Ports}}' || true
+        return 1
+    fi
+
+    log "✅ Host port 6379 is free for the deployment's Redis container"
+    return 0
+}
+
 # Comprehensive pre-deployment checks for CI/CD
 pre_deployment_checks() {
     log "🔍 Running pre-deployment validation..."
@@ -239,6 +300,9 @@ pre_deployment_checks() {
     
         # Ensure staging directory exists and is writable by the deploy user
         ensure_staging_ownership "$STAGING_DIR" || warning "ensure_staging_ownership failed for $STAGING_DIR"
+
+        # Ensure only one Redis instance will exist on the host: stop conflicting containers or system Redis
+        ensure_single_redis_instance || warning "ensure_single_redis_instance reported issues"
 
     success "✅ All pre-deployment checks passed"
 }
