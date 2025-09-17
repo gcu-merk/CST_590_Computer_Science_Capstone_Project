@@ -154,8 +154,14 @@ run_rsync_with_retry() {
     fi
 
     while [ $attempt -le $max_attempts ]; do
-        log "🔁 rsync attempt $attempt/$max_attempts: $src -> $dest"
-        rsync -avz --delete "$src" "$dest"
+                log "🔁 rsync attempt $attempt/$max_attempts: $src -> $dest"
+                rsync -avz --delete \
+                    --exclude='.git*' \
+                    --exclude='documentation/' \
+                    --exclude='*.md' \
+                    --exclude='test_*' \
+                    --exclude='__pycache__/' \
+                    "$src" "$dest"
         rc=$?
         if [ $rc -eq 0 ]; then
             log "✅ rsync completed successfully"
