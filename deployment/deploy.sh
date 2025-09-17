@@ -249,6 +249,12 @@ pre_deployment_checks() {
     if ! grep -q "BCM" /proc/cpuinfo; then
         warning "Not running on Raspberry Pi - some features may not work"
     fi
+
+    # Check for /dev/gpiomem device (required for GPIO access)
+    if [ ! -e "/dev/gpiomem" ]; then
+        error "/dev/gpiomem not found. Make sure you're deploying to a Raspberry Pi with GPIO enabled."
+        exit $EXIT_PRECHECK_FAILED
+    fi
     
     # Check camera availability (critical for host service)
     if ! rpicam-still --list-cameras >/dev/null 2>&1; then
