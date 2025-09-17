@@ -7,9 +7,10 @@ services:
     # Redis configuration for Raspberry Pi optimization
     command: redis-server --appendonly yes --appendfsync everysec --maxmemory 128mb --maxmemory-policy allkeys-lru
     
-    # Expose Redis port for container communication
+    # Expose Redis port bound to localhost only so host services can connect
+    # while avoiding external network exposure. This maps host 127.0.0.1:6379 -> container 6379.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     
     # Persistent Redis data on SSD
     volumes:

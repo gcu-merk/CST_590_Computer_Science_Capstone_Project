@@ -97,28 +97,12 @@ verify_environment() {
     print_success "Docker daemon is running"
 }
 
-# Helper to build the compose files list (include Pi override if GPIO device is present)
-compose_files() {
-    files=("docker-compose.yml")
-    if [ -e "/dev/gpiomem" ] || [ -e "/dev/gpiomem0" ]; then
-        if [ -f "docker-compose.pi.yml" ]; then
-            files+=("docker-compose.pi.yml")
-        fi
-    fi
-    # print one filename per word (shell-friendly)
-    printf "%s " "${files[@]}"
-}
-
-# Run docker-compose with the set of files returned by compose_files()
+# Run docker-compose (simple wrapper — we target Raspberry Pi hosts only)
 run_compose() {
-    args=( )
-    for f in $(compose_files); do
-        args+=( -f "$f" )
-    done
     if [ "$COMPOSE_CMD" = "docker compose" ]; then
-        docker compose "${args[@]}" "$@"
+        docker compose "$@"
     else
-        docker-compose "${args[@]}" "$@"
+        docker-compose "$@"
     fi
 }
 

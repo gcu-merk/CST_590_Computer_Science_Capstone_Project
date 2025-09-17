@@ -83,21 +83,13 @@ EXIT_VALIDATION_FAILED=40
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-traffic_monitoring}
 export COMPOSE_PROJECT_NAME
 
-# Helper to build docker-compose file args (include Pi-specific override if present)
-compose_files_args() {
-    args=( -f "$COMPOSE_FILE" )
-    if [ -e "/dev/gpiomem" ] || [ -e "/dev/gpiomem0" ]; then
-        if [ -f "$PROJECT_ROOT/docker-compose.pi.yml" ]; then
-            args+=( -f "$PROJECT_ROOT/docker-compose.pi.yml" )
-        fi
-    fi
-    printf "%s" "${args[@]}"
-}
-
-# Wrapper to run docker compose with the constructed file args
+# Simple run_compose wrapper — assume deployment happens on Raspberry Pi hosts
 run_compose() {
-    # shellcheck disable=SC2086
-    eval "docker compose $(compose_files_args) $*" || true
+    if docker compose version >/dev/null 2>&1; then
+        docker compose -f "$COMPOSE_FILE" "$@"
+    else
+        docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" "$@"
+    fi
 }
 
 # Rollback function for CI/CD safety

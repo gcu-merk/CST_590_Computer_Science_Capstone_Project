@@ -33,6 +33,8 @@ Environment=CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
 Environment=LOG_LEVEL=INFO
 Environment=DEPLOYMENT_MODE=CICD
 Environment=SERVICE_VERSION=1.0
+Environment=REDIS_HOST=127.0.0.1
+Environment=REDIS_PORT=6379
 
 # Security hardening (while maintaining camera access)
 NoNewPrivileges=true
