@@ -257,6 +257,40 @@ deploy_containerized_services() {
         rollback_deployment "Container startup failed"
     }
     
+    # Ensure weather-related containers are started (dht22-weather, airport-weather)
+    log "🔁 Ensuring weather service containers are running..."
+    for svc in dht22-weather airport-weather; do
+        # Quick check whether service shows as running
+        is_running() {
+            docker-compose -f "$COMPOSE_FILE" ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
+        }
+
+        attempts=0
+        max_attempts=10
+        until is_running; do
+            attempts=$((attempts+1))
+            log "⏳ $svc not running yet (attempt: $attempts/$max_attempts). Trying to start..."
+            # Try to start the specific service to give it another chance
+            docker-compose -f "$COMPOSE_FILE" up -d "$svc" || warning "docker-compose up -d $svc returned non-zero"
+
+            # Wait a bit for the container to transition to running
+            sleep 4
+
+            if [ $attempts -ge $max_attempts ]; then
+                warning "$svc did not reach running state after $max_attempts attempts"
+                log "📄 Last 200 lines of logs for $svc:" 
+                docker-compose -f "$COMPOSE_FILE" logs --no-color --tail=200 "$svc" || true
+                break
+            fi
+        done
+
+        if is_running; then
+            log "✅ $svc is running"
+        else
+            warning "$svc failed to start after retries"
+        fi
+    done
+
     success "✅ Containerized services deployed"
 }
 
@@ -298,6 +332,36 @@ validate_deployment() {
         # Don't fail deployment for API - it might need more time
     else
         success "✅ API endpoint is responding"
+    fi
+
+    # Verify weather services are populating Redis keys
+    log "🔍 Validating weather data in Redis..."
+    # Retry loop for keys since services may take time to write initial data
+    check_redis_key() {
+        local key="$1"
+        local attempt=0
+        local max=10
+        while [ $attempt -lt $max ]; do
+            # Capture output rather than relying on grep exit codes (more robust)
+            output=$(docker-compose -f "$COMPOSE_FILE" exec -T redis redis-cli -n 0 GET "$key" 2>/dev/null || true)
+            if [ -n "$output" ]; then
+                log "✅ Redis key '$key' has data"
+                return 0
+            fi
+            attempt=$((attempt+1))
+            log "⏳ Waiting for Redis key '$key' (attempt: $attempt/$max)..."
+            sleep 3
+        done
+        warning "Redis key '$key' was not populated after $max attempts"
+        return 1
+    }
+
+    # Check DHT22 and airport weather keys
+    if ! check_redis_key "weather:dht22:latest"; then
+        warning "DHT22 weather data not available in Redis"
+    fi
+    if ! check_redis_key "weather:airport:latest"; then
+        warning "Airport weather data not available in Redis"
     fi
     
     # Test image capture pipeline

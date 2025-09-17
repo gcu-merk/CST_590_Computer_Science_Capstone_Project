@@ -41,6 +41,8 @@ RUN apt-get update && apt-get install -y \
     libcamera-tools \
     v4l-utils \
     fswebcam \
+    libgpiod2 \
+    i2c-tools \
     && rm -rf /var/lib/apt/lists/*
 
 

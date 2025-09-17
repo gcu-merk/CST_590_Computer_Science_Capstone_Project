@@ -194,6 +194,12 @@ services:
       - DHT22_REDIS_KEY=weather:dht22:latest
     volumes:
       - ./edge_processing:/app/edge_processing
+    devices:
+      - /dev/gpiomem0:/dev/gpiomem
+      - /dev/gpiomem:/dev/gpiomem
+    cap_add:
+      - SYS_RAWIO
+    user: root
     logging:
       driver: "json-file"
       options:
