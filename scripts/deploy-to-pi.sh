@@ -97,6 +97,31 @@ verify_environment() {
     print_success "Docker daemon is running"
 }
 
+# Helper to build the compose files list (include Pi override if GPIO device is present)
+compose_files() {
+    files=("docker-compose.yml")
+    if [ -e "/dev/gpiomem" ] || [ -e "/dev/gpiomem0" ]; then
+        if [ -f "docker-compose.pi.yml" ]; then
+            files+=("docker-compose.pi.yml")
+        fi
+    fi
+    # print one filename per word (shell-friendly)
+    printf "%s " "${files[@]}"
+}
+
+# Run docker-compose with the set of files returned by compose_files()
+run_compose() {
+    args=( )
+    for f in $(compose_files); do
+        args+=( -f "$f" )
+    done
+    if [ "$COMPOSE_CMD" = "docker compose" ]; then
+        docker compose "${args[@]}" "$@"
+    else
+        docker-compose "${args[@]}" "$@"
+    fi
+}
+
 # Setup deployment directory
 setup_deploy_dir() {
     print_step "Setting up deployment directory: $DEPLOY_DIR"
@@ -130,7 +155,7 @@ stop_containers() {
     # Stop containers gracefully
     if [ -f "docker-compose.yml" ]; then
         # First, ensure nothing left bound to host port 5000 (API port)
-        print_step "Ensuring host port 5000 is free before starting containers..."
+            run_compose down --remove-orphans || echo "No existing containers to stop"
         # Try to stop any containers that map host port 5000
         conflicting=$(docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' | grep -E '0.0.0.0:5000|:5000->' || true)
         if [ -n "$conflicting" ]; then
@@ -144,10 +169,10 @@ stop_containers() {
         fi
 
         # If a non-container process binds port 5000, try to identify and kill it after user confirmation
-        if command -v ss >/dev/null 2>&1; then
-            port_owner=$(ss -tulpn | grep -E ':5000\b' || true)
+        # Gracefully stop and remove all containers managed by docker-compose
+        run_compose down --remove-orphans || echo "No existing containers to stop"
         else
-            port_owner=$(sudo netstat -tulpn 2>/dev/null | grep -E ':5000\b' || true)
+        if run_compose up -d; then
         fi
         if [ -n "$port_owner" ]; then
             print_warning "A process appears to be listening on host port 5000:\n$port_owner"
@@ -166,7 +191,7 @@ stop_containers() {
 
         $COMPOSE_CMD down --remove-orphans || echo "No existing containers to stop"
         print_success "Containers stopped"
-    else
+        CONTAINER_NAME=$(run_compose ps -q traffic-monitor 2>/dev/null || echo "")
         print_warning "No docker-compose.yml found, skipping container stop"
     fi
     
@@ -198,7 +223,7 @@ deploy_containers() {
     # Start containers
     if $COMPOSE_CMD up -d; then
         print_success "Containers deployed"
-    else
+        run_compose ps
         print_error "Failed to deploy containers"
         exit 1
     fi

@@ -83,6 +83,23 @@ EXIT_VALIDATION_FAILED=40
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-traffic_monitoring}
 export COMPOSE_PROJECT_NAME
 
+# Helper to build docker-compose file args (include Pi-specific override if present)
+compose_files_args() {
+    args=( -f "$COMPOSE_FILE" )
+    if [ -e "/dev/gpiomem" ] || [ -e "/dev/gpiomem0" ]; then
+        if [ -f "$PROJECT_ROOT/docker-compose.pi.yml" ]; then
+            args+=( -f "$PROJECT_ROOT/docker-compose.pi.yml" )
+        fi
+    fi
+    printf "%s" "${args[@]}"
+}
+
+# Wrapper to run docker compose with the constructed file args
+run_compose() {
+    # shellcheck disable=SC2086
+    eval "docker compose $(compose_files_args) $*" || true
+}
+
 # Rollback function for CI/CD safety
 rollback_deployment() {
     local rollback_reason="$1"
@@ -379,11 +396,7 @@ deploy_containerized_services() {
     
     # Stop existing containers gracefully (scoped to project)
     log "🛑 Stopping existing containers (project: $COMPOSE_PROJECT_NAME)..."
-    if docker compose version >/dev/null 2>&1; then
-        docker compose -f "$COMPOSE_FILE" down --remove-orphans || true
-    else
-        docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down --remove-orphans || true
-    fi
+    run_compose down --remove-orphans || true
 
         # Ensure host port 5000 is free: stop containers or processes binding the port
         log "Ensuring host port 5000 is free for the API service..."
@@ -439,7 +452,7 @@ deploy_containerized_services() {
         expected_image_prefix="$2"  # optional image prefix to verify (e.g., 'gcumerk/cst590-')
 
         # Get candidate container IDs for the service from compose (v2) or docker-compose
-        cid_list=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps -q "$svc" 2>/dev/null)
+    cid_list=$(run_compose ps -q "$svc" 2>/dev/null)
         if [ -z "$cid_list" ]; then
             return 0
         fi
@@ -482,14 +495,14 @@ deploy_containerized_services() {
     
     # Pull latest images (important for CI/CD)
     log "📥 Pulling latest container images..."
-    docker-compose -f "$COMPOSE_FILE" pull || {
+    run_compose pull || {
         error "Failed to pull container images"
         exit $EXIT_CONTAINER_DEPLOYMENT_FAILED
     }
     
     # Start services
     log "🚀 Starting containerized services..."
-    docker-compose -f "$COMPOSE_FILE" up -d || {
+    run_compose up -d || {
         error "Failed to start containerized services"
         rollback_deployment "Container startup failed"
     }
@@ -501,9 +514,9 @@ deploy_containerized_services() {
         is_running() {
             # Check whether the service shows up as running in the compose project
             if docker compose version >/dev/null 2>&1; then
-                docker compose -f "$COMPOSE_FILE" ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
+                run_compose ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
             else
-                docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
+                run_compose ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
             fi
         }
 
@@ -513,7 +526,7 @@ deploy_containerized_services() {
             attempts=$((attempts+1))
             log "⏳ $svc not running yet (attempt: $attempts/$max_attempts). Trying to start..."
             # Try to start the specific service to give it another chance
-            docker-compose -f "$COMPOSE_FILE" up -d "$svc" || warning "docker-compose up -d $svc returned non-zero"
+            run_compose up -d "$svc" || warning "docker-compose up -d $svc returned non-zero"
 
             # Wait a bit for the container to transition to running
             sleep 4
@@ -521,7 +534,7 @@ deploy_containerized_services() {
             if [ $attempts -ge $max_attempts ]; then
                 warning "$svc did not reach running state after $max_attempts attempts"
                 log "📄 Last 200 lines of logs for $svc:" 
-                docker-compose -f "$COMPOSE_FILE" logs --no-color --tail=200 "$svc" || true
+                run_compose logs --no-color --tail=200 "$svc" || true
                 break
             fi
         done
@@ -558,9 +571,9 @@ validate_deployment() {
     
     # Check Docker services
     log "🔍 Validating containerized services..."
-    if ! docker-compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
+    if ! run_compose ps | grep -q "Up"; then
         error "Some containerized services are not running"
-        docker-compose -f "$COMPOSE_FILE" ps
+        run_compose ps
         validation_failed=true
     else
         success "✅ Containerized services are running"
@@ -585,7 +598,7 @@ validate_deployment() {
         local max=10
         while [ $attempt -lt $max ]; do
             # Capture output rather than relying on grep exit codes (more robust)
-            output=$(docker-compose -f "$COMPOSE_FILE" exec -T redis redis-cli -n 0 GET "$key" 2>/dev/null || true)
+            output=$(run_compose exec -T redis redis-cli -n 0 GET "$key" 2>/dev/null || true)
             if [ -n "$output" ]; then
                 log "✅ Redis key '$key' has data"
                 return 0
@@ -636,7 +649,7 @@ deployment_summary() {
     
     echo ""
     echo -e "${PURPLE}🐳 CONTAINERIZED SERVICES:${NC}"
-    docker-compose -f "$COMPOSE_FILE" ps
+    run_compose ps
     
     echo ""
     echo -e "${PURPLE}💾 STORAGE STATUS:${NC}"

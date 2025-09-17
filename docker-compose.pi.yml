@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  # Pi-specific device mappings (only include this file when /dev/gpiomem exists)
+  traffic-monitor:
+    devices:
+      - /dev/gpiomem:/dev/gpiomem
+
+  dht22-weather:
+    devices:
+      - /dev/gpiomem:/dev/gpiomem
