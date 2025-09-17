@@ -65,6 +65,14 @@ log "🏗️ Deploy mode: $DEPLOY_MODE"
 DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
 TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
+# Deployment / staging defaults
+DEPLOY_USER=${DEPLOY_USER:-merk}
+# The CI workflow previously used /mnt/storage/deployment-staging for rsync staging;
+# keep a default here so this script can assist with preparing that path when run
+# on the target host (non-fatal helper for CI resilience).
+STAGING_DIR=${STAGING_DIR:-/mnt/storage/deployment-staging}
+CONTAINER_AUDIT_LOG=${CONTAINER_AUDIT_LOG:-/var/log/traffic_deploy_containers.log}
+
 # Exit codes for different failure types
 EXIT_PRECHECK_FAILED=10
 EXIT_HOST_SERVICE_FAILED=20
@@ -96,6 +104,65 @@ rollback_deployment() {
     
     error "⚠️ Rollback completed. Manual intervention may be required."
     exit $EXIT_VALIDATION_FAILED
+}
+
+# Ensure a staging directory exists and is owned by the deploy user
+ensure_staging_ownership() {
+    local dir="$1"
+    if [ -z "$dir" ]; then
+        dir="$STAGING_DIR"
+    fi
+
+    if [ ! -d "$dir" ]; then
+        log "📁 Staging directory '$dir' not found — creating..."
+        sudo mkdir -p "$dir" || { warning "Failed to create $dir"; return 1; }
+        sudo chown "$DEPLOY_USER":"$DEPLOY_USER" "$dir" || warning "Failed to chown $dir to $DEPLOY_USER"
+        return 0
+    fi
+
+    # Check owner and attempt to fix if needed
+    owner=$(stat -c '%U' "$dir" 2>/dev/null || echo "")
+    if [ "$owner" != "$DEPLOY_USER" ]; then
+        log "🔒 Staging directory '$dir' owned by '$owner' - attempting chown to '$DEPLOY_USER'"
+        sudo chown -R "$DEPLOY_USER":"$DEPLOY_USER" "$dir" || warning "Failed to chown $dir"
+    else
+        log "🔎 Staging directory '$dir' already owned by '$DEPLOY_USER'"
+    fi
+}
+
+# Run rsync with a single retry for exit code 23 after attempting a chown of the dest.
+# This helper is optional; the CI workflow still performs rsync, but this function
+# allows the target to attempt self-healing if called from the host.
+run_rsync_with_retry() {
+    local src="$1"
+    local dest="$2"
+    local max_attempts=2
+    local attempt=1
+
+    if [ -z "$src" ] || [ -z "$dest" ]; then
+        error "run_rsync_with_retry requires source and destination"
+        return 2
+    fi
+
+    while [ $attempt -le $max_attempts ]; do
+        log "🔁 rsync attempt $attempt/$max_attempts: $src -> $dest"
+        rsync -avz --delete "$src" "$dest"
+        rc=$?
+        if [ $rc -eq 0 ]; then
+            log "✅ rsync completed successfully"
+            return 0
+        fi
+
+        if [ $rc -eq 23 ] && [ $attempt -eq 1 ]; then
+            warning "rsync returned code 23 (partial transfer). Attempting chown of '$dest' and retrying once..."
+            sudo chown -R "$DEPLOY_USER":"$DEPLOY_USER" "$dest" || warning "Automated chown failed"
+            attempt=$((attempt+1))
+            continue
+        fi
+
+        error "rsync failed with exit code $rc"
+        return $rc
+    done
 }
 
 # Comprehensive pre-deployment checks for CI/CD
@@ -170,6 +237,9 @@ pre_deployment_checks() {
             fi
         done
     
+        # Ensure staging directory exists and is writable by the deploy user
+        ensure_staging_ownership "$STAGING_DIR" || warning "ensure_staging_ownership failed for $STAGING_DIR"
+
     success "✅ All pre-deployment checks passed"
 }
 
@@ -288,6 +358,8 @@ deploy_containerized_services() {
 
             if [ "$safe_to_remove" = true ]; then
                 log "🧹 Removing verified leftover container for service '$svc' (cid: $cid, image: $image_name)"
+                # Audit the removal with timestamp, container id, image and calling project/service
+                echo "$(date '+%Y-%m-%d %H:%M:%S') REMOVED cid=$cid svc=$svc project=$COMPOSE_PROJECT_NAME image=$image_name" | sudo tee -a "$CONTAINER_AUDIT_LOG" >/dev/null || true
                 docker rm -f "$cid" >/dev/null 2>&1 || warning "Failed to remove container $cid"
             else
                 warning "Skipping removal of container $cid for service '$svc' — labels/image did not match expected project/service or image prefix"
