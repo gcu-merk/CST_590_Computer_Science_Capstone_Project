@@ -263,14 +263,41 @@ jobs:
           sudo chown merk:merk /mnt/storage/postgres_data
 
           # Copy deployment files to staging
+          # Diagnostic: show top-level ownership and attributes to help debug unlink errors
+          echo "🔎 Pre-rsync diagnostics: top-level staging ownership"
+          ls -la /mnt/storage/deployment-staging || true
+          if command -v lsattr >/dev/null 2>&1; then
+            echo "🔎 Pre-rsync attrs (top-level)"
+            lsattr -d /mnt/storage/deployment-staging || true
+          fi
+
+          # Try to remove immutable attributes that could block deletes, then ensure ownership
+          if command -v chattr >/dev/null 2>&1; then
+            sudo chattr -R -i /mnt/storage/deployment-staging || true
+          fi
+          sudo chown -R merk:merk /mnt/storage/deployment-staging || true
+
+          # Copy deployment files to staging
           rsync -avz --delete \
             --exclude='.git*' \
             --exclude='documentation/' \
             --exclude='*.md' \
             --exclude='test_*' \
             --exclude='__pycache__/' \
-            ./ /mnt/storage/deployment-staging/
-            
+            ./ /mnt/storage/deployment-staging/ || true
+
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "❌ rsync returned exit code $rc"
+            echo "🔎 Post-rsync diagnostics (top-level staging)"
+            ls -la /mnt/storage/deployment-staging || true
+            if command -v lsattr >/dev/null 2>&1; then
+              echo "🔎 lsattr (top-level, short)"
+              lsattr -R /mnt/storage/deployment-staging | sed -n '1,80p' || true
+            fi
+            exit $rc
+          fi
+
           echo "✅ All directories created with proper permissions and ownership"
           echo "📋 Directory structure summary:"
           ls -la /mnt/storage/ | head -20
