@@ -56,7 +56,9 @@ devices:
 
 ```bash
 # Remove container with old configuration
-docker rm traffic-monitoring-edge
+# To remove the container, prefer resolving by compose service or container id:
+# docker rm <container-id>
+# or: docker compose rm -f traffic-monitor
 
 # Recreate container with updated configuration
 cd /home/merk/traffic-monitor-deploy
@@ -73,11 +75,13 @@ docker-compose ps
 # Result: Container "Up and running" with health check starting
 
 # Verify port mapping
-docker port traffic-monitoring-edge
+# docker port <container-id>
+# or: docker compose port traffic-monitor
 # Result: 5000/tcp -> 0.0.0.0:5000
 
 # Check container logs
-docker logs traffic-monitoring-edge
+# docker logs <container-id>
+# or: docker compose logs traffic-monitor
 # Result: No device mapping errors, container starts successfully
 ```
 

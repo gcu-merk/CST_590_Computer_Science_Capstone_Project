@@ -52,18 +52,18 @@
 # Check build status
 docker system df
 
-# Monitor deployment
-docker logs traffic-monitoring-edge --tail=20 -f
+# Monitor deployment (use compose logs or container-id)
+docker compose logs traffic-monitor --tail=20 -f
 ```
 
 ### 2. Verify Fix
 
 ```bash
-# Test fswebcam availability
-docker exec traffic-monitoring-edge fswebcam --version
+# Test fswebcam availability (exec into resolved container)
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) fswebcam --version
 
 # Test camera capture with running app
-docker exec traffic-monitoring-edge bash -c "
+docker compose exec traffic-monitor bash -c "
   # Stop main app temporarily
   kill 1
   sleep 2
@@ -78,13 +78,13 @@ docker exec traffic-monitoring-edge bash -c "
 
 ```bash
 # Check for reduced warnings in logs
-docker logs traffic-monitoring-edge --tail=50 | grep -i "failed to capture"
+docker compose logs traffic-monitor --tail=50 | grep -i "failed to capture"
 
 # Test health endpoint
 curl -s http://localhost:5000/api/health | jq '.camera_status'
 
 # Check for successful snapshots
-docker exec traffic-monitoring-edge ls -la /mnt/storage/periodic_snapshots/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/periodic_snapshots/
 ```
 
 ## Success Criteria

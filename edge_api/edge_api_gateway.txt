@@ -61,7 +61,7 @@ class EdgeAPIGateway:
         try:
             import redis
             # Use Docker hostname for Redis if available
-            redis_host = os.environ.get('REDIS_HOST', 'traffic-redis')
+            redis_host = os.environ.get('REDIS_HOST', 'redis')
             self.redis_client = redis.Redis(host=redis_host, port=6379, db=0, decode_responses=True)
             # Test connection
             self.redis_client.ping()

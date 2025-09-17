@@ -104,7 +104,7 @@ du -sh /mnt/storage
 ls -la /mnt/storage/periodic_snapshots/ | tail -5
 
 # Container logs
-docker logs traffic-monitoring-edge --tail=20
+docker compose logs traffic-monitor --tail=20
 ```
 
 ### Performance Metrics
@@ -116,7 +116,7 @@ grep "✅ Successfully captured" /var/log/syslog | tail -10
 grep "vehicles detected" /var/log/syslog | tail -10
 
 # System resources
-docker stats traffic-monitoring-edge --no-stream
+docker stats $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1) --no-stream
 ```
 
 ## Troubleshooting
@@ -138,10 +138,10 @@ ls -la /dev/video*
 docker-compose down && docker-compose up -d
 
 # Check container logs
-docker logs traffic-monitoring-edge -f
+docker compose logs -f traffic-monitor
 
 # Test container access to storage
-docker exec traffic-monitoring-edge ls -la /mnt/storage
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage
 ```
 
 #### Storage Issues
@@ -156,7 +156,7 @@ sudo chown merk:merk /mnt/storage -R
 
 ### Log Locations
 - **System logs**: `sudo journalctl -u traffic-monitoring.service`
-- **Container logs**: `docker logs traffic-monitoring-edge`
+- **Container logs**: `docker compose logs traffic-monitor` (or `docker logs <container-id>`) 
 - **Capture script logs**: Check syslog or systemd journal
 
 ## Advanced Usage
@@ -164,17 +164,17 @@ sudo chown merk:merk /mnt/storage -R
 ### Custom Processing
 ```bash
 # Process specific image
-docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/process_traffic.py /mnt/storage/image.jpg
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 /mnt/storage/scripts/process_traffic.py /mnt/storage/image.jpg
 
 # Process with custom output
-docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/process_traffic.py /mnt/storage/image.jpg --output /mnt/storage/custom/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 /mnt/storage/scripts/process_traffic.py /mnt/storage/image.jpg --output /mnt/storage/custom/
 ```
 
 ### Batch Processing
 ```bash
 # Process all images in directory
 for img in /mnt/storage/periodic_snapshots/*.jpg; do
-    docker exec traffic-monitoring-edge python3 /mnt/storage/scripts/process_traffic.py "$img"
+    docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 /mnt/storage/scripts/process_traffic.py "$img"
 done
 ```
 
@@ -219,7 +219,7 @@ curl http://localhost:5000/api/status
 ### Data Export
 ```bash
 # Export detection data
-docker exec traffic-monitoring-edge python3 -c "
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
 from edge_processing.data_export import export_detections
 export_detections('/mnt/storage/exports/detections.json')
 "

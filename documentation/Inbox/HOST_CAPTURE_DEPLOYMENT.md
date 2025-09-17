@@ -158,7 +158,7 @@ ls -la /dev/ttyACM*
 
 ```bash
 # Remove any existing container with device mapping issues
-docker rm traffic-monitoring-edge
+docker rm <container-id-or-name>
 # Stop existing containers
 docker-compose down
 
@@ -177,13 +177,13 @@ docker-compose logs traffic-monitor
 
 ```bash
 # Check shared volume mount
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/
 
 # Verify image access
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/live/
 
 # Test image loading
-docker exec traffic-monitoring-edge python3 -c "
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
 from shared_volume_image_provider import SharedVolumeImageProvider
 provider = SharedVolumeImageProvider('/mnt/storage/camera_capture')
 success, image, metadata = provider.get_latest_image()
@@ -267,14 +267,14 @@ age=$(($(date +%s) - $(stat -c %Y "$newest")))
 echo "Newest image age: $age seconds"
 
 # 3. Verify container can access images
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/live/
 ```
 
 #### Test Processing Services
 
 ```bash
 # Test vehicle detection service
-docker exec traffic-monitoring-edge python3 -c "
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
 from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService
 service = VehicleDetectionService()
 service.initialize_camera()
@@ -283,7 +283,7 @@ print(f'Frame captured: {success}, Shape: {frame.shape if success else None}')
 "
 
 # Test sky analysis service
-docker exec traffic-monitoring-edge python3 -c "
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
 from edge_processing.vehicle_detection.sky_analyzer import SkyAnalyzer
 analyzer = SkyAnalyzer()
 result = analyzer.analyze_current_sky()
@@ -359,7 +359,7 @@ sudo systemctl status host-camera-capture image-sync-manager
 
 # Check Docker container health
 docker-compose ps
-docker stats traffic-monitoring-edge --no-stream
+docker stats $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1) --no-stream
 
 # Monitor disk usage
 df -h /mnt/storage/
@@ -445,10 +445,10 @@ ls -la /mnt/storage/camera_capture/
 
 ```bash
 # Check volume mount
-docker inspect traffic-monitoring-edge | grep -A 10 Mounts
+docker inspect $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1) | grep -A 10 Mounts
 
-# Verify directory structure in container
-docker exec traffic-monitoring-edge find /mnt/storage/camera_capture -type f
+# Verify directory structure in container (resolve service container)
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) find /mnt/storage/camera_capture -type f
 
 # Check file permissions
 ls -la /mnt/storage/camera_capture/live/

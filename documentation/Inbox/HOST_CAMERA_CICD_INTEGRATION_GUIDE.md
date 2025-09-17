@@ -12,8 +12,8 @@ The host camera capture service must run directly on the Raspberry Pi host (not 
 
 ### Existing Components:
 - **Docker Containers:** 
-  - `traffic-monitoring-edge` (main processing)
-  - `traffic-maintenance` (data cleanup)
+   - `traffic-monitor` (main processing)
+   - `data-maintenance` (data cleanup)
 - **GitHub Actions Runner:** Self-hosted at `/home/merk/actions-runner`
 - **Deployment Location:** `/home/merk/traffic-monitor-deploy`
 - **Service Management:** docker-compose.yml
@@ -270,7 +270,9 @@ ExecStart=/usr/bin/python3 /home/merk/traffic-monitor-deploy/host-camera-capture
 4. **Weather API not working:**
    ```bash
    # Check if containers can see images
-   docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
+   # Use compose to exec into the service or resolve the container id at runtime
+   docker compose exec traffic-monitor ls -la /mnt/storage/camera_capture/live/  # or
+   docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/live/
    
    # Test weather endpoint
    curl http://localhost:5000/api/weather

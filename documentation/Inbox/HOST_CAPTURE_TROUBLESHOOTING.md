@@ -56,8 +56,8 @@ echo
 
 # Check container access
 echo "4. Container Access:"
-if docker exec traffic-monitoring-edge ls /mnt/storage/camera_capture/live/ >/dev/null 2>&1; then
-    container_count=$(docker exec traffic-monitoring-edge ls /mnt/storage/camera_capture/live/ | wc -l)
+if docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -n1) ls /mnt/storage/camera_capture/live/ >/dev/null 2>&1; then
+    container_count=$(docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -n1) ls /mnt/storage/camera_capture/live/ | wc -l)
     echo "Container can access shared volume: $container_count files visible"
 else
     echo "Container cannot access shared volume"
@@ -95,8 +95,8 @@ df -h /mnt/storage/
 ls -la /dev/ttyACM*  # Check for radar sensor device
 ls -la /dev/gpio*    # Check for GPIO devices
 
-# Check container logs
-docker logs traffic-monitoring-edge
+# Check container logs (prefer compose logs)
+docker compose logs traffic-monitor
 
 # Check docker-compose configuration
 grep -A 10 "devices:" docker-compose.yml
@@ -122,8 +122,8 @@ grep -A 10 "devices:" docker-compose.yml
 2. **Remove Old Container and Recreate**
 
    ```bash
-   # Remove container with old configuration
-   docker rm traffic-monitoring-edge
+    # Remove container with old configuration (use container id/name)
+    docker rm <container-id-or-name>
    
    # Recreate with updated configuration
    docker-compose up -d
@@ -135,8 +135,8 @@ grep -A 10 "devices:" docker-compose.yml
    # Check container status
    docker-compose ps
    
-   # Verify container is running
-   docker logs traffic-monitoring-edge
+    # Verify container is running (use compose logs or container id)
+    docker compose logs traffic-monitor
    ```
 
 ### Host Camera Capture Service Problems
@@ -381,13 +381,13 @@ ls -la /tmp/q*.jpg
 
 ```bash
 # Check volume mount in container
-docker inspect traffic-monitoring-edge | grep -A 10 "Mounts"
+docker inspect $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1) | grep -A 10 "Mounts"
 
 # Verify mount point exists in container
-docker exec traffic-monitoring-edge ls -la /mnt/storage/data/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/data/
 
 # Check if mount point is empty
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/
 ```
 
 **Solutions:**
@@ -434,10 +434,10 @@ echo "Host view:"
 ls -la /mnt/storage/camera_capture/live/ | tail -3
 
 echo "Container view:"
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/ | tail -3
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/live/ | tail -3
 
 # Check if clocks are synchronized
-docker exec traffic-monitoring-edge date
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) date
 date
 ```
 
@@ -478,7 +478,7 @@ date
 python3 test_host_capture_architecture.py --mode performance
 
 # Check container resource usage
-docker stats traffic-monitoring-edge --no-stream
+docker stats $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1) --no-stream
 
 # Check I/O wait times
 iostat -x 1 5
@@ -516,7 +516,7 @@ iostat -x 1 5
 ```bash
 # Check memory usage
 free -h
-docker stats traffic-monitoring-edge
+docker stats $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1)
 
 # Check for memory leaks in provider
 # Look for growing cache size without cleanup
@@ -639,13 +639,13 @@ print(f'Min: {np.min(times):.3f}s, Max: {np.max(times):.3f}s')
 
 ```bash
 # Check if networking issues affect container
-docker exec traffic-monitoring-edge ping -c 3 google.com
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ping -c 3 google.com
 
 # Check container DNS resolution
-docker exec traffic-monitoring-edge nslookup google.com
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) nslookup google.com
 
 # Check container to host connectivity
-docker exec traffic-monitoring-edge ping -c 3 host.docker.internal
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ping -c 3 host.docker.internal
 ```
 
 ### System Resource Analysis
@@ -728,7 +728,7 @@ else
     exit 1
 fi
 
-if docker exec traffic-monitoring-edge ls /mnt/storage/camera_capture/live/ >/dev/null 2>&1; then
+if docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls /mnt/storage/camera_capture/live/ >/dev/null 2>&1; then
     echo "SUCCESS: Container can access images"
 else
     echo "FAILURE: Container cannot access images"
@@ -764,7 +764,7 @@ docker-compose up -d traffic-monitor
 
 # Verify
 docker-compose ps
-docker logs traffic-monitoring-edge
+docker compose logs traffic-monitor
 ```
 
 This troubleshooting guide provides systematic approaches to identify and resolve issues in the host-capture architecture.

@@ -318,8 +318,12 @@ find_main_container() {
     # Find the main traffic monitoring container specifically
     local main_container=""
     
-    # Look for traffic-monitoring-edge first (main container)
-    main_container=$(docker ps --format "{{.Names}}" | grep "traffic-monitoring-edge" | head -1)
+    # Prefer resolving the docker-compose managed service, fallback to name patterns
+    main_container=$(docker ps -a --filter "label=com.docker.compose.service=traffic-monitor" --format "{{.Names}}" | head -1)
+    if [ -n "$main_container" ]; then
+        echo "$main_container"
+        return 0
+    fi
     if [ -n "$main_container" ]; then
         echo "$main_container"
         return 0
@@ -336,45 +340,34 @@ find_main_container() {
 }
 
 find_application_container() {
-    # Updated patterns to match actual container names from docker-compose.yml
-    local container_patterns=("traffic-monitoring-edge" "traffic-edge" "edge" "traffic" "monitor" "camera" "capstone")
-    local container_name=""
-    
-    echo "  Searching for application containers..." >&2
-    
-    # Look for running containers first - prioritize main traffic monitoring container
-    for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps --format "{{.Names}}" | grep -i "$pattern" | head -1)
-        if [ -n "$container_name" ]; then
-            echo "  ✓ Found running container: $container_name" >&2
-            echo "$container_name"
-            return 0
-        fi
-    done
-    
-    # Look for stopped containers
-    echo "  No running containers found, checking for stopped containers..." >&2
-    for pattern in "${container_patterns[@]}"; do
-        container_name=$(docker ps -a --format "{{.Names}}" | grep -i "$pattern" | head -1)
-        if [ -n "$container_name" ]; then
-            local status=$(docker ps -a --format "{{.Names}}\t{{.Status}}" | grep "$container_name" | cut -f2)
-            echo "  Found stopped container: $container_name ($status)" >&2
-            echo "    RECOMMENDATION: docker start $container_name" >&2
-            echo "$container_name"
-            return 1  # Found but not running
-        fi
-    done
-    
-    # Check for docker-compose.yml
-    if [ -f "docker-compose.yml" ]; then
-        echo "  Found docker-compose.yml but no containers running" >&2
-        echo "    RECOMMENDATION: docker-compose up -d" >&2
-        return 2  # Compose available but not running
+    # Prefer resolving the compose service if available
+    local cid
+    cid=$(docker ps -a --filter "label=com.docker.compose.service=traffic-monitor" --format "{{.Names}}" 2>/dev/null || true)
+    if [ -n "$cid" ]; then
+        echo "$cid" | head -n1
+        return 0
     fi
-    
-    echo "  No application containers found" >&2
-    echo "    RECOMMENDATION: Check docker-compose.yml or container setup" >&2
-    return 3  # No containers found
+
+    # Fallback: look for containers with 'traffic' or 'monitor' in the name
+    cid=$(docker ps --format "{{.Names}}" | grep -Ei "(traffic|monitor)" | head -n1 || true)
+    if [ -n "$cid" ]; then
+        echo "$cid"
+        return 0
+    fi
+
+    # Check for stopped containers
+    cid=$(docker ps -a --format "{{.Names}}" | grep -Ei "(traffic|monitor)" | head -n1 || true)
+    if [ -n "$cid" ]; then
+        echo "$cid"
+        return 1
+    fi
+
+    if [ -f "docker-compose.yml" ]; then
+        echo "docker-compose.yml present but no containers running"
+        return 2
+    fi
+
+    return 3
 }
 
 container_name=$(find_application_container 2>/dev/null)

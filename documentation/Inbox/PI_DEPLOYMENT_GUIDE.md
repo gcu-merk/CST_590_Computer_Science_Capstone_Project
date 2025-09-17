@@ -173,7 +173,7 @@ ls -la /dev/video* /dev/ttyACM* /dev/gpiomem
 netstat -tlnp | grep 5000
 
 # Test container networking
-docker exec -it traffic-monitoring-edge curl localhost:5000/api/health
+docker exec -it $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) curl localhost:5000/api/health
 
 # Check firewall
 sudo ufw status

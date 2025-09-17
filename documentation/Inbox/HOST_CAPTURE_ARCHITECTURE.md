@@ -334,7 +334,7 @@ docker-compose down
 docker-compose up -d
 
 # Verify container can access shared volume
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/
 ```
 
 ### 4. Validate System
@@ -368,10 +368,10 @@ ls -la /mnt/storage/camera_capture/
 
 ```bash
 # Check volume mount
-docker inspect traffic-monitoring-edge | grep camera_capture
+docker inspect $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) | grep camera_capture
 
 # Check directory permissions
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/
 ```
 
 ### 3. Old Images Accumulating
@@ -413,7 +413,7 @@ tail -f /var/log/image-sync-manager.log
 **Container Logs**:
 
 ```bash
-docker logs -f traffic-monitoring-edge
+docker compose logs -f traffic-monitor
 ```
 
 ## Performance Characteristics

@@ -327,34 +327,45 @@ def test_integration_with_docker():
         
         print("✓ Docker is accessible")
         
-        # Check if traffic monitoring container exists
-        container_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=traffic-monitoring-edge'], 
-                                        capture_output=True, text=True)
-        
-        if 'traffic-monitoring-edge' in container_result.stdout:
-            print("✓ Traffic monitoring container found")
-            
+        # Resolve the traffic-monitor container (prefer compose service label)
+        container_id = None
+        # Try to find by compose service label (com.docker.compose.service=traffic-monitor)
+        try:
+            ps_label = subprocess.run(['docker', 'ps', '-a', '--filter', 'label=com.docker.compose.service=traffic-monitor', '--format', '{{.ID}}'], capture_output=True, text=True)
+            if ps_label.stdout.strip():
+                container_id = ps_label.stdout.splitlines()[0].strip()
+        except Exception:
+            container_id=""
+
+        # Fallback: find by name pattern
+        if not container_id:
+            container_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=traffic-monitor'], capture_output=True, text=True)
+            if container_result.stdout.strip():
+                # Get first matching container ID
+                lines = [l for l in container_result.stdout.splitlines() if l.strip()]
+                if lines:
+                    # Format is header + rows; extract ID via --format would be better, but keep simple
+                    id_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=traffic-monitor', '--format', '{{.ID}}'], capture_output=True, text=True)
+                    if id_result.stdout.strip():
+                        container_id = id_result.stdout.splitlines()[0].strip()
+
+        if container_id:
+            print("✓ Traffic monitoring container found (id: {} )".format(container_id))
             # Check if container is running
-            running_result = subprocess.run(['docker', 'ps', '--filter', 'name=traffic-monitoring-edge'], 
-                                          capture_output=True, text=True)
-            
-            if 'traffic-monitoring-edge' in running_result.stdout:
+            running_result = subprocess.run(['docker', 'ps', '--filter', f'id={container_id}', '--format', '{{.ID}}'], capture_output=True, text=True)
+            if running_result.stdout.strip():
                 print("✓ Container is running")
-                
                 # Check shared volume mount
-                inspect_result = subprocess.run(['docker', 'inspect', 'traffic-monitoring-edge'], 
-                                              capture_output=True, text=True)
-                
+                inspect_result = subprocess.run(['docker', 'inspect', container_id], capture_output=True, text=True)
                 if 'camera_capture' in inspect_result.stdout:
                     print("✓ Shared volume appears to be mounted")
                 else:
                     print("⚠ Shared volume mount not detected in container config")
-                    
             else:
                 print("⚠ Container exists but is not running")
         else:
             print("⚠ Traffic monitoring container not found")
-            print("  Run: docker-compose up -d")
+            print("  Run: docker compose up -d")
         
         return True
         
@@ -535,12 +546,16 @@ def show_system_status():
     
     # Docker container
     try:
-        result = subprocess.run(['docker', 'ps', '--filter', 'name=traffic-monitoring-edge'], 
-                               capture_output=True, text=True)
-        if 'traffic-monitoring-edge' in result.stdout:
-            print("✓ Docker container: Running")
+        # Prefer resolving compose service label first, fallback to name patterns
+        result = subprocess.run(['docker', 'ps', '--filter', 'label=com.docker.compose.service=traffic-monitor'], capture_output=True, text=True)
+        if result.stdout.strip():
+            print("✓ Docker container (compose service 'traffic-monitor'): Running")
         else:
-            print("✗ Docker container: Not running")
+            result = subprocess.run(['docker', 'ps', '--filter', 'name=traffic-monitor'], capture_output=True, text=True)
+            if 'traffic-monitor' in result.stdout:
+                print("✓ Docker container: Running")
+            else:
+                print("✗ Docker container: Not running")
     except:
         print("? Docker container: Unknown")
     

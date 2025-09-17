@@ -8,7 +8,7 @@ The repository has been reorganized to properly align with the documented traffi
 
 ```text
 CST_590_Computer_Science_Capstone_Project/
-├── edge-processing/              # Core edge processing services
+├── edge_processing/              # Core edge processing services
 │   ├── vehicle-detection/        # AI camera + TensorFlow vehicle detection
 │   │   └── vehicle_detection_service.py
 │   ├── speed-analysis/           # OPS243-C radar speed measurement  

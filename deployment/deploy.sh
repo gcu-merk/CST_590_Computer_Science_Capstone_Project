@@ -71,6 +71,10 @@ EXIT_HOST_SERVICE_FAILED=20
 EXIT_CONTAINER_DEPLOYMENT_FAILED=30
 EXIT_VALIDATION_FAILED=40
 
+# Allow overriding the compose project name via environment; default to 'traffic_monitoring'
+COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-traffic_monitoring}
+export COMPOSE_PROJECT_NAME
+
 # Rollback function for CI/CD safety
 rollback_deployment() {
     local rollback_reason="$1"
@@ -239,9 +243,59 @@ deploy_containerized_services() {
     # Ensure we're in project root for docker-compose
     cd "$PROJECT_ROOT"
     
-    # Stop existing containers gracefully
-    log "🛑 Stopping existing containers..."
-    docker-compose -f "$COMPOSE_FILE" down --remove-orphans || true
+    # Stop existing containers gracefully (scoped to project)
+    log "🛑 Stopping existing containers (project: $COMPOSE_PROJECT_NAME)..."
+    if docker compose version >/dev/null 2>&1; then
+        docker compose -f "$COMPOSE_FILE" down --remove-orphans || true
+    else
+        docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down --remove-orphans || true
+    fi
+
+    # Helper: safely remove containers for a compose service (if any)
+    # Verifies compose labels or image name before removing to avoid affecting unrelated containers on multi-tenant hosts.
+    remove_compose_service_containers() {
+        svc="$1"
+        expected_image_prefix="$2"  # optional image prefix to verify (e.g., 'gcumerk/cst590-')
+
+        # Get candidate container IDs for the service from compose (v2) or docker-compose
+        cid_list=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps -q "$svc" 2>/dev/null)
+        if [ -z "$cid_list" ]; then
+            return 0
+        fi
+
+        for cid in $cid_list; do
+            # Inspect labels and image
+            labels_json=$(docker inspect --format '{{json .Config.Labels}}' "$cid" 2>/dev/null || echo "{}")
+            image_name=$(docker inspect --format '{{.Config.Image}}' "$cid" 2>/dev/null || echo "")
+
+            # Extract compose project and service labels (if present)
+            compose_project=$(echo "$labels_json" | python -c "import sys, json; d=json.load(sys.stdin) if sys.stdin.readable() else {}; print(d.get('com.docker.compose.project',''))" 2>/dev/null || true)
+            compose_service=$(echo "$labels_json" | python -c "import sys, json; d=json.load(sys.stdin) if sys.stdin.readable() else {}; print(d.get('com.docker.compose.service',''))" 2>/dev/null || true)
+
+            safe_to_remove=false
+
+            # If compose labels match, consider it safe
+            if [ -n "$compose_project" ] && [ "$compose_project" = "$COMPOSE_PROJECT_NAME" ] && [ -n "$compose_service" ] && [ "$compose_service" = "$svc" ]; then
+                safe_to_remove=true
+            fi
+
+            # If labels are not present or do not match, check image prefix if provided
+            if [ "$safe_to_remove" = false ] && [ -n "$expected_image_prefix" ]; then
+                if echo "$image_name" | grep -q "^$expected_image_prefix"; then
+                    safe_to_remove=true
+                fi
+            fi
+
+            if [ "$safe_to_remove" = true ]; then
+                log "🧹 Removing verified leftover container for service '$svc' (cid: $cid, image: $image_name)"
+                docker rm -f "$cid" >/dev/null 2>&1 || warning "Failed to remove container $cid"
+            else
+                warning "Skipping removal of container $cid for service '$svc' — labels/image did not match expected project/service or image prefix"
+                log "   Detected labels: $labels_json"
+                log "   Detected image: $image_name"
+            fi
+        done
+    }
     
     # Pull latest images (important for CI/CD)
     log "📥 Pulling latest container images..."
@@ -262,7 +316,12 @@ deploy_containerized_services() {
     for svc in dht22-weather airport-weather; do
         # Quick check whether service shows as running
         is_running() {
-            docker-compose -f "$COMPOSE_FILE" ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
+            # Check whether the service shows up as running in the compose project
+            if docker compose version >/dev/null 2>&1; then
+                docker compose -f "$COMPOSE_FILE" ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
+            else
+                docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" ps --services --filter "status=running" | grep -q "^$svc$" >/dev/null 2>&1
+            fi
         }
 
         attempts=0

@@ -1,3 +1,35 @@
+# Test container processing (resolve container via compose label)
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
+
+## Step 1: Enter the Docker Container
+
+```bash
+docker exec -it $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) bash
+```
+# Check if devices are properly mounted (resolve container by compose label)
+docker inspect $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) | grep -A 20 "Devices"
+
+# Check container logs
+docker compose logs traffic-monitor --tail=50
+
+# Test fswebcam availability (exec into resolved container)
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) fswebcam --version
+
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/periodic_snapshots/
+
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService; s=VehicleDetectionService(); print('Init:', s.initialize_camera()); print('Capture:', s.capture_frame()[0])"
+
+docker stats $(docker ps --filter "label=com.docker.compose.service=traffic-monitor" --format '{{.Names}}' | head -1) --no-stream
+
+docker exec -it $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) bash -c "
+
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) bash -c "
+
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
+
+docker compose logs traffic-monitor --tail=30 | grep -i 'camera\|snapshot\|frame\|error' || echo "No camera-related logs found"
+
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) bash -c "
 # Camera Docker Troubleshooting Guide
 
 # Camera Docker Troubleshooting Guide
@@ -10,14 +42,14 @@ After extensive testing, the optimal approach is:
 - **Capture on Host**: Use `rpicam-still` directly on Raspberry Pi 5  
 - **Process in Container**: Mount shared volume and process images in Docker
 - **Best Performance**: Native camera access + containerized processing benefits
-
+docker run --rm -v /mnt/storage:/shared gcumerk/cst590-capstone-public:latest \
 ### Working Implementation:
 ```bash
 # Host capture (works perfectly)
 rpicam-still -o /mnt/storage/traffic_$(date +%Y%m%d_%H%M%S).jpg
 
-# Container processing (immediate access)
-docker run --rm -v /mnt/storage:/shared traffic-monitoring-edge:latest \
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
+docker run --rm -v /mnt/storage:/shared traffic-monitor:latest \
   python3 /app/process_traffic.py /shared/traffic_image.jpg
 ```
 
@@ -35,7 +67,7 @@ IMAGE_PATH="/mnt/storage/traffic_${TIMESTAMP}.jpg"
 rpicam-still -o "$IMAGE_PATH" \
   --width 4056 --height 3040 \
   --quality 95 \
-  --immediate
+docker exec -it $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) bash
 
 echo "Captured: $IMAGE_PATH"
 echo "$IMAGE_PATH"  # Return path for container processing
@@ -44,14 +76,14 @@ EOF
 sudo chmod +x /usr/local/bin/capture-traffic.sh
 ```
 
-### Step 2: Test the Hybrid Solution
+docker inspect $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) | grep -A 20 "Devices"
 ```bash
 # Test host capture
 /usr/local/bin/capture-traffic.sh
 
 # Test container processing
-docker exec traffic-monitoring-edge python3 -c "
-import os
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) python3 -c "
+docker logs $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) --tail=50
 import cv2
 storage_path = '/mnt/storage'
 images = [f for f in os.listdir(storage_path) if f.endswith('.jpg')]
@@ -71,7 +103,7 @@ else:
 ## Step 1: Enter the Docker Container
 
 ```bash
-docker exec -it traffic-monitoring-edge bash
+docker compose exec traffic-monitor bash
 ```
 
 ## Step 2: Check Camera Hardware Detection
@@ -196,14 +228,14 @@ Exit the container and run these on the host:
 cat docker-compose.yml | grep -A 10 -B 5 devices
 
 # Check if devices are properly mounted
-docker inspect traffic-monitoring-edge | grep -A 20 "Devices"
+docker inspect $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) | grep -A 20 "Devices"
 
 # Restart container with fresh configuration
 docker-compose down
 docker-compose up -d
 
 # Check container logs
-docker logs traffic-monitoring-edge --tail=50
+docker compose logs traffic-monitor --tail=50
 ```
 
 ## Common Fixes Based on Findings
@@ -248,10 +280,10 @@ user: "1000:44"  # video group
 
 ```bash
 # One-liner camera test
-docker exec traffic-monitoring-edge bash -c "ls /dev/video* && fswebcam --device /dev/video0 --no-banner /tmp/test.jpg && ls -la /tmp/test.jpg"
+docker compose exec traffic-monitor bash -c "ls /dev/video* && fswebcam --device /dev/video0 --no-banner /tmp/test.jpg && ls -la /tmp/test.jpg"
 
 # One-liner application test
-docker exec traffic-monitoring-edge python3 -c "from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService; s=VehicleDetectionService(); print('Init:', s.initialize_camera()); print('Capture:', s.capture_frame()[0])"
+docker compose exec traffic-monitor python3 -c "from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService; s=VehicleDetectionService(); print('Init:', s.initialize_camera()); print('Capture:', s.capture_frame()[0])"
 ```
 
 ## Complete Troubleshooting Commands (Copy-Paste Block)
@@ -269,12 +301,12 @@ echo "=============================================="
 echo -e "\n📋 1. Container Status Check"
 echo "----------------------------"
 docker ps | grep traffic-monitoring
-docker stats traffic-monitoring-edge --no-stream
+docker stats $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) --no-stream
 
 # Step 2: Enter container and check hardware
 echo -e "\n📋 2. Hardware Detection (Inside Container)"
 echo "--------------------------------------------"
-docker exec traffic-monitoring-edge bash -c "
+docker compose exec traffic-monitor bash -c "
 echo 'Video devices:'
 ls -la /dev/video* 2>/dev/null || echo 'No video devices found'
 echo -e '\nDevice permissions:'
@@ -288,7 +320,7 @@ cat /proc/1/cgroup | grep docker
 # Step 3: Test camera tools
 echo -e "\n📋 3. Camera Tools Test"
 echo "-----------------------"
-docker exec traffic-monitoring-edge bash -c "
+docker compose exec traffic-monitor bash -c "
 echo 'fswebcam availability:'
 which fswebcam && fswebcam --version
 echo -e '\nv4l2-ctl availability:'
@@ -298,7 +330,7 @@ which v4l2-ctl && v4l2-ctl --list-devices
 # Step 4: Test manual camera capture
 echo -e "\n📋 4. Manual Camera Capture Test"
 echo "--------------------------------"
-docker exec traffic-monitoring-edge bash -c "
+docker compose exec traffic-monitor bash -c "
 echo 'Testing rpicam-still (modern Raspberry Pi camera):'
 if command -v rpicam-still >/dev/null 2>&1; then
     timeout 10 rpicam-still -o /tmp/test_rpicam.jpg --immediate 2>&1
@@ -333,7 +365,7 @@ done
 # Step 5: Check Python application
 echo -e "\n📋 5. Python Application Test"
 echo "-----------------------------"
-docker exec traffic-monitoring-edge bash -c "
+docker compose exec traffic-monitor bash -c "
 echo 'Current Python processes:'
 ps aux | grep python | grep -v grep
 echo -e '\nPython path and working directory:'
@@ -344,7 +376,7 @@ python3 -c 'import sys; print(\"Python path:\", sys.path[0:3])'
 # Step 6: Test camera service
 echo -e "\n📋 6. Camera Service Test"
 echo "-------------------------"
-docker exec traffic-monitoring-edge python3 -c "
+docker compose exec traffic-monitor python3 -c "
 from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -358,7 +390,7 @@ print(f'Frame capture: ret={ret}, frame_shape={frame.shape if ret and frame is n
 # Step 7: Test enhanced fallback
 echo -e "\n📋 7. Enhanced Fallback Test"
 echo "----------------------------"
-docker exec traffic-monitoring-edge python3 -c "
+docker compose exec traffic-monitor python3 -c "
 from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -371,7 +403,7 @@ print(f'System capture result: ret={ret}, frame_shape={frame.shape if ret and fr
 # Step 8: Check storage and snapshots
 echo -e "\n📋 8. Storage and Snapshot Check"
 echo "--------------------------------"
-docker exec traffic-monitoring-edge bash -c "
+docker compose exec traffic-monitor bash -c "
 echo 'Storage directory check:'
 ls -la /mnt/storage/ 2>/dev/null || echo '/mnt/storage not found'
 echo -e '\nSnapshot directories:'
@@ -390,7 +422,7 @@ mkdir -p /mnt/storage/test_write 2>/dev/null && echo '✅ /mnt/storage writable'
 # Step 9: Check application logs
 echo -e "\n📋 9. Application Logs"
 echo "----------------------"
-docker logs traffic-monitoring-edge --tail=30 | grep -i 'camera\|snapshot\|frame\|error' || echo "No camera-related logs found"
+docker compose logs traffic-monitor --tail=30 | grep -i 'camera\|snapshot\|frame\|error' || echo "No camera-related logs found"
 
 # Step 10: Final status
 echo -e "\n📋 10. Final Health Check"

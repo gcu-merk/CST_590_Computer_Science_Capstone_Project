@@ -363,7 +363,7 @@ docker-compose down
 docker-compose up -d
 
 # Verify container access to shared volume
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/
 ```
 
 #### 3. Optional: Deploy Image Sync Manager
@@ -420,10 +420,10 @@ python3 scripts/host-camera-capture.py --status
 docker ps | grep traffic-monitoring
 
 # Container logs
-docker logs -f traffic-monitoring-edge
+docker compose logs -f traffic-monitor
 
 # Verify shared volume access
-docker exec traffic-monitoring-edge ls -la /mnt/storage/camera_capture/live/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /mnt/storage/camera_capture/live/
 ```
 
 #### Image Sync Manager
@@ -519,10 +519,10 @@ ls -la /mnt/storage/camera_capture/
 
 ```bash
 # Check volume mount
-docker inspect traffic-monitoring-edge | grep camera_capture
+docker inspect $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) | grep camera_capture
 
 # Check container directory
-docker exec traffic-monitoring-edge ls -la /app/data/camera_capture/live/
+docker exec $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1) ls -la /app/data/camera_capture/live/
 
 # Check file permissions
 ls -la /mnt/storage/camera_capture/live/
@@ -607,7 +607,7 @@ free -h
 
 - **Host Capture Service**: `/var/log/host-camera-capture.log` and `journalctl -u host-camera-capture`
 - **Image Sync Manager**: `/var/log/image-sync-manager.log`
-- **Container Logs**: `docker logs traffic-monitoring-edge`
+- **Container Logs**: `docker compose logs traffic-monitor` (or `docker logs <container-id>`)
 - **System Logs**: `/var/log/syslog` and `dmesg`
 
 #### Key Log Messages

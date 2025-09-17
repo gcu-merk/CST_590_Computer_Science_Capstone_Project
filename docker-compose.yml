@@ -2,7 +2,6 @@ services:
   # Redis Message Broker for Real-time Inter-service Communication
   redis:
     image: redis:7-alpine
-    container_name: traffic-redis
     restart: unless-stopped
     
     # Redis configuration for Raspberry Pi optimization
@@ -34,7 +33,6 @@ services:
   # Main Traffic Monitoring Service (Containerized AI Processing & API)
   traffic-monitor:
     image: gcumerk/cst590-capstone-public:latest
-    container_name: traffic-monitoring-edge
     restart: unless-stopped
     depends_on:
       - redis
@@ -132,7 +130,6 @@ services:
   # Automated Data Maintenance Service
   data-maintenance:
     image: gcumerk/cst590-capstone-public:latest
-    container_name: traffic-maintenance
     restart: unless-stopped
     depends_on:
       - traffic-monitor
@@ -179,7 +176,6 @@ services:
 # DHT22 Weather Sensor Service
   dht22-weather:
     image: gcumerk/cst590-capstone-public:latest
-    container_name: dht22-weather
     restart: unless-stopped
     depends_on:
       - redis
@@ -209,7 +205,6 @@ services:
 # Airport Weather Service
   airport-weather:
     image: gcumerk/cst590-capstone-public:latest
-    container_name: airport-weather
     restart: unless-stopped
     depends_on:
       - redis
@@ -231,7 +226,6 @@ services:
 # Optional: Add database service for more complex setups
   # database:
   #   image: postgres:15-alpine
-  #   container_name: traffic-db
   #   restart: unless-stopped
   #   environment:
   #     POSTGRES_DB: traffic_monitor
@@ -246,7 +240,6 @@ services:
 # Optional: Add cloud connector service
   # cloud-connector:
   #   build: ./cloud-connector
-  #   container_name: cloud-connector
   #   restart: unless-stopped
   #   depends_on:
   #     - traffic-monitor

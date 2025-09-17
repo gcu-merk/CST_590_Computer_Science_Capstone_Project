@@ -112,7 +112,8 @@ The service now uses host networking for Tailscale access:
 services:
    traffic-monitor:
       image: gcumerk/cst590-capstone-public:latest
-      container_name: traffic-monitoring-edge
+   # Note: Prefer using the compose service name 'traffic-monitor' rather than a fixed container_name
+   # (container_name example removed — container_name is deprecated in our compose files to avoid host-global collisions)
       network_mode: host  # Enables Tailscale and LAN access
       privileged: true
       devices:
@@ -150,7 +151,7 @@ services:
 ### 7. Troubleshooting
 
 - **Check deployment logs:** GitHub Actions > deploy-to-pi workflow
-- **Check container status:** `docker ps` and `docker logs traffic-monitoring-edge`
+- **Check container status:** `docker compose ps` and `docker compose logs traffic-monitor` (or `docker logs <container-id>`) 
 - **Check Tailscale status:** `tailscale status`
 - **Health endpoint:** `curl http://localhost:5000/api/health` (on Pi)
 

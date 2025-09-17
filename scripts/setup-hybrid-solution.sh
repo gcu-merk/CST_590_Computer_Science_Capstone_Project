@@ -91,16 +91,31 @@ fi
 # Step 5: Test Docker container
 log_info "Testing Docker container..."
 
-if ! docker ps --format "table {{.Names}}" | grep -q "traffic-monitoring-edge"; then
-    log_info "Starting Docker container..."
+# Resolve traffic-monitor container id (prefer compose label)
+container_id=""
+ps_label=$(docker ps -a --filter "label=com.docker.compose.service=traffic-monitor" --format "{{.ID}}" 2>/dev/null || true)
+if [ -n "$ps_label" ]; then
+    container_id=$(echo "$ps_label" | head -n1)
+else
+    # Fallback: match by name prefix
+    ps_name=$(docker ps -a --filter "name=traffic-monitor" --format "{{.ID}}" 2>/dev/null || true)
+    if [ -n "$ps_name" ]; then
+        container_id=$(echo "$ps_name" | head -n1)
+    fi
+fi
+
+if [ -z "$container_id" ]; then
+    log_info "Starting Docker compose stack..."
     cd "$PROJECT_DIR"
-    docker-compose up -d
+    docker compose up -d || docker-compose up -d
     sleep 10
+    container_id=$(docker ps -a --filter "label=com.docker.compose.service=traffic-monitor" --format "{{.ID}}" 2>/dev/null || docker ps -a --filter "name=traffic-monitor" --format "{{.ID}}" 2>/dev/null)
+    container_id=$(echo "$container_id" | head -n1)
 fi
 
 # Test container access to storage
-if docker exec traffic-monitoring-edge test -d /mnt/storage; then
-    log_success "Container can access storage directory"
+if [ -n "$container_id" ] && docker exec "$container_id" test -d /mnt/storage; then
+    log_success "Container ($container_id) can access storage directory"
 else
     log_error "Container cannot access storage directory"
     log_info "Check docker-compose.yml volume mounts"
@@ -156,7 +171,7 @@ echo "  Capture only:      capture-traffic capture-only"
 echo "  Cleanup old files: capture-traffic cleanup"
 echo
 echo "📊 Monitor:"
-echo "  Container logs:    docker logs traffic-monitoring-edge -f"
+echo "  Container logs:    docker logs <container-id or service> -f"
 echo "  Service status:    sudo systemctl status traffic-monitoring.timer"
 echo "  Service logs:      sudo journalctl -u traffic-monitoring.service -f"
 echo "  Storage usage:     du -sh $STORAGE_DIR"

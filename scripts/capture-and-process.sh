@@ -10,7 +10,7 @@ set -euo pipefail
 # Configuration
 STORAGE_DIR="/mnt/storage"
 SNAPSHOT_DIR="${STORAGE_DIR}/periodic_snapshots"
-CONTAINER_NAME="traffic-monitoring-edge"
+CONTAINER_NAME="traffic-monitor"
 MAX_RETRIES=3
 CAPTURE_QUALITY=95
 IMAGE_WIDTH=4056
@@ -51,16 +51,25 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if Docker container is running
-    if ! docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-        log_error "Container '${CONTAINER_NAME}' is not running."
-        log_info "Starting container..."
-        docker-compose up -d || {
+    # Resolve container id for traffic-monitor (prefer compose label)
+    cid=""
+    cid=$(docker ps -a --filter "label=com.docker.compose.service=traffic-monitor" --format "{{.ID}}" 2>/dev/null || true)
+    if [ -z "$cid" ]; then
+        cid=$(docker ps -a --filter "name=traffic-monitor" --format "{{.ID}}" 2>/dev/null || true)
+    fi
+
+    if [ -z "$cid" ]; then
+        log_error "Traffic monitor container not running. Starting compose stack..."
+        docker compose up -d || docker-compose up -d || {
             log_error "Failed to start container"
             exit 1
         }
         sleep 5
+        cid=$(docker ps -a --filter "label=com.docker.compose.service=traffic-monitor" --format "{{.ID}}" 2>/dev/null || docker ps -a --filter "name=traffic-monitor" --format "{{.ID}}" 2>/dev/null)
+        cid=$(echo "$cid" | head -n1)
     fi
+    # Use resolved container id for docker exec
+    CONTAINER_NAME=${cid}
     
     # Check storage directory
     if [[ ! -d "$STORAGE_DIR" ]]; then

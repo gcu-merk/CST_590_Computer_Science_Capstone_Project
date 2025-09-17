@@ -44,14 +44,14 @@ class ImageSyncManager:
     
     def __init__(self, 
                  capture_dir: str = "/mnt/storage/camera_capture",
-                 container_name: str = "traffic-monitoring-edge",
+                 container_target: str = "traffic-monitor",
                  service_name: str = "host-camera-capture",
                  check_interval: float = 30.0,
                  max_image_age_hours: float = 4.0,
                  cleanup_interval_hours: float = 1.0):
         
         self.capture_dir = Path(capture_dir)
-        self.container_name = container_name
+        self.container_target = container_target
         self.service_name = service_name
         self.check_interval = check_interval
         self.max_image_age_hours = max_image_age_hours
@@ -244,7 +244,24 @@ class ImageSyncManager:
             return
         
         try:
-            container = self.docker_client.containers.get(self.container_name)
+            # Try to get container by provided name; if not found, attempt to resolve
+            # by matching service-like names or labels
+            try:
+                container = self.docker_client.containers.get(self.container_name)
+            except Exception:
+                # Attempt to find a container where the name or image contains the service identifier
+                candidates = []
+                for c in self.docker_client.containers.list(all=True):
+                    # Check labels (Compose v2 sets com.docker.compose.service)
+                    svc_label = c.labels.get('com.docker.compose.service') if c.labels else None
+                    if svc_label == self.container_name or (self.container_name in c.name):
+                        candidates.append(c)
+                    elif svc_label and svc_label in self.container_target:
+                        candidates.append(c)
+                if candidates:
+                    container = candidates[0]
+                else:
+                    raise
             
             if container.status != 'running':
                 logger.warning(f"Container {self.container_name} not running: {container.status}")
@@ -449,7 +466,7 @@ def main():
     parser = argparse.ArgumentParser(description="Image synchronization manager")
     parser.add_argument('--capture-dir', default='/mnt/storage/camera_capture',
                        help='Directory for captured images')
-    parser.add_argument('--container-name', default='traffic-monitoring-edge',
+    parser.add_argument('--container-name', default='traffic-monitor',
                        help='Docker container name to monitor')
     parser.add_argument('--service-name', default='host-camera-capture',
                        help='Systemd service name for host capture')

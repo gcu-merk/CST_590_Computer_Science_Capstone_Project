@@ -23,10 +23,10 @@ The updated `docker-compose.yml` includes a separate maintenance service:
 docker-compose up -d
 
 # Check maintenance service status
-docker logs traffic-maintenance
+docker logs <container-id or use: docker compose logs data-maintenance>
 
 # View maintenance dashboard
-docker exec traffic-maintenance bash /mnt/storage/scripts/maintenance-dashboard.sh
+docker exec <container-id or use: docker compose exec data-maintenance> bash /mnt/storage/scripts/maintenance-dashboard.sh
 ```
 
 ### **Option 2: Single Container with Built-in Maintenance**
@@ -112,7 +112,7 @@ docker exec traffic-monitor bash /mnt/storage/scripts/maintenance-dashboard.sh
 docker exec traffic-monitor python3 /mnt/storage/scripts/maintenance-status.py
 
 # Check maintenance service logs
-docker logs traffic-maintenance
+docker logs <container-id or use: docker compose logs data-maintenance>
 ```
 
 ### **Manual Operations**
@@ -179,7 +179,7 @@ CMD ["bash", "/mnt/storage/scripts/start-with-maintenance.sh"]
 # Daily maintenance monitoring script
 
 # Check maintenance service health
-if docker ps | grep -q "traffic-maintenance.*Up"; then
+if docker ps | grep -q "data-maintenance.*Up" || docker ps --filter "label=com.docker.compose.service=data-maintenance" --format "{{.Names}}" | grep -q .; then
     echo "✓ Maintenance service running"
 else
     echo "❌ Maintenance service down"
@@ -225,7 +225,7 @@ esac
 #### Maintenance Service Not Starting
 ```bash
 # Check service logs
-docker logs traffic-maintenance
+docker compose logs data-maintenance
 
 # Restart maintenance service
 docker-compose restart data-maintenance

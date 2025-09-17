@@ -372,7 +372,7 @@ bash scripts/pi-troubleshoot.sh
 curl http://localhost:5000/api/health
 
 # Container inspection
-docker inspect traffic-monitoring-edge
+docker inspect $(docker ps -q --filter "label=com.docker.compose.service=traffic-monitor" | head -1)
 ```
 
 ## 6. Best Practices

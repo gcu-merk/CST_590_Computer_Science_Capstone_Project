@@ -240,7 +240,8 @@ integration:
   periodic_interval_seconds: 900    # 15 minutes when motion enabled
   
   # Container communication
-  container_name: "traffic-monitoring-edge"
+  # Avoid setting container_name to allow compose to namespace containers per project
+  # (container_name example removed — avoid using fixed container names in compose)
   shared_storage_path: "/mnt/storage"
   
   # Capture script integration

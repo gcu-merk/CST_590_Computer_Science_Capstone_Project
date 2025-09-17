@@ -26,7 +26,7 @@ deployment:
   containerized_services:
     - name: "traffic-monitor"
       type: "docker-compose"
-      container: "traffic-monitoring-edge"
+      service: "traffic-monitor"
       image: "gcumerk/cst590-capstone-public:latest"
       ports:
         - "5000:5000"
@@ -36,10 +36,10 @@ deployment:
         
     - name: "data-maintenance"
       type: "docker-compose"
-      container: "traffic-maintenance"
+      service: "data-maintenance"
       image: "gcumerk/cst590-capstone-public:latest"
       health_check:
-  command: "docker exec traffic-maintenance python3 /mnt/storage/scripts/container-maintenance.py --status"
+        command: "docker compose exec data-maintenance python3 /mnt/storage/scripts/container-maintenance.py --status || docker exec $(docker ps --filter \"name=data-maintenance\" --format '{{.Names}}' | head -1) python3 /mnt/storage/scripts/container-maintenance.py --status"
         interval: 300
 
 # Deployment Requirements
