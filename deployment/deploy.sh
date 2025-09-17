@@ -68,8 +68,8 @@ TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 # Deployment / staging defaults
 DEPLOY_USER=${DEPLOY_USER:-merk}
 # The CI workflow previously used /mnt/storage/deployment-staging for rsync staging;
-# keep a default here so this script can assist with preparing that path when run
-# on the target host (non-fatal helper for CI resilience).
+# If your Docker Compose network is named 'traffic-monitoring-network', update any label or network checks to reference that name instead of 'default'.
+# This script can assist with preparing that path and network when run on the target host (non-fatal helper for CI resilience).
 STAGING_DIR=${STAGING_DIR:-/mnt/storage/deployment-staging}
 CONTAINER_AUDIT_LOG=${CONTAINER_AUDIT_LOG:-/var/log/traffic_deploy_containers.log}
 
