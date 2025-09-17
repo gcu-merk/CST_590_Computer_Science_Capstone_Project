@@ -129,6 +129,41 @@ stop_containers() {
     
     # Stop containers gracefully
     if [ -f "docker-compose.yml" ]; then
+        # First, ensure nothing left bound to host port 5000 (API port)
+        print_step "Ensuring host port 5000 is free before starting containers..."
+        # Try to stop any containers that map host port 5000
+        conflicting=$(docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' | grep -E '0.0.0.0:5000|:5000->' || true)
+        if [ -n "$conflicting" ]; then
+            echo "$conflicting" | while read -r line; do
+                cid=$(echo "$line" | awk '{print $1}')
+                name=$(echo "$line" | awk '{print $2}')
+                print_step "Stopping container $name ($cid) that is binding host port 5000"
+                docker stop "$cid" || print_warning "Failed to stop container $cid"
+                docker rm "$cid" || print_warning "Failed to remove container $cid"
+            done
+        fi
+
+        # If a non-container process binds port 5000, try to identify and kill it after user confirmation
+        if command -v ss >/dev/null 2>&1; then
+            port_owner=$(ss -tulpn | grep -E ':5000\b' || true)
+        else
+            port_owner=$(sudo netstat -tulpn 2>/dev/null | grep -E ':5000\b' || true)
+        fi
+        if [ -n "$port_owner" ]; then
+            print_warning "A process appears to be listening on host port 5000:\n$port_owner"
+            # Try to extract PID
+            pid=$(echo "$port_owner" | sed -n 's/.*pid=\?\?\?\?\?\?\?\?\?\?//p' || true)
+            # Fallback extraction using common formats
+            pid=$(echo "$port_owner" | grep -oE "pid=[0-9]+" | grep -oE "[0-9]+" || true)
+            if [ -n "$pid" ]; then
+                print_step "Attempting to kill PID $pid to free port 5000..."
+                sudo kill "$pid" || print_warning "Failed to kill PID $pid"
+                sleep 1
+            else
+                print_warning "Could not determine PID automatically. Manual intervention may be required."
+            fi
+        fi
+
         $COMPOSE_CMD down --remove-orphans || echo "No existing containers to stop"
         print_success "Containers stopped"
     else

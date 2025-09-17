@@ -385,6 +385,53 @@ deploy_containerized_services() {
         docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down --remove-orphans || true
     fi
 
+        # Ensure host port 5000 is free: stop containers or processes binding the port
+        log "Ensuring host port 5000 is free for the API service..."
+        # Stop containers that explicitly map host port 5000
+        conflicting_containers=$(docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' | grep -E '0.0.0.0:5000|:5000->' || true)
+        if [ -n "$conflicting_containers" ]; then
+            log "Found containers binding host port 5000. Attempting to stop and remove them:"
+            echo "$conflicting_containers" | while read -r line; do
+                cid=$(echo "$line" | awk '{print $1}')
+                name=$(echo "$line" | awk '{print $2}')
+                log "Stopping container $name ($cid)"
+                docker stop "$cid" || warning "Failed to stop container $cid"
+                docker rm "$cid" || warning "Failed to remove container $cid"
+                echo "$(date '+%Y-%m-%d %H:%M:%S') STOPPED_CONFLICTING_CONTAINER cid=$cid name=$name" | sudo tee -a "$CONTAINER_AUDIT_LOG" >/dev/null || true
+            done
+        fi
+
+        # If a non-container process listens on port 5000, print diagnostics and attempt to kill
+        if command -v ss >/dev/null 2>&1; then
+            port_info=$(ss -tulpn | grep -E ':5000\b' || true)
+        else
+            port_info=$(sudo netstat -tulpn 2>/dev/null | grep -E ':5000\b' || true)
+        fi
+        if [ -n "$port_info" ]; then
+            error "Host port 5000 is currently in use by a non-container process:\n$port_info"
+            # Try to extract PID and prompt user briefly
+            pid=$(echo "$port_info" | grep -oE "pid=[0-9]+" | grep -oE "[0-9]+" || true)
+            if [ -n "$pid" ]; then
+                log "Attempting to kill PID $pid to free port 5000"
+                sudo kill "$pid" || warning "Failed to kill PID $pid"
+                sleep 1
+                # Re-check
+                if command -v ss >/dev/null 2>&1; then
+                    still=$(ss -tulpn | grep -E ':5000\b' || true)
+                else
+                    still=$(sudo netstat -tulpn 2>/dev/null | grep -E ':5000\b' || true)
+                fi
+                if [ -n "$still" ]; then
+                    error "Port 5000 still in use after attempted kill. Manual intervention required."
+                    log "Diagnostics: $still"
+                    rollback_deployment "Port 5000 in use and could not be freed"
+                fi
+            else
+                error "Could not determine PID for process binding port 5000. Manual intervention required."
+                rollback_deployment "Port 5000 in use by unknown process"
+            fi
+        fi
+
     # Helper: safely remove containers for a compose service (if any)
     # Verifies compose labels or image name before removing to avoid affecting unrelated containers on multi-tenant hosts.
     remove_compose_service_containers() {
