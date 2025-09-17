@@ -76,7 +76,10 @@ jobs:
 
   deploy_to_pi:
     name: Deploy to Raspberry Pi
-    runs-on: self-hosted
+    # Require a self-hosted runner with the 'raspberrypi' label so these
+    # steps (creating /mnt/storage, rsync, docker-compose, systemctl checks)
+    # only run on the Raspberry Pi runner and not on other self-hosted machines.
+    runs-on: [self-hosted, raspberrypi]
     needs: validate_deployment
     if: needs.validate_deployment.outputs.deployment-ready == 'true'
     steps:
@@ -283,101 +286,16 @@ jobs:
             sudo chmod +x deployment/deploy.sh
             sudo ./deployment/deploy.sh 2>&1 | tee deployment.log
           
-      - name: Validate deployment
+      - name: Validate deployment (run host-side script)
         run: |
-          echo "🔍 Validating deployment..."
+          echo "🔍 Running host-side validation script from staging..."
           set -e
-          
-          if ! systemctl is-active --quiet host-camera-capture; then
-            echo "❌ Host camera service not running"
-            systemctl status host-camera-capture --no-pager
-            exit 1
-          fi
-          echo "✅ Host camera service is running"
-          
           cd /mnt/storage/deployment-staging
-          echo "🔍 Checking container status..."
-          docker-compose ps
+          sudo chmod +x deployment/validate_deployment.sh
+          sudo deployment/validate_deployment.sh
           
-          if ! docker-compose ps | grep -q "Up"; then
-            echo "❌ Containers not running properly"
-            docker-compose ps
-            exit 1
-          fi
-          echo "✅ Containers are running"
-          
-          echo "🔍 Checking Redis service..."
-          if ! docker-compose exec -T redis redis-cli ping | grep -q "PONG"; then
-            echo "❌ Redis service not responding"
-            docker-compose logs redis
-            exit 1
-          fi
-          echo "✅ Redis service is responding"
-          
-          echo "🔍 Testing Redis connectivity from main service..."
-          sleep 5
-          if ! docker-compose logs traffic-monitor | grep -q "Connected to Redis\|Redis"; then
-            echo "⚠️ No Redis connection logs found (may still be connecting)"
-          else
-            echo "✅ Traffic monitor connected to Redis"
-          fi
-
-          # Ensure weather service containers are running and populating Redis
-          echo "🔍 Validating weather service containers..."
-          for svc in dht22-weather airport-weather; do
-            attempts=0
-            until [ $attempts -ge 10 ]; do
-              if docker-compose ps --services --filter "status=running" | grep -q "^$svc$"; then
-                echo "✅ $svc is running"
-                break
-              fi
-              attempts=$((attempts+1))
-              echo "⏳ Waiting for $svc to start (attempt: $attempts)..."
-              sleep 3
-            done
-            if [ $attempts -ge 10 ]; then
-              echo "⚠️ $svc did not reach running state after multiple attempts"
-              docker-compose logs $svc --tail=50 || true
-            fi
-          done
-
-          echo "🔍 Validating weather data keys in Redis..."
-          check_redis_key() {
-            key="$1"
-            attempt=0
-            max=10
-            while [ $attempt -lt $max ]; do
-              if docker-compose exec -T redis redis-cli GET "$key" 2>/dev/null | grep -q .; then
-                echo "✅ Redis key '$key' has data"
-                return 0
-              fi
-              attempt=$((attempt+1))
-              echo "⏳ Waiting for Redis key '$key' (attempt: $attempt/$max)..."
-              sleep 3
-            done
-            echo "⚠️ Redis key '$key' was not populated after $max attempts"
-            return 1
-          }
-
-          if ! check_redis_key "weather:dht22:latest"; then
-            echo "⚠️ DHT22 weather data not available in Redis"
-          fi
-          if ! check_redis_key "weather:airport:latest"; then
-            echo "⚠️ Airport weather data not available in Redis"
-          fi
-          
-          echo "🔍 Testing API endpoint..."
-          sleep 10
-          if ! curl -f -s http://localhost:5000/api/health >/dev/null; then
-            echo "⚠️ API not responding immediately (may need more time)"
-          else
-            echo "✅ API is responding"
-          fi
-          
-          echo "🎉 Deployment validation completed (Redis + API + Host Service)"
-          
-      - name: Cleanup staging files
-        if: always()
+      - name: Cleanup staging files (only on success)
+        if: success()
         run: |
           echo "🧹 Cleaning up deployment staging directory..."
           sudo rm -rf /mnt/storage/deployment-staging
