@@ -2,7 +2,6 @@ services:
   # Raspberry Pi 5 specific device mappings and GPIO access
   traffic-monitor:
     devices:
-      - /dev/gpiomem:/dev/gpiomem
       - /dev/gpiochip0:/dev/gpiochip0
       - /dev/gpiochip1:/dev/gpiochip1
       - /dev/gpiochip2:/dev/gpiochip2
@@ -18,7 +17,6 @@ services:
 
   dht22-weather:
     devices:
-      - /dev/gpiomem:/dev/gpiomem
       - /dev/gpiochip0:/dev/gpiochip0
       - /dev/gpiochip1:/dev/gpiochip1
       - /dev/gpiochip2:/dev/gpiochip2
@@ -35,7 +33,6 @@ services:
   # Add GPIO access to any other services that need hardware control
   airport-weather:
     devices:
-      - /dev/gpiomem:/dev/gpiomem
       - /dev/gpiochip4:/dev/gpiochip4
     volumes:
       - /sys/class/gpio:/sys/class/gpio
@@ -46,7 +43,6 @@ services:
 
   data-maintenance:
     devices:
-      - /dev/gpiomem:/dev/gpiomem
       - /dev/gpiochip4:/dev/gpiochip4
     volumes:
       - /sys/class/gpio:/sys/class/gpio

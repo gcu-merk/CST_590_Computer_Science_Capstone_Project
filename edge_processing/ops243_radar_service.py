@@ -47,10 +47,13 @@ class HardwareGPIO:
             self.GPIO.setmode(GPIO.BCM)
             self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
             self._available = True
+            LOGGER.info("GPIO hardware access initialized for pin %d", pin)
         except (ImportError, RuntimeError) as e:
             LOGGER.warning(f"GPIO not available: {e}")
+            LOGGER.info("Using mock GPIO - hardware functions disabled")
             self._available = False
-            # Mock GPIO for non-Pi environments
+            
+            # Mock GPIO for environments without GPIO access
             class MockGPIO:
                 BCM = "BCM"
                 IN = "IN"
@@ -59,11 +62,14 @@ class HardwareGPIO:
                 def setmode(self, mode): pass
                 def setup(self, pin, mode, pull_up_down=None): pass
                 def add_event_detect(self, pin, edge, callback=None): pass
+            
             self.GPIO = MockGPIO()
 
     def add_event_detect(self, edge, callback: Callable):
         if self._available:
             self.GPIO.add_event_detect(self.pin, edge, callback=callback)
+        else:
+            LOGGER.debug("GPIO event detection skipped - hardware not available")
 
 
 class OPS243Service:

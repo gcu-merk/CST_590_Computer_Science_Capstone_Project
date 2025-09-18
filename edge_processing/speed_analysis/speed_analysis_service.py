@@ -27,11 +27,13 @@ try:
     import RPi.GPIO as GPIO
     from gpiozero import LED, Button
     GPIO_AVAILABLE = True
-    logger.info("GPIO libraries loaded successfully")
+    logger.info("GPIO libraries loaded - hardware access enabled")
 except (ImportError, RuntimeError) as e:
     logger.warning(f"GPIO libraries not available: {e}")
+    logger.info("Using mock GPIO objects - hardware functions disabled")
     GPIO_AVAILABLE = False
-    # Mock GPIO objects for non-Pi environments
+    
+    # Mock GPIO objects for environments without GPIO access
     class MockGPIO:
         BCM = "BCM"
         OUT = "OUT"
@@ -49,18 +51,18 @@ except (ImportError, RuntimeError) as e:
         FALLING = "FALLING"
         PUD_UP = "PUD_UP"
         PUD_DOWN = "PUD_DOWN"
-    
+
     class MockLED:
         def __init__(self, pin): self.pin = pin
         def on(self): pass
         def off(self): pass
         def blink(self, on_time=1, off_time=1, n=None, background=True): pass
-    
+
     class MockButton:
         def __init__(self, pin): self.pin = pin
         def wait_for_press(self): pass
         def when_pressed(self, callback): pass
-    
+
     GPIO = MockGPIO()
     LED = MockLED
     Button = MockButton
