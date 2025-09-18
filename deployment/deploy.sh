@@ -107,6 +107,22 @@ verify_deployment_files() {
         fi
     done
     
+    # Check Docker image availability
+    echo "Checking Docker image availability..."
+    DOCKER_IMAGE_NAME=$(grep -E "DOCKER_IMAGE=" .env | cut -d'=' -f2 | head -1)
+    if [ -z "$DOCKER_IMAGE_NAME" ]; then
+        DOCKER_IMAGE_NAME="gcumerk/cst590-capstone-public:latest"
+    fi
+    
+    echo "Checking image: $DOCKER_IMAGE_NAME"
+    if ! docker pull "$DOCKER_IMAGE_NAME"; then
+        echo -e "${RED}✗ Failed to pull Docker image: $DOCKER_IMAGE_NAME${NC}"
+        echo "This could cause service startup failures"
+        # Don't exit here, let's continue and see what happens
+    else
+        echo -e "${GREEN}✓ Docker image available: $DOCKER_IMAGE_NAME${NC}"
+    fi
+    
     echo -e "${GREEN}✓ All required files present${NC}"
 }
 
@@ -179,13 +195,32 @@ start_services() {
     
     # Pull latest images
     echo "Pulling Docker images..."
-    docker compose -f docker-compose.yml -f docker-compose.pi.yml pull || true
+    if ! docker compose -f docker-compose.yml -f docker-compose.pi.yml pull; then
+        echo -e "${YELLOW}Warning: Failed to pull some images, continuing with existing images${NC}"
+    fi
+    
+    # Stop any existing containers first
+    echo "Stopping any existing containers..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml down || true
     
     # Start services
     echo "Starting containers..."
-    docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
-    
-    echo -e "${GREEN}✓ Docker services started${NC}"
+    if docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d; then
+        echo -e "${GREEN}✓ Docker services started${NC}"
+        
+        # Give containers time to start
+        echo "Waiting for containers to initialize..."
+        sleep 10
+        
+        # Show container status
+        echo "Container status after startup:"
+        docker compose -f docker-compose.yml -f docker-compose.pi.yml ps
+    else
+        echo -e "${RED}✗ Failed to start Docker services${NC}"
+        echo "Checking for errors..."
+        docker compose -f docker-compose.yml -f docker-compose.pi.yml logs
+        exit 1
+    fi
 }
 
 # Verify deployment
