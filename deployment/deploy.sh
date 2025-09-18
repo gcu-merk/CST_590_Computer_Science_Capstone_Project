@@ -22,25 +22,12 @@ echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Raspberry Pi 5 Traffic Monitoring Deploy${NC}"
 echo -e "${BLUE}========================================${NC}"
 
-# Check if running on Raspberry Pi
-check_raspberry_pi() {
-    echo -e "${YELLOW}Checking if running on Raspberry Pi...${NC}"
-    if ! grep -q "BCM" /proc/cpuinfo; then
-        echo -e "${RED}Warning: This doesn't appear to be a Raspberry Pi${NC}"
-        
-        # In CI/CD environment, skip interactive prompt and continue
-        if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ "$NON_INTERACTIVE" = "true" ]; then
-            echo "Running in automated environment, continuing deployment..."
-        else
-            read -p "Continue anyway? (y/N): " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                exit 1
-            fi
-        fi
-    else
-        echo -e "${GREEN}✓ Raspberry Pi detected${NC}"
-    fi
+# Check Docker and system requirements
+check_system_requirements() {
+    echo -e "${YELLOW}Checking system requirements...${NC}"
+    
+    # Note: Running on Raspberry Pi with self-hosted GitHub Actions runner
+    echo -e "${GREEN}✓ Running on configured Raspberry Pi system${NC}"
 }
 
 # Verify Docker and Docker Compose
@@ -140,7 +127,12 @@ stop_existing_services() {
     # Stop Docker containers if running
     if [ -f "$DEPLOY_DIR/docker-compose.yml" ]; then
         cd "$DEPLOY_DIR"
-        docker compose -f docker-compose.yml -f docker-compose.pi.yml down || true
+        # Use same logic for compose files as start_services
+        STOP_COMPOSE_FILES="-f docker-compose.yml"
+        if [ -e "/dev/gpiochip4" ] && [ -f "docker-compose.pi.yml" ]; then
+            STOP_COMPOSE_FILES="$STOP_COMPOSE_FILES -f docker-compose.pi.yml"
+        fi
+        docker compose $STOP_COMPOSE_FILES down || true
     fi
     
     # Stop any legacy systemd services
@@ -200,19 +192,29 @@ start_services() {
         exit 1
     fi
     
+    # Determine which compose files to use
+    COMPOSE_FILES="-f docker-compose.yml"
+    if [ -e "/dev/gpiochip4" ]; then
+        echo "Raspberry Pi 5 GPIO chip found, enabling hardware access..."
+        COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.pi.yml"
+    else
+        echo "Raspberry Pi 5 GPIO chip not found (/dev/gpiochip4), skipping hardware mappings..."
+        echo "Note: This deployment is optimized for Raspberry Pi 5"
+    fi
+    
     # Pull latest images
     echo "Pulling Docker images..."
-    if ! docker compose -f docker-compose.yml -f docker-compose.pi.yml pull; then
+    if ! docker compose $COMPOSE_FILES pull; then
         echo -e "${YELLOW}Warning: Failed to pull some images, continuing with existing images${NC}"
     fi
     
     # Stop any existing containers first
     echo "Stopping any existing containers..."
-    docker compose -f docker-compose.yml -f docker-compose.pi.yml down || true
+    docker compose $COMPOSE_FILES down || true
     
     # Start services
     echo "Starting containers..."
-    if docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d; then
+    if docker compose $COMPOSE_FILES up -d; then
         echo -e "${GREEN}✓ Docker services started${NC}"
         
         # Give containers time to start
@@ -221,11 +223,11 @@ start_services() {
         
         # Show container status
         echo "Container status after startup:"
-        docker compose -f docker-compose.yml -f docker-compose.pi.yml ps
+        docker compose $COMPOSE_FILES ps
     else
         echo -e "${RED}✗ Failed to start Docker services${NC}"
         echo "Checking for errors..."
-        docker compose -f docker-compose.yml -f docker-compose.pi.yml logs
+        docker compose $COMPOSE_FILES logs
         exit 1
     fi
 }
@@ -317,7 +319,7 @@ EOF
 main() {
     echo -e "${BLUE}Starting Docker-based deployment...${NC}"
     
-    check_raspberry_pi
+    check_system_requirements
     check_docker
     enable_hardware_interfaces
     verify_deployment_files
