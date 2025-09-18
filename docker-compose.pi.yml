@@ -1,19 +1,7 @@
-version: '3.8'
-
+version: '3'
 services:
-  # Pi-specific device mappings
-  traffic-monitor:
-    devices:
-      - /dev/gpiomem:/dev/gpiomem  # Standard GPIO access
-      # Add camera device if needed:
-      # - /dev/video0:/dev/video0
-
-  dht22-weather:
-    devices:
-      - /dev/gpiomem:/dev/gpiomem  # GPIO access for DHT22 sensor
-      
-  # Add any Pi-specific volume overrides or additional services here
-  # For example, if you need different paths on Pi:
-  # traffic-monitor:
-  #   volumes:
-  #     - /boot/config.txt:/boot/config.txt:ro  # Read Pi config if needed
+  app:
+    image: your-pi-image
+    restart: always
+    ports:
+      - "80:80"
