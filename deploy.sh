@@ -1,7 +1,7 @@
 #!/bin/bash
 """
-Raspberry Pi 5 Traffic Monitoring System - Deployment Script
-Implements recommended technology improvements and optimizations
+Raspberry Pi 5 Traffic Monitoring System - Docker Deployment Script
+Integrates with GitHub Actions workflow and Docker Compose
 """
 
 set -e  # Exit on any error
@@ -14,12 +14,12 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_DIR="/opt/traffic-monitor"
-SERVICE_USER="traffic-monitor"
-PYTHON_VERSION="3.11"
+DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
+SERVICE_USER="merk"
+STORAGE_ROOT="/mnt/storage"
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Raspberry Pi 5 Traffic Monitoring Setup${NC}"
+echo -e "${BLUE}Raspberry Pi 5 Traffic Monitoring Deploy${NC}"
 echo -e "${BLUE}========================================${NC}"
 
 # Check if running on Raspberry Pi
@@ -36,288 +36,261 @@ check_raspberry_pi() {
     echo -e "${GREEN}✓ Raspberry Pi detected${NC}"
 }
 
-# Update system and install dependencies
-install_system_dependencies() {
-    echo -e "${YELLOW}Installing system dependencies...${NC}"
+# Verify Docker and Docker Compose
+check_docker() {
+    echo -e "${YELLOW}Checking Docker installation...${NC}"
     
-    # Update package lists
-    sudo apt update
-    
-    # Install Python and development tools
-    sudo apt install -y \
-        python3 python3-pip python3-venv python3-dev \
-        build-essential cmake pkg-config
-    
-    # Install libraries for TensorFlow and OpenCV
-    sudo apt install -y \
-        libhdf5-dev libhdf5-serial-dev libhdf5-103 \
-        libatlas-base-dev gfortran \
-        libjpeg-dev libtiff5-dev libpng-dev \
-        libavcodec-dev libavformat-dev libswscale-dev \
-        libv4l-dev libxvidcore-dev libx264-dev \
-        libgtk-3-dev libcanberra-gtk-module libcanberra-gtk3-module
-    
-    # Install database and utilities
-    sudo apt install -y \
-        sqlite3 libsqlite3-dev \
-        git wget curl htop
-    
-    # Install Docker (optional)
     if ! command -v docker &> /dev/null; then
-        echo -e "${YELLOW}Installing Docker...${NC}"
+        echo -e "${RED}Docker not found. Installing...${NC}"
         curl -fsSL https://get.docker.com -o get-docker.sh
         sudo sh get-docker.sh
         sudo usermod -aG docker $USER
         rm get-docker.sh
+        echo -e "${GREEN}✓ Docker installed${NC}"
+    else
+        echo -e "${GREEN}✓ Docker found${NC}"
     fi
     
-    echo -e "${GREEN}✓ System dependencies installed${NC}"
+    # Verify Docker Compose
+    if ! docker compose version &> /dev/null; then
+        echo -e "${RED}Docker Compose not available${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Docker Compose found${NC}"
 }
 
-# Enable hardware interfaces
+# Enable hardware interfaces for Pi
 enable_hardware_interfaces() {
     echo -e "${YELLOW}Enabling hardware interfaces...${NC}"
     
-    # Enable camera, SPI, I2C, and UART
-    sudo raspi-config nonint do_camera 0
-    sudo raspi-config nonint do_spi 0
-    sudo raspi-config nonint do_i2c 0
-    sudo raspi-config nonint do_serial 1
+    # Enable camera, SPI, I2C
+    sudo raspi-config nonint do_camera 0 || true
+    sudo raspi-config nonint do_spi 0 || true
+    sudo raspi-config nonint do_i2c 0 || true
     
-    # Configure boot options
-    if ! grep -q "enable_uart=1" /boot/firmware/config.txt; then
-        echo "enable_uart=1" | sudo tee -a /boot/firmware/config.txt
+    # Configure boot options for hardware access
+    CONFIG_FILE="/boot/firmware/config.txt"
+    if [ -f "$CONFIG_FILE" ]; then
+        # Enable UART
+        if ! grep -q "enable_uart=1" $CONFIG_FILE; then
+            echo "enable_uart=1" | sudo tee -a $CONFIG_FILE
+        fi
+        
+        # Enable SPI
+        if ! grep -q "dtparam=spi=on" $CONFIG_FILE; then
+            echo "dtparam=spi=on" | sudo tee -a $CONFIG_FILE
+        fi
+        
+        # GPU memory for AI processing
+        if ! grep -q "gpu_mem=" $CONFIG_FILE; then
+            echo "gpu_mem=128" | sudo tee -a $CONFIG_FILE
+        fi
     fi
     
-    if ! grep -q "dtparam=spi=on" /boot/firmware/config.txt; then
-        echo "dtparam=spi=on" | sudo tee -a /boot/firmware/config.txt
-    fi
-    
-    # GPU memory split for AI processing
-    if ! grep -q "gpu_mem=128" /boot/firmware/config.txt; then
-        echo "gpu_mem=128" | sudo tee -a /boot/firmware/config.txt
-    fi
-    
-    echo -e "${GREEN}✓ Hardware interfaces enabled${NC}"
+    echo -e "${GREEN}✓ Hardware interfaces configured${NC}"
 }
 
-# Create project user and directories
-setup_project_structure() {
-    echo -e "${YELLOW}Setting up project structure...${NC}"
+# Verify required files exist
+verify_deployment_files() {
+    echo -e "${YELLOW}Verifying deployment files...${NC}"
     
-    # Create service user
-    if ! id "$SERVICE_USER" &>/dev/null; then
-        sudo useradd -r -s /bin/false -d $PROJECT_DIR $SERVICE_USER
+    required_files=(
+        "docker-compose.yml"
+        "docker-compose.pi.yml" 
+        ".env"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            echo -e "${RED}✗ Missing required file: $file${NC}"
+            exit 1
+        fi
+    done
+    
+    echo -e "${GREEN}✓ All required files present${NC}"
+}
+
+# Stop existing services
+stop_existing_services() {
+    echo -e "${YELLOW}Stopping existing services...${NC}"
+    
+    # Stop Docker containers if running
+    if [ -f "$DEPLOY_DIR/docker-compose.yml" ]; then
+        cd "$DEPLOY_DIR"
+        docker compose -f docker-compose.yml -f docker-compose.pi.yml down || true
     fi
     
-    # Create project directory
-    sudo mkdir -p $PROJECT_DIR
-    sudo chown $SERVICE_USER:$SERVICE_USER $PROJECT_DIR
+    # Stop any legacy systemd services
+    sudo systemctl stop traffic-monitor.service 2>/dev/null || true
+    sudo systemctl disable traffic-monitor.service 2>/dev/null || true
     
-    # Create subdirectories
-    sudo -u $SERVICE_USER mkdir -p \
-        $PROJECT_DIR/logs \
-        $PROJECT_DIR/data/exports \
-        $PROJECT_DIR/data/backups \
-        $PROJECT_DIR/data/models \
-        $PROJECT_DIR/config
-    
-    echo -e "${GREEN}✓ Project structure created${NC}"
+    echo -e "${GREEN}✓ Existing services stopped${NC}"
 }
 
-# Install Python dependencies with optimizations
-install_python_dependencies() {
-    echo -e "${YELLOW}Installing Python dependencies...${NC}"
-    
-    # Create virtual environment
-    sudo -u $SERVICE_USER python3 -m venv $PROJECT_DIR/venv
-    
-    # Activate virtual environment and upgrade pip
-    sudo -u $SERVICE_USER $PROJECT_DIR/venv/bin/pip install --upgrade pip wheel setuptools
-    
-    # Install TensorFlow Lite (lighter than full TensorFlow)
-    sudo -u $SERVICE_USER $PROJECT_DIR/venv/bin/pip install \
-        tflite-runtime \
-        numpy \
-        opencv-python-headless
-    
-    # Install Raspberry Pi specific packages
-    sudo -u $SERVICE_USER $PROJECT_DIR/venv/bin/pip install \
-        picamera2 \
-        gpiozero \
-        RPi.GPIO
-    
-    # Install other dependencies
-    sudo -u $SERVICE_USER $PROJECT_DIR/venv/bin/pip install \
-        flask flask-socketio flask-cors \
-        pyserial \
-        psutil \
-        pandas \
-        scikit-learn \
-        python-dateutil \
-        requests \
-        pyyaml
-    
-    echo -e "${GREEN}✓ Python dependencies installed${NC}"
-}
-
-# Copy application files
+# Deploy application files
 deploy_application() {
-    echo -e "${YELLOW}Deploying application...${NC}"
+    echo -e "${YELLOW}Deploying application to $DEPLOY_DIR...${NC}"
     
-    # Copy source code
-    sudo cp -r . $PROJECT_DIR/source/
-    sudo chown -R $SERVICE_USER:$SERVICE_USER $PROJECT_DIR/source/
+    # Create deployment directory
+    sudo mkdir -p "$DEPLOY_DIR"
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$DEPLOY_DIR"
     
-    # Create configuration file
-    sudo -u $SERVICE_USER tee $PROJECT_DIR/config/traffic_monitoring.conf > /dev/null <<EOF
-# Traffic Monitoring System Configuration
-
-[hardware]
-camera_index = 0
-radar_port = /dev/ttyACM0
-radar_baudrate = 9600
-
-[processing]
-detection_confidence_threshold = 0.5
-speed_detection_threshold = 0.5
-use_tflite = true
-input_size = 640,640
-
-[api]
-host = 0.0.0.0
-port = 5000
-enable_cors = true
-
-[database]
-path = $PROJECT_DIR/data/traffic_data.db
-
-[logging]
-level = INFO
-log_file = $PROJECT_DIR/logs/traffic_monitoring.log
-EOF
-
+    # Copy application files (we're already in the staging directory from GitHub Actions)
+    cp -r . "$DEPLOY_DIR/"
+    
+    # Ensure proper permissions
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$DEPLOY_DIR"
+    
+    # Make scripts executable
+    find "$DEPLOY_DIR" -name "*.sh" -exec chmod +x {} \;
+    
     echo -e "${GREEN}✓ Application deployed${NC}"
 }
 
-# Create systemd service
-create_systemd_service() {
-    echo -e "${YELLOW}Creating systemd service...${NC}"
+# Start Docker services
+start_services() {
+    echo -e "${YELLOW}Starting Docker services...${NC}"
     
-    sudo tee /etc/systemd/system/traffic-monitor.service > /dev/null <<EOF
-[Unit]
-Description=Raspberry Pi 5 Traffic Monitoring System
-After=network.target
-Wants=network.target
-
-[Service]
-Type=simple
-User=$SERVICE_USER
-Group=$SERVICE_USER
-WorkingDirectory=$PROJECT_DIR/source
-Environment=PYTHONPATH=$PROJECT_DIR/source
-ExecStart=$PROJECT_DIR/venv/bin/python main_edge_app.py
-Restart=always
-RestartSec=10
-StandardOutput=append:$PROJECT_DIR/logs/service.log
-StandardError=append:$PROJECT_DIR/logs/service.log
-
-# Security settings
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=$PROJECT_DIR
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Reload systemd and enable service
-    sudo systemctl daemon-reload
-    sudo systemctl enable traffic-monitor.service
+    cd "$DEPLOY_DIR"
     
-    echo -e "${GREEN}✓ Systemd service created${NC}"
+    # Verify .env file has required variables
+    if [ -f ".env" ]; then
+        echo "Environment variables:"
+        grep -E "HOST_UID|HOST_GID|STORAGE_ROOT" .env || echo "Warning: Some environment variables missing"
+    else
+        echo -e "${RED}✗ .env file missing${NC}"
+        exit 1
+    fi
+    
+    # Pull latest images
+    echo "Pulling Docker images..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml pull || true
+    
+    # Start services
+    echo "Starting containers..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
+    
+    echo -e "${GREEN}✓ Docker services started${NC}"
 }
 
-# Test hardware connections
-test_hardware() {
-    echo -e "${YELLOW}Testing hardware connections...${NC}"
+# Verify deployment
+verify_deployment() {
+    echo -e "${YELLOW}Verifying deployment...${NC}"
     
-    # Test camera
-    if command -v libcamera-hello &> /dev/null; then
-        echo "Testing camera..."
-        timeout 5s libcamera-hello --preview=none --timeout=3000 || echo "Camera test completed"
-    fi
+    cd "$DEPLOY_DIR"
     
-    # Test serial port for radar
-    if [ -e /dev/ttyACM0 ]; then
-        echo -e "${GREEN}✓ Radar serial port found${NC}"
-    else
-        echo -e "${YELLOW}⚠ Radar serial port not found (normal if not connected)${NC}"
-    fi
+    # Check container status
+    echo "Container status:"
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml ps
     
-    # Check GPIO access
-    if [ -e /dev/gpiomem ]; then
-        echo -e "${GREEN}✓ GPIO access available${NC}"
-    else
-        echo -e "${RED}✗ GPIO access not available${NC}"
-    fi
+    # Check if services are responding
+    sleep 10
+    
+    # Test basic connectivity
+    local containers=$(docker compose -f docker-compose.yml -f docker-compose.pi.yml ps --services)
+    for container in $containers; do
+        if docker compose -f docker-compose.yml -f docker-compose.pi.yml ps --status running | grep -q "$container"; then
+            echo -e "${GREEN}✓ $container is running${NC}"
+        else
+            echo -e "${RED}✗ $container is not running${NC}"
+            docker compose -f docker-compose.yml -f docker-compose.pi.yml logs "$container" | tail -20
+        fi
+    done
+}
+
+# Setup monitoring and logging
+setup_monitoring() {
+    echo -e "${YELLOW}Setting up monitoring...${NC}"
+    
+    # Create logrotate configuration for Docker logs
+    sudo tee /etc/logrotate.d/traffic-monitor > /dev/null <<EOF
+$STORAGE_ROOT/logs/docker/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+EOF
+
+    # Create health check script
+    sudo tee /usr/local/bin/traffic-monitor-health > /dev/null <<'EOF'
+#!/bin/bash
+cd /mnt/storage/traffic-monitor-deploy
+if ! docker compose -f docker-compose.yml -f docker-compose.pi.yml ps --status running | grep -q .; then
+    echo "Containers not running, attempting restart..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
+fi
+EOF
+    
+    sudo chmod +x /usr/local/bin/traffic-monitor-health
+    
+    # Add cron job for health checks (every 5 minutes)
+    (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/traffic-monitor-health >> $STORAGE_ROOT/logs/health-check.log 2>&1") | crontab -
+    
+    echo -e "${GREEN}✓ Monitoring configured${NC}"
 }
 
 # Performance optimizations
 optimize_system() {
     echo -e "${YELLOW}Applying system optimizations...${NC}"
     
-    # Increase swap for ML workloads
-    if [ ! -f /swapfile ] || [ $(stat -c%s /swapfile) -lt 2147483648 ]; then
-        echo "Increasing swap size..."
-        sudo dphys-swapfile swapoff || true
-        sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=2048/' /etc/dphys-swapfile || true
-        sudo dphys-swapfile setup || true
-        sudo dphys-swapfile swapon || true
+    # Docker-specific optimizations
+    if [ ! -f /etc/docker/daemon.json ]; then
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+    },
+    "storage-driver": "overlay2"
+}
+EOF
+        sudo systemctl restart docker
     fi
     
-    # Optimize for SSD if connected
-    if [ -e /dev/sda1 ]; then
-        echo "SSD detected, optimizing mount options..."
-        # Add SSD optimizations to fstab if not present
-        if ! grep -q "noatime" /etc/fstab; then
-            echo "# Add noatime for SSD optimization" | sudo tee -a /etc/fstab
-        fi
-    fi
-    
-    echo -e "${GREEN}✓ System optimized${NC}"
+    echo -e "${GREEN}✓ System optimized for Docker${NC}"
 }
 
-# Main installation function
+# Main deployment function
 main() {
-    echo -e "${BLUE}Starting installation with recommended improvements...${NC}"
+    echo -e "${BLUE}Starting Docker-based deployment...${NC}"
     
     check_raspberry_pi
-    install_system_dependencies
+    check_docker
     enable_hardware_interfaces
-    setup_project_structure
-    install_python_dependencies
+    verify_deployment_files
+    stop_existing_services
     deploy_application
-    create_systemd_service
-    test_hardware
+    start_services
+    verify_deployment
+    setup_monitoring
     optimize_system
     
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}✓ Installation completed successfully!${NC}"
+    echo -e "${GREEN}✓ Deployment completed successfully!${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo
-    echo -e "${YELLOW}Next steps:${NC}"
-    echo "1. Reboot the system: sudo reboot"
-    echo "2. Start the service: sudo systemctl start traffic-monitor"
-    echo "3. Check status: sudo systemctl status traffic-monitor"
-    echo "4. View logs: sudo journalctl -u traffic-monitor -f"
-    echo "5. Access API: http://$(hostname -I | awk '{print $1}'):5000"
+    echo -e "${YELLOW}Service Management:${NC}"
+    echo "• View status: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml ps"
+    echo "• View logs: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml logs -f"
+    echo "• Restart: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml restart"
+    echo "• Stop: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml down"
     echo
-    echo -e "${YELLOW}Configuration file: $PROJECT_DIR/config/traffic_monitoring.conf${NC}"
-    echo -e "${YELLOW}Logs directory: $PROJECT_DIR/logs/${NC}"
+    echo -e "${YELLOW}Monitoring:${NC}"
+    echo "• Health checks: tail -f $STORAGE_ROOT/logs/health-check.log"
+    echo "• Docker logs: ls $STORAGE_ROOT/logs/docker/"
     echo
-    echo -e "${BLUE}For Docker deployment: docker-compose up -d${NC}"
+    echo -e "${YELLOW}Deployment location: $DEPLOY_DIR${NC}"
+    
+    # Show final container status
+    echo -e "${BLUE}Current container status:${NC}"
+    cd "$DEPLOY_DIR"
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml ps
 }
 
 # Run main function

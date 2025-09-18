@@ -3,18 +3,18 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    user: "${DOCKER_USER}"  # Use host UID/GID mapping
     
     # Redis configuration for Raspberry Pi optimization
     command: redis-server --appendonly yes --appendfsync everysec --maxmemory 128mb --maxmemory-policy allkeys-lru
     
-    # Expose Redis port bound to localhost only so host services can connect
-    # while avoiding external network exposure. This maps host 127.0.0.1:6379 -> container 6379.
+    # Expose Redis port bound to localhost only
     ports:
       - "127.0.0.1:6379:6379"
     
-    # Persistent Redis data on SSD
+    # Use container-accessible Redis data path
     volumes:
-      - /mnt/storage/redis_data:/data
+      - "${REDIS_DATA_PATH}:/data"
     
     # Health check
     healthcheck:
@@ -31,47 +31,38 @@ services:
         max-size: "5m"
         max-file: "2"
 
-  # Main Traffic Monitoring Service (Containerized AI Processing & API)
+  # Main Traffic Monitoring Service
   traffic-monitor:
-    image: gcumerk/cst590-capstone-public:latest
+    image: "${DOCKER_IMAGE}"  # Use image from workflow
     restart: unless-stopped
+    user: "${DOCKER_USER}"  # Use host UID/GID mapping
     depends_on:
       - redis
 
-    # Hardware access (removed direct camera devices - using host-capture architecture)
-    devices:
-      # - /dev/ttyACM0:/dev/ttyACM0  # Radar sensor access (commented out - device not available)
-      - /dev/gpiomem0:/dev/gpiomem  # GPIO access (using gpiomem0)
-      # Camera devices removed - using shared volume image capture instead
-      # - /dev/video0:/dev/video0    # Removed: OpenCV compatibility issues with IMX500
-      # - /dev/video1:/dev/video1    # Removed: Not needed with host-capture
-      # - /dev/vchiq:/dev/vchiq      # Removed: VideoCore not needed in container
-      # - /dev/vcsm:/dev/vcsm        # Removed: VideoCore shared memory not needed
-
-    # Reduced privilege - camera access through shared volume only
+    # Reduced privilege mode
     privileged: false
     
-    # Add specific capabilities instead of full privileged mode
+    # Add specific capabilities
     cap_add:
-      - NET_ADMIN  # For network monitoring if needed
-      - SYS_TIME   # For time synchronization
+      - NET_ADMIN
+      - SYS_TIME
 
-    # Expose API on host (for Tailscale/external access)
+    # Expose API on host
     ports:
       - "5000:5000"
 
-    # Volume mounts for persistent data and shared image capture (ALL ON SSD)
+    # Fixed volume mounts with absolute paths
     volumes:
-      - ./data:/app/data
-      - /mnt/storage/logs/docker:/mnt/storage/logs/docker
-      - ./config:/app/config
-      - /mnt/storage/camera_capture:/mnt/storage/camera_capture
-      - /mnt/storage/periodic_snapshots:/mnt/storage/periodic_snapshots
-      - /mnt/storage/ai_camera_images:/mnt/storage/ai_camera_images
-      - /mnt/storage/processed_data:/mnt/storage/processed_data
-      - /mnt/storage/backups:/mnt/storage/backups
+      - "${STORAGE_ROOT}/traffic-monitor-deploy/data:/app/data"
+      - "${LOGS_PATH}:/mnt/storage/logs/docker"
+      - "${STORAGE_ROOT}/traffic-monitor-deploy/config:/app/config"
+      - "${STORAGE_ROOT}/camera_capture:/mnt/storage/camera_capture"
+      - "${STORAGE_ROOT}/periodic_snapshots:/mnt/storage/periodic_snapshots"
+      - "${STORAGE_ROOT}/ai_camera_images:/mnt/storage/ai_camera_images"
+      - "${STORAGE_ROOT}/processed_data:/mnt/storage/processed_data"
+      - "${STORAGE_ROOT}/backups:/mnt/storage/backups"
 
-    # Container logging configuration (logs to SSD)
+    # Container logging configuration
     logging:
       driver: "json-file"
       options:
@@ -82,31 +73,27 @@ services:
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
-      # Removed display and camera-specific variables
-      # - DISPLAY=:0  # Removed: No GUI needed in container
-      # - LIBCAMERA_LOG_LEVELS=ERROR  # Removed: No direct camera access
-      # - IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk  # Removed: Host handles IMX500
       
-      # Redis configuration for real-time messaging
+      # Redis configuration
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       - USE_REDIS_PUBSUB=true
       
-      # SSD-based storage paths
+      # Storage paths
       - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
       - USE_SHARED_VOLUME_IMAGES=true
       - HOST_CAPTURE_ARCHITECTURE=true
-      - LOG_DIRECTORY=/mnt/storage/logs/docker  # Logs stored on SSD
+      - LOG_DIRECTORY=/mnt/storage/logs/docker
       
-      # Legacy paths for compatibility (all on SSD)
+      # Data paths
       - PERIODIC_SNAPSHOT_PATH=/mnt/storage/periodic_snapshots
       - SNAPSHOT_INTERVAL_MINUTES=5
       - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images
-      - PROCESSED_DATA_PATH=/mnt/storage/data/processed
-      - BACKUP_PATH=/mnt/storage/data/backups
+      - PROCESSED_DATA_PATH=/mnt/storage/processed_data
+      - BACKUP_PATH=/mnt/storage/backups
       
-      # Data maintenance configuration
+      # Maintenance configuration
       - DATA_VOLUME=/mnt/storage
       - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
       - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
@@ -130,21 +117,19 @@ services:
 
   # Automated Data Maintenance Service
   data-maintenance:
-    image: gcumerk/cst590-capstone-public:latest
+    image: "${DOCKER_IMAGE}"
     restart: unless-stopped
+    user: "${DOCKER_USER}"  # Use host UID/GID mapping
     depends_on:
       - traffic-monitor
     
-    # Run maintenance as separate service
     working_dir: /app
     command: ["python3", "scripts/container-maintenance.py", "--daemon"]
     
-    # Only need access to storage volumes
     volumes:
-      - /mnt/storage:/mnt/storage  # Full SSD access for maintenance
-      - ./config:/app/config       # Configuration files - FIXED: Added absolute path
+      - "${STORAGE_ROOT}:/mnt/storage"
+      - "${STORAGE_ROOT}/traffic-monitor-deploy/config:/app/config"
     
-    # Minimal environment for maintenance
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
@@ -160,28 +145,32 @@ services:
       - MAINTENANCE_MAX_PROCESSED_IMAGES=200
       - MAINTENANCE_MAX_SNAPSHOTS=100
     
-    # Maintenance service health check
     healthcheck:
       test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
-      interval: 300s  # Every 5 minutes
+      interval: 300s
       timeout: 30s
       retries: 3
       start_period: 60s
     
-    # Logging configuration
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "2"
-# DHT22 Weather Sensor Service
+
+  # DHT22 Weather Sensor Service - NEEDS SPECIAL HANDLING
   dht22-weather:
-    image: gcumerk/cst590-capstone-public:latest
+    image: "${DOCKER_IMAGE}"
     restart: unless-stopped
     depends_on:
       - redis
     working_dir: /app
     command: ["python3", "edge_processing/dht_22_weather_service.py"]
+    
+    # Special user handling for GPIO access
+    # Note: This service may need root for GPIO, creating potential permission conflicts
+    user: root
+    
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -189,73 +178,55 @@ services:
       - DHT22_GPIO_PIN=4
       - DHT22_UPDATE_INTERVAL=300
       - DHT22_REDIS_KEY=weather:dht22:latest
+      - HOST_UID=${HOST_UID}  # Pass host UID for file operations
+      - HOST_GID=${HOST_GID}  # Pass host GID for file operations
+      
     volumes:
-      - ./edge_processing:/app/edge_processing
-    devices:
-      - /dev/gpiomem0:/dev/gpiomem
-      - /dev/gpiomem:/dev/gpiomem
+      - "${STORAGE_ROOT}/traffic-monitor-deploy/edge_processing:/app/edge_processing"
+      - "${STORAGE_ROOT}/dht22-weather/logs:/app/logs"  # Separate logging
+      
     cap_add:
       - SYS_RAWIO
-    user: root
+      
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "2"
 
-# Airport Weather Service
+  # Airport Weather Service
   airport-weather:
-    image: gcumerk/cst590-capstone-public:latest
+    image: "${DOCKER_IMAGE}"
     restart: unless-stopped
+    user: "${DOCKER_USER}"  # Use host UID/GID mapping
     depends_on:
       - redis
     working_dir: /app
     command: ["python3", "edge_processing/airport_weather_service.py"]
+    
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       - FETCH_INTERVAL_MINUTES=5
+      
     volumes:
-      - ./edge_processing:/app/edge_processing
+      - "${STORAGE_ROOT}/traffic-monitor-deploy/edge_processing:/app/edge_processing"
+      
     logging:
       driver: "json-file"
       options:
         max-size: "5m"
         max-file: "2"
 
-# Optional: Add database service for more complex setups
-  # database:
-  #   image: postgres:15-alpine
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: traffic_monitor
-  #     POSTGRES_USER: traffic_user
-  #     POSTGRES_PASSWORD: secure_password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./database/init_db.sql:/docker-entrypoint-initdb.d/init.sql
-  #   ports:
-  #     - "5432:5432"
-
-# Optional: Add cloud connector service
-  # cloud-connector:
-  #   build: ./cloud-connector
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - traffic-monitor
-  #   environment:
-  #     - EDGE_API_URL=http://traffic-monitor:5000
-  #     - CLOUD_ENDPOINT=https://your-cloud-service.com
-
 volumes:
-  # All persistent data stored on SSD
+  # All persistent data stored on SSD with proper paths
   postgres_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: /mnt/storage/postgres_data
+      device: "${POSTGRES_DATA_PATH}"
 
 networks:
   default:

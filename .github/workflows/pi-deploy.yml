@@ -14,8 +14,6 @@ on:
 
 env:
   DEPLOY_USER: merk
-  DEPLOY_HOST: ${{ secrets.PI_HOST }}
-  DEPLOY_KEY: ${{ secrets.PI_SSH_KEY }}
   DOCKER_IMAGE: gcumerk/cst590-capstone-public:latest
 
 jobs:
@@ -40,6 +38,7 @@ jobs:
             "deployment/host-camera-capture.service"
             "deployment/deploy.sh"
             "docker-compose.yml"
+            "docker-compose.pi.yml"
           )
           missing_files=()
           for file in "${required_files[@]}"; do
@@ -86,224 +85,153 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Prepare deployment staging
+      - name: Prepare deployment staging and persistent directories
         run: |
-          echo "📦 Preparing deployment staging directory on SSD..."
-          # Ensure all required directories exist and have correct permissions
+          echo "📦 Setting up deployment staging and ensuring persistent directories exist..."
           
-          # Deployment staging directories
+          # ===== DEPLOYMENT STAGING SETUP (simplified) =====
+          echo "🧹 Ensuring clean staging environment..."
+          
+          # Remove existing staging if present (with attribute cleanup)
+          if [ -d "/mnt/storage/deployment-staging" ]; then
+            echo "Removing existing staging directory..."
+            if command -v chattr >/dev/null 2>&1; then
+              sudo chattr -R -i /mnt/storage/deployment-staging 2>/dev/null || true
+            fi
+            sudo rm -rf /mnt/storage/deployment-staging
+          fi
+          
+          # Create fresh staging directory
           sudo mkdir -p /mnt/storage/deployment-staging
           sudo chmod 755 /mnt/storage/deployment-staging
           sudo chown merk:merk /mnt/storage/deployment-staging
-          sudo mkdir -p /mnt/storage/deployment-staging/config
-          sudo chmod 755 /mnt/storage/deployment-staging/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/data_fusion
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/data_fusion
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/data_fusion
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/data_fusion/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/data_fusion/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/data_fusion/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/messaging
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/messaging
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/messaging
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/messaging/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/messaging/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/messaging/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/speed_analysis
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/speed_analysis
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/speed_analysis
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/speed_analysis/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/speed_analysis/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/speed_analysis/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/system_health
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/system_health
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/system_health
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/system_health/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/system_health/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/system_health/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/vehicle_detection
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/vehicle_detection
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/vehicle_detection
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/vehicle_detection/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/vehicle_detection/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/vehicle_detection/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/weather_analysis
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/weather_analysis
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/weather_analysis
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/weather_analysis/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/weather_analysis/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/weather_analysis/config
-          sudo mkdir -p /mnt/storage/deployment-staging/edge_processing/config
-          sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/config
-          sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/config
-
-      # Removed invalid GPIO device check step
+          
+          # Verify staging directory is ready
+          if [ ! -w "/mnt/storage/deployment-staging" ]; then
+            echo "❌ Staging directory not writable by current user"
+            ls -la /mnt/storage/deployment-staging
+            exit 1
+          fi
+          
+          echo "✅ Staging directory prepared: /mnt/storage/deployment-staging"
+          
+          # ===== PERSISTENT DIRECTORIES (your existing structure) =====
+          echo "📁 Ensuring persistent application directories exist..."
+          
           # DHT22 weather service directory
-          sudo mkdir -p /mnt/storage/dht22-weather
-          sudo chmod 755 /mnt/storage/dht22-weather
-          sudo chown merk:merk /mnt/storage/dht22-weather
-          sudo mkdir -p /mnt/storage/dht22-weather/logs
-          sudo chmod 755 /mnt/storage/dht22-weather/logs
-          sudo chown merk:merk /mnt/storage/dht22-weather/logs
-          sudo mkdir -p /mnt/storage/dht22-weather/config
-          sudo chmod 755 /mnt/storage/dht22-weather/config
-          sudo chown merk:merk /mnt/storage/dht22-weather/config
+          sudo mkdir -p /mnt/storage/dht22-weather/{logs,config}
+          sudo chmod 755 /mnt/storage/dht22-weather /mnt/storage/dht22-weather/logs /mnt/storage/dht22-weather/config
+          sudo chown -R merk:merk /mnt/storage/dht22-weather
           
-          # Camera capture directories (from both sources)
-          sudo mkdir -p /mnt/storage/camera_capture/live
-          sudo chmod 775 /mnt/storage/camera_capture/live
-          sudo chown merk:merk /mnt/storage/camera_capture/live
-          sudo mkdir -p /mnt/storage/camera_capture/processed
-          sudo chmod 775 /mnt/storage/camera_capture/processed
-          sudo chown merk:merk /mnt/storage/camera_capture/processed
-          sudo mkdir -p /mnt/storage/camera_capture/metadata
-          sudo chmod 775 /mnt/storage/camera_capture/metadata
-          sudo chown merk:merk /mnt/storage/camera_capture/metadata
+          # Camera capture directories
+          sudo mkdir -p /mnt/storage/camera_capture/{live,processed,metadata}
+          sudo chmod 775 /mnt/storage/camera_capture /mnt/storage/camera_capture/live /mnt/storage/camera_capture/processed /mnt/storage/camera_capture/metadata
+          sudo chown -R merk:merk /mnt/storage/camera_capture
           
-          # Snapshot and AI processing directories
-          sudo mkdir -p /mnt/storage/periodic_snapshots
-          sudo chmod 775 /mnt/storage/periodic_snapshots
-          sudo chown merk:merk /mnt/storage/periodic_snapshots
-          sudo mkdir -p /mnt/storage/ai_camera_images
-          sudo chmod 775 /mnt/storage/ai_camera_images
-          sudo chown merk:merk /mnt/storage/ai_camera_images
-          sudo mkdir -p /mnt/storage/processed_data
-          sudo chmod 775 /mnt/storage/processed_data
-          sudo chown merk:merk /mnt/storage/processed_data
+          # Get host user UID/GID for Docker containers
+          HOST_UID=$(id -u merk)
+          HOST_GID=$(id -g merk)
+          echo "Host UID: $HOST_UID, Host GID: $HOST_GID"
+          
+          # AI and processing directories
+          sudo mkdir -p /mnt/storage/{periodic_snapshots,ai_camera_images,processed_data}
+          sudo chmod 775 /mnt/storage/periodic_snapshots /mnt/storage/ai_camera_images /mnt/storage/processed_data
+          sudo chown merk:merk /mnt/storage/periodic_snapshots /mnt/storage/ai_camera_images /mnt/storage/processed_data
           
           # Traffic monitor deployment
           sudo mkdir -p /mnt/storage/traffic-monitor-deploy
           sudo chmod 755 /mnt/storage/traffic-monitor-deploy
           sudo chown merk:merk /mnt/storage/traffic-monitor-deploy
           
-          # Database directories
-          sudo mkdir -p /mnt/storage/database/backups
-          sudo chmod 770 /mnt/storage/database/backups
-          sudo chown merk:merk /mnt/storage/database/backups
-          sudo mkdir -p /mnt/storage/database/schema
-          sudo chmod 770 /mnt/storage/database/schema
-          sudo chown merk:merk /mnt/storage/database/schema
+          # Database directories (with proper container access)
+          sudo mkdir -p /mnt/storage/database/{backups,schema}
+          sudo chmod 775 /mnt/storage/database /mnt/storage/database/backups /mnt/storage/database/schema
+          sudo chown -R merk:merk /mnt/storage/database
           
-          # Backup directories (generic backups)
-          sudo mkdir -p /mnt/storage/backups
-          sudo chmod 775 /mnt/storage/backups
-          sudo chown merk:merk /mnt/storage/backups
+          # Logging directories (container-accessible)
+          sudo mkdir -p /mnt/storage/logs/{docker,applications,maintenance,system}
+          sudo chmod 775 /mnt/storage/logs /mnt/storage/logs/docker /mnt/storage/logs/applications /mnt/storage/logs/maintenance /mnt/storage/logs/system
+          sudo chown -R merk:merk /mnt/storage/logs
           
-          # Logging directories (comprehensive)
-          sudo mkdir -p /mnt/storage/logs
-          sudo chmod 775 /mnt/storage/logs
-          sudo chown merk:merk /mnt/storage/logs
-          sudo mkdir -p /mnt/storage/logs/docker
-          sudo chmod 775 /mnt/storage/logs/docker
-          sudo chown merk:merk /mnt/storage/logs/docker
-          sudo mkdir -p /mnt/storage/logs/applications
-          sudo chmod 775 /mnt/storage/logs/applications
-          sudo chown merk:merk /mnt/storage/logs/applications
-          sudo mkdir -p /mnt/storage/logs/maintenance
-          sudo chmod 775 /mnt/storage/logs/maintenance
-          sudo chown merk:merk /mnt/storage/logs/maintenance
-          sudo mkdir -p /mnt/storage/logs/system
-          sudo chmod 775 /mnt/storage/logs/system
-          sudo chown merk:merk /mnt/storage/logs/system
-          
-          # Redis data directory
-          sudo mkdir -p /mnt/storage/redis_data
+          # Redis and database data (critical for container access)
+          sudo mkdir -p /mnt/storage/redis_data /mnt/storage/postgres_data
           sudo chmod 755 /mnt/storage/redis_data
-          sudo chown merk:merk /mnt/storage/redis_data
-          
-          # Generic data directories
-          sudo mkdir -p /mnt/storage/data
-          sudo chmod 755 /mnt/storage/data
-          sudo chown merk:merk /mnt/storage/data
-          sudo mkdir -p /mnt/storage/config
-          sudo chmod 755 /mnt/storage/config
-          sudo chown merk:merk /mnt/storage/config
-          sudo mkdir -p /mnt/storage/scripts
-          sudo chmod 755 /mnt/storage/scripts
-          sudo chown merk:merk /mnt/storage/scripts
-          
-          # Temporary and cache directories
-          sudo mkdir -p /mnt/storage/tmp
-          sudo chmod 777 /mnt/storage/tmp
-          sudo chown merk:merk /mnt/storage/tmp
-          sudo mkdir -p /mnt/storage/cache
-          sudo chmod 777 /mnt/storage/cache
-          sudo chown merk:merk /mnt/storage/cache
-          
-          # Data collection and maintenance services
-          sudo mkdir -p /mnt/storage/data-maintenance
-          sudo chmod 770 /mnt/storage/data-maintenance
-          sudo chown merk:merk /mnt/storage/data-maintenance
-          sudo mkdir -p /mnt/storage/data-consolidator
-          sudo chmod 770 /mnt/storage/data-consolidator
-          sudo chown merk:merk /mnt/storage/data-consolidator
-          
-          # Specialized data collection directories
-          sudo mkdir -p /mnt/storage/license-plate-data-collection
-          sudo chmod 770 /mnt/storage/license-plate-data-collection
-          sudo chown merk:merk /mnt/storage/license-plate-data-collection
-          sudo mkdir -p /mnt/storage/speed-data-collection
-          sudo chmod 770 /mnt/storage/speed-data-collection
-          sudo chown merk:merk /mnt/storage/speed-data-collection
-          sudo mkdir -p /mnt/storage/stop-sign-data-collection
-          sudo chmod 770 /mnt/storage/stop-sign-data-collection
-          sudo chown merk:merk /mnt/storage/stop-sign-data-collection
-          
-          # Utilities directory
-          sudo mkdir -p /mnt/storage/utils
-          sudo chmod 770 /mnt/storage/utils
-          sudo chown merk:merk /mnt/storage/utils
-          
-          # PostgreSQL data directory (for future database service)
-          sudo mkdir -p /mnt/storage/postgres_data
           sudo chmod 700 /mnt/storage/postgres_data
-          sudo chown merk:merk /mnt/storage/postgres_data
-
-          # Copy deployment files to staging
-          # Diagnostic: show top-level ownership and attributes to help debug unlink errors
-          echo "🔎 Pre-rsync diagnostics: top-level staging ownership"
-          ls -la /mnt/storage/deployment-staging || true
-          if command -v lsattr >/dev/null 2>&1; then
-            echo "🔎 Pre-rsync attrs (top-level)"
-            lsattr -d /mnt/storage/deployment-staging || true
-          fi
-
-          # Try to remove immutable attributes that could block deletes, then ensure ownership
-          if command -v chattr >/dev/null 2>&1; then
-            sudo chattr -R -i /mnt/storage/deployment-staging || true
-          fi
-          sudo chown -R merk:merk /mnt/storage/deployment-staging || true
-
-          # Copy deployment files to staging
-          rsync -avz --delete \
+          sudo chown merk:merk /mnt/storage/redis_data /mnt/storage/postgres_data
+          
+          # For containers that need to write as different users, create docker-accessible versions
+          # This ensures container processes can access these directories
+          sudo mkdir -p /mnt/storage/container-accessible/{redis,postgres,logs,data}
+          sudo chmod 777 /mnt/storage/container-accessible /mnt/storage/container-accessible/redis /mnt/storage/container-accessible/postgres /mnt/storage/container-accessible/logs /mnt/storage/container-accessible/data
+          sudo chown -R merk:merk /mnt/storage/container-accessible
+          
+          # Generic directories
+          sudo mkdir -p /mnt/storage/{data,config,scripts,backups}
+          sudo chmod 755 /mnt/storage/data /mnt/storage/config /mnt/storage/scripts
+          sudo chmod 775 /mnt/storage/backups
+          sudo chown merk:merk /mnt/storage/data /mnt/storage/config /mnt/storage/scripts /mnt/storage/backups
+          
+          # Temporary directories
+          sudo mkdir -p /mnt/storage/{tmp,cache}
+          sudo chmod 777 /mnt/storage/tmp /mnt/storage/cache
+          sudo chown merk:merk /mnt/storage/tmp /mnt/storage/cache
+          
+          # Data collection services
+          sudo mkdir -p /mnt/storage/{data-maintenance,data-consolidator,utils}
+          sudo chmod 770 /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
+          sudo chown merk:merk /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
+          
+          # Specialized data collection
+          sudo mkdir -p /mnt/storage/{license-plate-data-collection,speed-data-collection,stop-sign-data-collection}
+          sudo chmod 770 /mnt/storage/license-plate-data-collection /mnt/storage/speed-data-collection /mnt/storage/stop-sign-data-collection
+          sudo chown merk:merk /mnt/storage/license-plate-data-collection /mnt/storage/speed-data-collection /mnt/storage/stop-sign-data-collection
+          
+          echo "✅ All persistent directories ensured"
+          
+          # ===== COPY FILES TO STAGING =====
+          echo "🔄 Syncing deployment files to staging..."
+          
+          if ! rsync -avz --delete \
             --exclude='.git*' \
             --exclude='documentation/' \
             --exclude='*.md' \
             --exclude='test_*' \
             --exclude='__pycache__/' \
-            ./ /mnt/storage/deployment-staging/ || true
-
-          rc=$?
-          if [ $rc -ne 0 ]; then
-            echo "❌ rsync returned exit code $rc"
-            echo "🔎 Post-rsync diagnostics (top-level staging)"
+            ./ /mnt/storage/deployment-staging/; then
+            
+            echo "❌ rsync failed with exit code $?"
+            echo "🔎 Staging directory diagnostics:"
             ls -la /mnt/storage/deployment-staging || true
-            if command -v lsattr >/dev/null 2>&1; then
-              echo "🔎 lsattr (top-level, short)"
-              lsattr -R /mnt/storage/deployment-staging | sed -n '1,80p' || true
-            fi
-            exit $rc
+            exit 1
           fi
-
-          echo "✅ All directories created with proper permissions and ownership"
-          echo "📋 Directory structure summary:"
-          ls -la /mnt/storage/ | head -20
-          echo "📋 Camera capture structure:"
-          ls -la /mnt/storage/camera_capture/ 2>/dev/null || echo "Camera capture dirs will be created on first use"
+          
+          # Final verification
+          echo "📋 Staging ready - directory structure:"
+          ls -la /mnt/storage/deployment-staging/ | head -10
+          echo "📋 Key persistent directories:"
+          ls -la /mnt/storage/ | grep -E "(camera_capture|redis_data|logs|database)" || true
+          
+          # Create .env file with host UID/GID for Docker Compose
+          echo "🔧 Creating .env file for Docker UID/GID mapping..."
+          cat > /mnt/storage/deployment-staging/.env << EOF
+          # Host user mapping for Docker containers
+          HOST_UID=${HOST_UID}
+          HOST_GID=${HOST_GID}
+          DOCKER_USER=${HOST_UID}:${HOST_GID}
+          
+          # Storage paths
+          STORAGE_ROOT=/mnt/storage
+          
+          # Container-accessible directories
+          REDIS_DATA_PATH=/mnt/storage/container-accessible/redis
+          POSTGRES_DATA_PATH=/mnt/storage/container-accessible/postgres  
+          LOGS_PATH=/mnt/storage/container-accessible/logs
+          
+          # Docker image from workflow
+          DOCKER_IMAGE=${DOCKER_IMAGE}
+          EOF
+          
+          echo "✅ Environment file created with UID mapping: $HOST_UID:$HOST_GID"
             
       - name: Execute deployment
         run: |
@@ -311,16 +239,39 @@ jobs:
           set -e
           
           cd /mnt/storage/deployment-staging
-            sudo chmod +x deployment/deploy.sh
-            sudo ./deployment/deploy.sh 2>&1 | tee deployment.log
+          
+          # Validate deployment script exists
+          if [ ! -f "deployment/deploy.sh" ]; then
+            echo "❌ Deploy script not found: deployment/deploy.sh"
+            exit 1
+          fi
+          
+          sudo chmod +x deployment/deploy.sh
+          
+          # Execute deployment script and capture exit code
+          if sudo ./deployment/deploy.sh 2>&1 | tee deployment.log; then
+            echo "✅ Deployment script completed successfully"
+          else
+            echo "❌ Deployment script failed with exit code $?"
+            echo "📋 Last 50 lines of deployment log:"
+            tail -50 deployment.log || true
+            exit 1
+          fi
           
       - name: Validate deployment (run host-side script)
         run: |
           echo "🔍 Running host-side validation script from staging..."
           set -e
           cd /mnt/storage/deployment-staging
-          sudo chmod +x deployment/validate_deployment.sh
-          sudo deployment/validate_deployment.sh
+          
+          # Check if validation script exists
+          if [ ! -f "deployment/validate_deployment.sh" ]; then
+            echo "⚠️ Validation script not found: deployment/validate_deployment.sh"
+            echo "Skipping validation step"
+          else
+            sudo chmod +x deployment/validate_deployment.sh
+            sudo deployment/validate_deployment.sh
+          fi
           
       - name: Cleanup staging files (only on success)
         if: success()
