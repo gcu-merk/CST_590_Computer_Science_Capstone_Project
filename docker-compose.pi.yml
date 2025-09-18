@@ -1,17 +1,56 @@
 services:
-  # Raspberry Pi 5 specific device mappings
+  # Raspberry Pi 5 specific device mappings and GPIO access
   traffic-monitor:
     devices:
+      - /dev/gpiomem:/dev/gpiomem
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/gpiochip1:/dev/gpiochip1
+      - /dev/gpiochip2:/dev/gpiochip2
+      - /dev/gpiochip3:/dev/gpiochip3
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 main GPIO chip (40-pin header)
-      # Add camera device if needed:
-      # - /dev/video0:/dev/video0
+    volumes:
+      - /sys/class/gpio:/sys/class/gpio
+      - /sys/devices/platform/soc:/sys/devices/platform/soc
+    group_add:
+      - gpio
+    cap_add:
+      - SYS_RAWIO
 
   dht22-weather:
     devices:
+      - /dev/gpiomem:/dev/gpiomem
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/gpiochip1:/dev/gpiochip1
+      - /dev/gpiochip2:/dev/gpiochip2
+      - /dev/gpiochip3:/dev/gpiochip3
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
-      
-  # Add any Pi-specific volume overrides or additional services here
-  # For example, if you need different paths on Pi:
-  # traffic-monitor:
-  #   volumes:
-  #     - /boot/config.txt:/boot/config.txt:ro  # Read Pi config if needed
+    volumes:
+      - /sys/class/gpio:/sys/class/gpio
+      - /sys/devices/platform/soc:/sys/devices/platform/soc
+    group_add:
+      - gpio
+    cap_add:
+      - SYS_RAWIO
+
+  # Add GPIO access to any other services that need hardware control
+  airport-weather:
+    devices:
+      - /dev/gpiomem:/dev/gpiomem
+      - /dev/gpiochip4:/dev/gpiochip4
+    volumes:
+      - /sys/class/gpio:/sys/class/gpio
+    group_add:
+      - gpio
+    cap_add:
+      - SYS_RAWIO
+
+  data-maintenance:
+    devices:
+      - /dev/gpiomem:/dev/gpiomem
+      - /dev/gpiochip4:/dev/gpiochip4
+    volumes:
+      - /sys/class/gpio:/sys/class/gpio
+    group_add:
+      - gpio
+    cap_add:
+      - SYS_RAWIO

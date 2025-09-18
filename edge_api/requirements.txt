@@ -37,6 +37,9 @@ pytz>=2023.3
 # Logging
 structlog>=23.1.0
 
+# System monitoring
+psutil>=5.9.0
+
 # Image processing (basic)
 Pillow>=10.0.0
 

@@ -41,14 +41,29 @@ class HardwareGPIO:
 
     def __init__(self, pin: int):
         self.pin = pin
-        import RPi.GPIO as GPIO
-        self.GPIO = GPIO
-        self.GPIO.setmode(GPIO.BCM)
-        self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        self._available = True
+        try:
+            import RPi.GPIO as GPIO
+            self.GPIO = GPIO
+            self.GPIO.setmode(GPIO.BCM)
+            self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+            self._available = True
+        except (ImportError, RuntimeError) as e:
+            LOGGER.warning(f"GPIO not available: {e}")
+            self._available = False
+            # Mock GPIO for non-Pi environments
+            class MockGPIO:
+                BCM = "BCM"
+                IN = "IN"
+                PUD_DOWN = "PUD_DOWN"
+                RISING = "RISING"
+                def setmode(self, mode): pass
+                def setup(self, pin, mode, pull_up_down=None): pass
+                def add_event_detect(self, pin, edge, callback=None): pass
+            self.GPIO = MockGPIO()
 
     def add_event_detect(self, edge, callback: Callable):
-        self.GPIO.add_event_detect(self.pin, edge, callback=callback)
+        if self._available:
+            self.GPIO.add_event_detect(self.pin, edge, callback=callback)
 
 
 class OPS243Service:

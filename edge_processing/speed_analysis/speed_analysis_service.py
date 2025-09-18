@@ -18,13 +18,52 @@ from scipy import signal
 from scipy.stats import zscore
 import statistics
 
-# Raspberry Pi 5 GPIO for hardware control
-import RPi.GPIO as GPIO
-from gpiozero import LED, Button
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Raspberry Pi 5 GPIO for hardware control
+try:
+    import RPi.GPIO as GPIO
+    from gpiozero import LED, Button
+    GPIO_AVAILABLE = True
+    logger.info("GPIO libraries loaded successfully")
+except (ImportError, RuntimeError) as e:
+    logger.warning(f"GPIO libraries not available: {e}")
+    GPIO_AVAILABLE = False
+    # Mock GPIO objects for non-Pi environments
+    class MockGPIO:
+        BCM = "BCM"
+        OUT = "OUT"
+        IN = "IN"
+        HIGH = 1
+        LOW = 0
+        def setmode(self, mode): pass
+        def setup(self, pin, mode, pull_up_down=None): pass
+        def output(self, pin, state): pass
+        def input(self, pin): return 0
+        def cleanup(self): pass
+        def add_event_detect(self, pin, edge, callback=None, bouncetime=None): pass
+        def remove_event_detect(self, pin): pass
+        RISING = "RISING"
+        FALLING = "FALLING"
+        PUD_UP = "PUD_UP"
+        PUD_DOWN = "PUD_DOWN"
+    
+    class MockLED:
+        def __init__(self, pin): self.pin = pin
+        def on(self): pass
+        def off(self): pass
+        def blink(self, on_time=1, off_time=1, n=None, background=True): pass
+    
+    class MockButton:
+        def __init__(self, pin): self.pin = pin
+        def wait_for_press(self): pass
+        def when_pressed(self, callback): pass
+    
+    GPIO = MockGPIO()
+    LED = MockLED
+    Button = MockButton
 
 @dataclass
 class RadarReading:

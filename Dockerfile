@@ -97,6 +97,12 @@ COPY . /app/
 # Create necessary directories
 RUN mkdir -p /mnt/storage/logs/docker /mnt/storage/data/exports /mnt/storage/data/backups /mnt/storage/data/models /mnt/storage/config
 
+# Add GPIO group and user permissions for Raspberry Pi 5
+RUN groupadd -f gpio && \
+    groupadd -f i2c && \
+    groupadd -f spi && \
+    usermod -a -G gpio,i2c,spi root
+
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
