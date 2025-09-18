@@ -9,7 +9,6 @@ services:
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 main GPIO chip (40-pin header)
     volumes:
       - /sys/class/gpio:/sys/class/gpio
-      - /sys/devices/platform/soc:/sys/devices/platform/soc
     group_add:
       - gpio
     cap_add:
@@ -24,7 +23,6 @@ services:
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
     volumes:
       - /sys/class/gpio:/sys/class/gpio
-      - /sys/devices/platform/soc:/sys/devices/platform/soc
     group_add:
       - gpio
     cap_add:
