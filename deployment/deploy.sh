@@ -249,22 +249,7 @@ pre_deployment_checks() {
     if ! grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
         warning "Not running on Raspberry Pi - some features may not work"
     fi
-
-    # Detect Pi 5 and check for correct GPIO device
-    if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
-        # Pi 5 uses /dev/gpiochip* (usually /dev/gpiochip4)
-        if ! ls /dev/gpiochip* >/dev/null 2>&1; then
-            error "No /dev/gpiochip* device found. Make sure you're deploying to a Raspberry Pi 5 with GPIO enabled."
-            exit $EXIT_PRECHECK_FAILED
-        fi
-    else
-        # Older Pi models use /dev/gpiomem
-        if [ ! -e "/dev/gpiomem" ]; then
-            error "/dev/gpiomem not found. Make sure you're deploying to a Raspberry Pi with GPIO enabled."
-            exit $EXIT_PRECHECK_FAILED
-        fi
-    fi
-    
+   
     # Check camera availability (critical for host service)
     if ! rpicam-still --list-cameras >/dev/null 2>&1; then
         error "Camera not detected - cannot deploy host camera service"
