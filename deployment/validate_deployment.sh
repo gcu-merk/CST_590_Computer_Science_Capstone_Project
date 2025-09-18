@@ -27,6 +27,14 @@ cd "$DEPLOY_DIR" || {
 
 # Check if Docker Compose files exist
 echo -e "${YELLOW}Checking Docker Compose files...${NC}"
+
+# Debug: Show current working directory and files
+echo "Debug: Current working directory: $(pwd)"
+echo "Debug: Files in current directory:"
+ls -la | head -20
+echo "Debug: Looking for docker-compose files..."
+ls -la docker-compose* 2>/dev/null || echo "No docker-compose files found with ls"
+
 if [ ! -f "docker-compose.yml" ]; then
     echo -e "${RED}✗ docker-compose.yml not found${NC}"
     exit 1
@@ -34,6 +42,11 @@ fi
 
 if [ ! -f "docker-compose.pi.yml" ]; then
     echo -e "${RED}✗ docker-compose.pi.yml not found${NC}"
+    echo "Debug: File check failed. Let's see what we have:"
+    echo "Debug: Using find to locate docker-compose.pi.yml:"
+    find . -name "docker-compose.pi.yml" -type f 2>/dev/null || echo "find: No docker-compose.pi.yml found"
+    echo "Debug: Using test -f with full path:"
+    test -f "/mnt/storage/deployment-staging/docker-compose.pi.yml" && echo "Found with full path" || echo "Not found with full path"
     exit 1
 fi
 
