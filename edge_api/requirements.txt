@@ -43,3 +43,7 @@ Pillow>=10.0.0
 # OpenAPI/Swagger documentation
 apispec>=6.3.0
 apispec-webframeworks>=0.5.2
+
+# Raspberry Pi GPIO libraries
+RPi.GPIO>=0.7.1
+gpiozero>=1.6.2
