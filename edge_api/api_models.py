@@ -149,29 +149,25 @@ class TimeRangeQuerySchema(BaseSchema):
     """Schema for time range query parameters"""
     seconds = ma_fields.Integer(
         validate=validate.Range(min=1, max=86400),
-        load_default=60,
-        description="Time span in seconds"
+        load_default=60
     )
 
 class AnalyticsQuerySchema(BaseSchema):
     """Schema for analytics query parameters"""
     period = ma_fields.String(
         validate=validate.OneOf(['hour', 'day', 'week', 'month']),
-        load_default='hour',
-        description="Analysis period"
+        load_default='hour'
     )
 
 class WeatherHistoryQuerySchema(BaseSchema):
     """Schema for weather history query parameters"""
     hours = ma_fields.Integer(
         validate=validate.Range(min=1, max=168),
-        load_default=24,
-        description="Number of hours for historical data"
+        load_default=24
     )
     limit = ma_fields.Integer(
         validate=validate.Range(min=1, max=1000),
-        load_default=100,
-        description="Maximum number of records"
+        load_default=100
     )
 
 # Schema instances for use in endpoints
