@@ -24,7 +24,7 @@ services:
       - POSTGRES_USER=traffic_user
       - POSTGRES_PASSWORD=traffic_password
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Use external port 5433 to avoid conflict with system PostgreSQL
     volumes:
       - ${POSTGRES_DATA_PATH:-/mnt/storage/postgres_data}:/var/lib/postgresql/data
     restart: unless-stopped
