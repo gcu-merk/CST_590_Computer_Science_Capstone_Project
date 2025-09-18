@@ -1,8 +1,8 @@
 #!/bin/bash
-"""
-Raspberry Pi 5 Traffic Monitoring System - Docker Deployment Script
-Integrates with GitHub Actions workflow and Docker Compose
-"""
+#
+# Raspberry Pi 5 Traffic Monitoring System - Docker Deployment Script
+# Integrates with GitHub Actions workflow and Docker Compose
+#
 
 set -e  # Exit on any error
 
@@ -27,13 +27,20 @@ check_raspberry_pi() {
     echo -e "${YELLOW}Checking if running on Raspberry Pi...${NC}"
     if ! grep -q "BCM" /proc/cpuinfo; then
         echo -e "${RED}Warning: This doesn't appear to be a Raspberry Pi${NC}"
-        read -p "Continue anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+        
+        # In CI/CD environment, skip interactive prompt and continue
+        if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ "$NON_INTERACTIVE" = "true" ]; then
+            echo "Running in automated environment, continuing deployment..."
+        else
+            read -p "Continue anyway? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
         fi
+    else
+        echo -e "${GREEN}✓ Raspberry Pi detected${NC}"
     fi
-    echo -e "${GREEN}✓ Raspberry Pi detected${NC}"
 }
 
 # Verify Docker and Docker Compose

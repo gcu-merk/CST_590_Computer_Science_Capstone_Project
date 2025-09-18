@@ -285,6 +285,13 @@ jobs:
           ls -la /mnt/storage/ | grep -E "(camera_capture|redis_data|postgres_data|logs|container-accessible)" || true
             
       - name: Execute deployment
+        env:
+          NON_INTERACTIVE: true
+          DEPLOY_USER: ${{ env.DEPLOY_USER }}
+          DOCKER_IMAGE: ${{ env.DOCKER_IMAGE }}
+          HOST_UID: ${{ env.HOST_UID }}
+          HOST_GID: ${{ env.HOST_GID }}
+          STORAGE_ROOT: ${{ env.STORAGE_ROOT }}
         run: |
           echo "Executing deployment on Raspberry Pi (self-hosted)..."
           set -e
@@ -300,8 +307,10 @@ jobs:
           sudo chmod +x deployment/deploy.sh
           
           # Execute deployment script and capture exit code
-          if sudo ./deployment/deploy.sh 2>&1 | tee deployment.log; then
+          if sudo -E ./deployment/deploy.sh 2>&1 | tee deployment.log; then
             echo "Deployment script completed successfully"
+            echo "Full deployment log:"
+            cat deployment.log
           else
             echo "Deployment script failed with exit code $?"
             echo "Last 50 lines of deployment log:"
