@@ -141,9 +141,7 @@ jobs:
           sudo chmod 755 /mnt/storage/deployment-staging/edge_processing/config
           sudo chown merk:merk /mnt/storage/deployment-staging/edge_processing/config
 
-      - name: Check for Raspberry Pi GPIO device
-        run: |
-                 
+      # Removed invalid GPIO device check step
           # DHT22 weather service directory
           sudo mkdir -p /mnt/storage/dht22-weather
           sudo chmod 755 /mnt/storage/dht22-weather
