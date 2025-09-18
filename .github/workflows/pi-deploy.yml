@@ -313,7 +313,10 @@ jobs:
         run: |
           echo "Running deployment validation from staging..."
           set -e
+          
+          # Ensure we're in the staging directory
           cd /mnt/storage/deployment-staging
+          echo "Validation working directory: $(pwd)"
           
           # Check if validation script exists
           if [ ! -f "deployment/validate_deployment.sh" ]; then
@@ -327,9 +330,11 @@ jobs:
             ls -la
             echo "Debug: Checking validation script version..."
             head -10 deployment/validate_deployment.sh
-            echo "Debug: Running validation script..."
+            echo "Debug: Running validation script from staging directory..."
             sudo chmod +x deployment/validate_deployment.sh
-            sudo deployment/validate_deployment.sh
+            
+            # Run validation script with explicit working directory
+            (cd /mnt/storage/deployment-staging && sudo ./deployment/validate_deployment.sh)
           fi
           
       - name: Cleanup staging files (only on success)

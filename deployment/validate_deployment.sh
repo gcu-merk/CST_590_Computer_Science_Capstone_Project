@@ -13,15 +13,27 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
+DEPLOY_DIR="/mnt/storage/deployment-staging"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Validating Traffic Monitoring Deployment${NC}"
 echo -e "${BLUE}========================================${NC}"
 
+# Ensure we're in the correct directory - either current directory or staging
+if [[ "$(basename $(pwd))" == "deployment-staging" ]]; then
+    echo "Using current directory: $(pwd)"
+    DEPLOY_DIR="$(pwd)"
+elif [ -d "/mnt/storage/deployment-staging" ]; then
+    echo "Changing to staging directory: /mnt/storage/deployment-staging"
+    DEPLOY_DIR="/mnt/storage/deployment-staging"
+else
+    echo -e "${RED}✗ Staging directory not found: /mnt/storage/deployment-staging${NC}"
+    exit 1
+fi
+
 # Change to deployment directory
 cd "$DEPLOY_DIR" || {
-    echo -e "${RED}✗ Deployment directory not found: $DEPLOY_DIR${NC}"
+    echo -e "${RED}✗ Cannot access deployment directory: $DEPLOY_DIR${NC}"
     exit 1
 }
 
