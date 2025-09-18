@@ -325,6 +325,9 @@ jobs:
             pwd
             echo "Contents of staging directory:"
             ls -la
+            echo "Debug: Checking validation script version..."
+            head -10 deployment/validate_deployment.sh
+            echo "Debug: Running validation script..."
             sudo chmod +x deployment/validate_deployment.sh
             sudo deployment/validate_deployment.sh
           fi
