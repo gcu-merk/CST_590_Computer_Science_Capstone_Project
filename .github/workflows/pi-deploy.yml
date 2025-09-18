@@ -201,6 +201,18 @@ jobs:
           # ===== COPY FILES TO STAGING =====
           echo "Syncing deployment files to staging..."
           
+          # Debug: Check if docker-compose.pi.yml exists before rsync
+          echo "Debug: Checking for docker-compose.pi.yml before rsync..."
+          if [ -f "docker-compose.pi.yml" ]; then
+            echo "✓ docker-compose.pi.yml found in source directory"
+            ls -la docker-compose*.yml
+          else
+            echo "✗ docker-compose.pi.yml NOT found in source directory"
+            echo "Current directory: $(pwd)"
+            echo "Files in current directory:"
+            ls -la
+          fi
+          
           if ! rsync -avz --delete \
             --exclude='.git*' \
             --exclude='documentation/' \
@@ -213,6 +225,17 @@ jobs:
             echo "Staging directory diagnostics:"
             ls -la /mnt/storage/deployment-staging || true
             exit 1
+          fi
+          
+          # Debug: Check if docker-compose.pi.yml exists after rsync
+          echo "Debug: Checking for docker-compose.pi.yml after rsync..."
+          if [ -f "/mnt/storage/deployment-staging/docker-compose.pi.yml" ]; then
+            echo "✓ docker-compose.pi.yml found in staging directory"
+            ls -la /mnt/storage/deployment-staging/docker-compose*.yml
+          else
+            echo "✗ docker-compose.pi.yml NOT found in staging directory"
+            echo "Files in staging directory:"
+            ls -la /mnt/storage/deployment-staging/ | head -20
           fi
           
           # Create .env file with host UID/GID for Docker Compose
