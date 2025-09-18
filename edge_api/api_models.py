@@ -142,14 +142,14 @@ class ErrorResponseSchema(BaseSchema):
     error = ma_fields.String(required=True)
     status_code = ma_fields.Integer(required=True)
     timestamp = ma_fields.DateTime(required=True, format='iso')
-    details = ma_fields.Dict(missing={})
+    details = ma_fields.Dict(load_default={})
 
 # Query Parameter Schemas
 class TimeRangeQuerySchema(BaseSchema):
     """Schema for time range query parameters"""
     seconds = ma_fields.Integer(
         validate=validate.Range(min=1, max=86400),
-        missing=60,
+        load_default=60,
         description="Time span in seconds"
     )
 
@@ -157,7 +157,7 @@ class AnalyticsQuerySchema(BaseSchema):
     """Schema for analytics query parameters"""
     period = ma_fields.String(
         validate=validate.OneOf(['hour', 'day', 'week', 'month']),
-        missing='hour',
+        load_default='hour',
         description="Analysis period"
     )
 
@@ -165,12 +165,12 @@ class WeatherHistoryQuerySchema(BaseSchema):
     """Schema for weather history query parameters"""
     hours = ma_fields.Integer(
         validate=validate.Range(min=1, max=168),
-        missing=24,
+        load_default=24,
         description="Number of hours for historical data"
     )
     limit = ma_fields.Integer(
         validate=validate.Range(min=1, max=1000),
-        missing=100,
+        load_default=100,
         description="Maximum number of records"
     )
 
