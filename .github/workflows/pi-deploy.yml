@@ -129,8 +129,8 @@ jobs:
           
           # Create fresh staging directory
           sudo mkdir -p /mnt/storage/deployment-staging
-          sudo chmod 755 /mnt/storage/deployment-staging
-          sudo chown merk:merk /mnt/storage/deployment-staging
+          sudo chmod 775 /mnt/storage/deployment-staging
+          sudo chown $USER:$USER /mnt/storage/deployment-staging
           
           # Verify staging directory is ready
           if [ ! -w "/mnt/storage/deployment-staging" ]; then
@@ -282,6 +282,11 @@ jobs:
             echo "Validation script not found: deployment/validate_deployment.sh"
             echo "Skipping validation step"
           else
+            echo "Debug: Checking for docker-compose.pi.yml in staging directory..."
+            ls -la docker-compose*.yml || echo "No docker-compose files found"
+            pwd
+            echo "Contents of staging directory:"
+            ls -la
             sudo chmod +x deployment/validate_deployment.sh
             sudo deployment/validate_deployment.sh
           fi
