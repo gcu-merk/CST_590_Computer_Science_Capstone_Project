@@ -1,8 +1,8 @@
 #!/bin/bash
-"""
-Deployment Validation Script for Traffic Monitoring System
-Verifies that Docker containers are running correctly after deployment
-"""
+#
+# Deployment Validation Script for Traffic Monitoring System
+# Verifies that Docker containers are running correctly after deployment
+#
 
 set -e
 
