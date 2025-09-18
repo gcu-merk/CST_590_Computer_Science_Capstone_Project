@@ -1,0 +1,9 @@
+services:
+  # Quick override for traffic-monitor to run camera-free API
+  traffic-monitor:
+    command: ["python", "camera_free_api.py"]
+    environment:
+      - DISABLE_CAMERA=true
+      - DISABLE_GPIO=true
+      - MOCK_HARDWARE=true
+      - FLASK_ENV=production
