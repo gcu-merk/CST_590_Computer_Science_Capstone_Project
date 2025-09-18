@@ -1,66 +1,312 @@
 #!/bin/bash
-# CI/CD Deployment Script for Traffic Monitoring System
-# Updated to handle Redis and PostgreSQL services properly
+"""
+Raspberry Pi 5 Traffic Monitoring System - Docker Deployment Script
+Integrates with GitHub Actions workflow and Docker Compose
+"""
 
-set -e  # Exit on error
+set -e  # Exit on any error
 
-# Colors for CI/CD output
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Logging function for CI/CD
-log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+# Configuration
+DEPLOY_DIR="/mnt/storage/deployment-staging"
+SERVICE_USER="merk"
+STORAGE_ROOT="/mnt/storage"
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}Raspberry Pi 5 Traffic Monitoring Deploy${NC}"
+echo -e "${BLUE}========================================${NC}"
+
+# Check if running on Raspberry Pi
+check_raspberry_pi() {
+    echo -e "${YELLOW}Checking if running on Raspberry Pi...${NC}"
+    if ! grep -q "BCM" /proc/cpuinfo; then
+        echo -e "${RED}Warning: This doesn't appear to be a Raspberry Pi${NC}"
+        read -p "Continue anyway? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    echo -e "${GREEN}✓ Raspberry Pi detected${NC}"
 }
 
-error() {
-    echo -e "${RED}[ERROR $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
+# Verify Docker and Docker Compose
+check_docker() {
+    echo -e "${YELLOW}Checking Docker installation...${NC}"
+    
+    if ! command -v docker &> /dev/null; then
+        echo -e "${RED}Docker not found. Installing...${NC}"
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker $USER
+        rm get-docker.sh
+        echo -e "${GREEN}✓ Docker installed${NC}"
+    else
+        echo -e "${GREEN}✓ Docker found${NC}"
+    fi
+    
+    # Verify Docker Compose
+    if ! docker compose version &> /dev/null; then
+        echo -e "${RED}Docker Compose not available${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Docker Compose found${NC}"
 }
 
-success() {
-    echo -e "${GREEN}[SUCCESS $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+# Enable hardware interfaces for Pi
+enable_hardware_interfaces() {
+    echo -e "${YELLOW}Enabling hardware interfaces...${NC}"
+    
+    # Enable camera, SPI, I2C
+    sudo raspi-config nonint do_camera 0 || true
+    sudo raspi-config nonint do_spi 0 || true
+    sudo raspi-config nonint do_i2c 0 || true
+    
+    # Configure boot options for hardware access
+    CONFIG_FILE="/boot/firmware/config.txt"
+    if [ -f "$CONFIG_FILE" ]; then
+        # Enable UART
+        if ! grep -q "enable_uart=1" $CONFIG_FILE; then
+            echo "enable_uart=1" | sudo tee -a $CONFIG_FILE
+        fi
+        
+        # Enable SPI
+        if ! grep -q "dtparam=spi=on" $CONFIG_FILE; then
+            echo "dtparam=spi=on" | sudo tee -a $CONFIG_FILE
+        fi
+        
+        # GPU memory for AI processing
+        if ! grep -q "gpu_mem=" $CONFIG_FILE; then
+            echo "gpu_mem=128" | sudo tee -a $CONFIG_FILE
+        fi
+    fi
+    
+    echo -e "${GREEN}✓ Hardware interfaces configured${NC}"
 }
 
-warning() {
-    echo -e "${YELLOW}[WARNING $(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+# Verify required files exist
+verify_deployment_files() {
+    echo -e "${YELLOW}Verifying deployment files...${NC}"
+    
+    required_files=(
+        "docker-compose.yml"
+        "docker-compose.pi.yml" 
+        ".env"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            echo -e "${RED}✗ Missing required file: $file${NC}"
+            exit 1
+        fi
+    done
+    
+    echo -e "${GREEN}✓ All required files present${NC}"
 }
 
-echo "🚀 CI/CD Deployment: Traffic Monitoring System"
-echo "=============================================="
-echo "📋 Host Service: Camera Capture (systemd)"
-echo "📦 Containerized: Redis, PostgreSQL, AI Processing, API, Maintenance"
+# Stop existing services
+stop_existing_services() {
+    echo -e "${YELLOW}Stopping existing services...${NC}"
+    
+    # Stop Docker containers if running
+    if [ -f "$DEPLOY_DIR/docker-compose.yml" ]; then
+        cd "$DEPLOY_DIR"
+        docker compose -f docker-compose.yml -f docker-compose.pi.yml down || true
+    fi
+    
+    # Stop any legacy systemd services
+    sudo systemctl stop traffic-monitor.service 2>/dev/null || true
+    sudo systemctl disable traffic-monitor.service 2>/dev/null || true
+    
+    echo -e "${GREEN}✓ Existing services stopped${NC}"
+}
 
-# Capture the original working directory (project root)
-PROJECT_ROOT="$(pwd)"
+# Deploy application files
+deploy_application() {
+    echo -e "${YELLOW}Deploying application to $DEPLOY_DIR...${NC}"
+    
+    # Check if we're already in the deployment directory
+    if [ "$(pwd)" = "$DEPLOY_DIR" ]; then
+        echo "Already running from deployment directory, skipping file copy"
+        echo -e "${GREEN}✓ Application files already in place${NC}"
+        
+        # Ensure proper permissions
+        sudo chown -R $SERVICE_USER:$SERVICE_USER "$DEPLOY_DIR"
+        
+        # Make scripts executable
+        find "$DEPLOY_DIR" -name "*.sh" -exec chmod +x {} \;
+        
+        echo -e "${GREEN}✓ Application deployed${NC}"
+        return
+    fi
+    
+    # Create deployment directory
+    sudo mkdir -p "$DEPLOY_DIR"
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$DEPLOY_DIR"
+    
+    # Copy application files (we're already in the staging directory from GitHub Actions)
+    cp -r . "$DEPLOY_DIR/"
+    
+    # Ensure proper permissions
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$DEPLOY_DIR"
+    
+    # Make scripts executable
+    find "$DEPLOY_DIR" -name "*.sh" -exec chmod +x {} \;
+    
+    echo -e "${GREEN}✓ Application deployed${NC}"
+}
 
-# Check if we're running from a full project checkout or deployment directory
-if [ ! -f "$PROJECT_ROOT/scripts/host-camera-capture.py" ] && [ -f "$PROJECT_ROOT/host-camera-capture.py" ]; then
-    warning "Running from deployment directory, adjusting file paths..."
-    DEPLOY_MODE="deployment_directory"
-    HOST_CAMERA_SCRIPT="$PROJECT_ROOT/host-camera-capture.py"
-    SERVICE_FILE="$PROJECT_ROOT/deployment/host-camera-capture.service"
-    COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
-else
-    DEPLOY_MODE="project_checkout"
-    HOST_CAMERA_SCRIPT="$PROJECT_ROOT/scripts/host-camera-capture.py"
-    SERVICE_FILE="$PROJECT_ROOT/deployment/host-camera-capture.service"
-    COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
+# Start Docker services
+start_services() {
+    echo -e "${YELLOW}Starting Docker services...${NC}"
+    
+    cd "$DEPLOY_DIR"
+    
+    # Verify .env file has required variables
+    if [ -f ".env" ]; then
+        echo "Environment variables:"
+        grep -E "HOST_UID|HOST_GID|STORAGE_ROOT" .env || echo "Warning: Some environment variables missing"
+    else
+        echo -e "${RED}✗ .env file missing${NC}"
+        exit 1
+    fi
+    
+    # Pull latest images
+    echo "Pulling Docker images..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml pull || true
+    
+    # Start services
+    echo "Starting containers..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
+    
+    echo -e "${GREEN}✓ Docker services started${NC}"
+}
+
+# Verify deployment
+verify_deployment() {
+    echo -e "${YELLOW}Verifying deployment...${NC}"
+    
+    cd "$DEPLOY_DIR"
+    
+    # Check container status
+    echo "Container status:"
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml ps
+    
+    # Check if services are responding
+    sleep 10
+    
+    # Test basic connectivity
+    local containers=$(docker compose -f docker-compose.yml -f docker-compose.pi.yml ps --services)
+    for container in $containers; do
+        if docker compose -f docker-compose.yml -f docker-compose.pi.yml ps --status running | grep -q "$container"; then
+            echo -e "${GREEN}✓ $container is running${NC}"
+        else
+            echo -e "${RED}✗ $container is not running${NC}"
+            docker compose -f docker-compose.yml -f docker-compose.pi.yml logs "$container" | tail -20
+        fi
+    done
+}
+
+# Setup monitoring and logging
+setup_monitoring() {
+    echo -e "${YELLOW}Setting up monitoring...${NC}"
+    
+    # Create logrotate configuration for Docker logs
+    sudo tee /etc/logrotate.d/traffic-monitor > /dev/null <<EOF
+$STORAGE_ROOT/logs/docker/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+EOF
+
+    # Create health check script
+    sudo tee /usr/local/bin/traffic-monitor-health > /dev/null <<'EOF'
+#!/bin/bash
+cd /mnt/storage/deployment-staging
+if ! docker compose -f docker-compose.yml -f docker-compose.pi.yml ps --status running | grep -q .; then
+    echo "Containers not running, attempting restart..."
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml up -d
 fi
+EOF
+    
+    sudo chmod +x /usr/local/bin/traffic-monitor-health
+    
+    # Add cron job for health checks (every 5 minutes)
+    (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/traffic-monitor-health >> $STORAGE_ROOT/logs/health-check.log 2>&1") | crontab -
+    
+    echo -e "${GREEN}✓ Monitoring configured${NC}"
+}
 
-log "🗂️ Deploy mode: $DEPLOY_MODE"
-DEPLOY_DIR="/mnt/storage/traffic-monitor-deploy"
-TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+# Performance optimizations
+optimize_system() {
+    echo -e "${YELLOW}Applying system optimizations...${NC}"
+    
+    # Docker-specific optimizations
+    if [ ! -f /etc/docker/daemon.json ]; then
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+    },
+    "storage-driver": "overlay2"
+}
+EOF
+        sudo systemctl restart docker
+    fi
+    
+    echo -e "${GREEN}✓ System optimized for Docker${NC}"
+}
 
-# Deployment defaults
-DEPLOY_USER=${DEPLOY_USER:-merk}
-STAGING_DIR=${STAGING_DIR:-/mnt/storage/deployment-staging}
-CONTAINER_AUDIT_LOG=${CONTAINER_AUDIT_LOG:-/var/log/traffic_deploy_containers.log}
+# Main deployment function
+main() {
+    echo -e "${BLUE}Starting Docker-based deployment...${NC}"
+    
+    check_raspberry_pi
+    check_docker
+    enable_hardware_interfaces
+    verify_deployment_files
+    stop_existing_services
+    deploy_application
+    start_services
+    verify_deployment
+    setup_monitoring
+    optimize_system
+    
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}✓ Deployment completed successfully!${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo
+    echo -e "${YELLOW}Service Management:${NC}"
+    echo "• View status: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml ps"
+    echo "• View logs: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml logs -f"
+    echo "• Restart: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml restart"
+    echo "• Stop: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.pi.yml down"
+    echo
+    echo -e "${YELLOW}Monitoring:${NC}"
+    echo "• Health checks: tail -f $STORAGE_ROOT/logs/health-check.log"
+    echo "• Docker logs: ls $STORAGE_ROOT/logs/docker/"
+    echo
+    echo -e "${YELLOW}Deployment location: $DEPLOY_DIR${NC}"
+    
+    # Show final container status
+    echo -e "${BLUE}Current container status:${NC}"
+    cd "$DEPLOY_DIR"
+    docker compose -f docker-compose.yml -f docker-compose.pi.yml ps
+}
 
-# Exit codes for different failure types
-EXIT_PRECHECK_FAILED=10
-EXIT_HOST_SERVICE_FAILED=20
-EXIT_
+# Run main function
+main "$@"
