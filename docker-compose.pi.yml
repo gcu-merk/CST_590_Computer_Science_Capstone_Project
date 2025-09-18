@@ -2,10 +2,6 @@ services:
   # Raspberry Pi 5 specific device mappings and GPIO access
   traffic-monitor:
     devices:
-      - /dev/gpiochip0:/dev/gpiochip0
-      - /dev/gpiochip1:/dev/gpiochip1
-      - /dev/gpiochip2:/dev/gpiochip2
-      - /dev/gpiochip3:/dev/gpiochip3
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 main GPIO chip (40-pin header)
     volumes:
       - /sys/class/gpio:/sys/class/gpio
@@ -16,10 +12,6 @@ services:
 
   dht22-weather:
     devices:
-      - /dev/gpiochip0:/dev/gpiochip0
-      - /dev/gpiochip1:/dev/gpiochip1
-      - /dev/gpiochip2:/dev/gpiochip2
-      - /dev/gpiochip3:/dev/gpiochip3
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
     volumes:
       - /sys/class/gpio:/sys/class/gpio
