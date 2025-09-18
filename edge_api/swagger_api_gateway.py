@@ -520,7 +520,7 @@ class SwaggerAPIGateway:
         self.is_running = True
         logger.info(f"Starting Swagger-enabled API server on {self.host}:{self.port}")
         logger.info(f"Swagger UI available at: http://{self.host}:{self.port}/docs/")
-        self.socketio.run(self.app, host=self.host, port=self.port, debug=False)
+        self.socketio.run(self.app, host=self.host, port=self.port, debug=False, allow_unsafe_werkzeug=True)
     
     def stop_server(self):
         """Stop the API server"""
