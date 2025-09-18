@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 sys.path.append(str(Path(__file__).parent / "edge_processing"))
 sys.path.append(str(Path(__file__).parent / "edge_api"))
 
+# Import edge processing services
 from edge_processing.vehicle_detection.vehicle_detection_service import VehicleDetectionService
 from edge_processing.speed_analysis.speed_analysis_service import SpeedAnalysisService
 from edge_processing.data_fusion.data_fusion_engine import DataFusionEngine

@@ -143,18 +143,6 @@ def main():
     print("Raspberry Pi 5 Edge ML Traffic Monitoring System Setup")
     print("=" * 60)
     
-    # Check if running on Raspberry Pi
-    try:
-        with open("/proc/cpuinfo", "r") as f:
-            cpuinfo = f.read()
-            if "BCM" not in cpuinfo:
-                print("Warning: This doesn't appear to be a Raspberry Pi")
-                response = input("Continue anyway? (y/N): ")
-                if response.lower() != 'y':
-                    sys.exit(1)
-    except FileNotFoundError:
-        print("Warning: Cannot detect Raspberry Pi (running on non-Linux system)")
-    
     steps = [
         ("Installing system dependencies", install_system_dependencies),
         ("Creating virtual environment", create_virtual_environment),

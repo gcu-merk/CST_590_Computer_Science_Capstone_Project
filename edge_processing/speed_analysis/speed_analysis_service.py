@@ -18,13 +18,9 @@ from scipy import signal
 from scipy.stats import zscore
 import statistics
 
-# Raspberry Pi GPIO for hardware control (optional)
-try:
-    import RPi.GPIO as GPIO
-    from gpiozero import LED, Button
-    GPIO_AVAILABLE = True
-except ImportError:
-    GPIO_AVAILABLE = False
+# Raspberry Pi 5 GPIO for hardware control
+import RPi.GPIO as GPIO
+from gpiozero import LED, Button
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

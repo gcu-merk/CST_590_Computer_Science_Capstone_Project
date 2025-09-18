@@ -1,6 +1,13 @@
-"""OPS243-C Radar Sensor Service
+"""OPS243-C Radar Sensor Servicclass HardwareGPIO:
+    """GPIO HAL for Raspberry Pi 5."""
 
-Hardware: OmniPreSense OPS243-C connected via UART and a host interrupt line wired to a GPIO pin.
+    def __init__(self, pin: int):
+        self.pin = pin
+        import RPi.GPIO as GPIO
+        self.GPIO = GPIO
+        self.GPIO.setmode(GPIO.BCM)
+        self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        self._available = TrueniPreSense OPS243-C connected via UART and a host interrupt line wired to a GPIO pin.
 
 This module provides a small, testable service class with a hardware abstraction layer (HAL)
 so it can run on a Raspberry Pi (using RPi.GPIO) or in a desktop/dev environment (mocked).
@@ -30,36 +37,18 @@ LOGGER.addHandler(logging.NullHandler())
 
 
 class HardwareGPIO:
-    """Minimal GPIO HAL. Uses RPi.GPIO when available, otherwise a software mock."""
+    """GPIO HAL for Raspberry Pi 5."""
 
     def __init__(self, pin: int):
         self.pin = pin
-        self._available = False
-        try:
-            import RPi.GPIO as GPIO
-            self.GPIO = GPIO
-            self.GPIO.setmode(GPIO.BCM)
-            self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-            self._available = True
-        except Exception:
-            # Fallback mock
-            self.GPIO = None
-            self._callbacks = []
-            LOGGER.debug("RPi.GPIO not available, GPIO HAL running in mock mode")
+        import RPi.GPIO as GPIO
+        self.GPIO = GPIO
+        self.GPIO.setmode(GPIO.BCM)
+        self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        self._available = True
 
     def add_event_detect(self, edge, callback: Callable):
-        if self._available:
-            self.GPIO.add_event_detect(self.pin, edge, callback=callback)
-        else:
-            self._callbacks.append(callback)
-
-    def simulate_pulse(self):
-        """Call this in tests to simulate an interrupt pulse."""
-        for cb in getattr(self, '_callbacks', []):
-            try:
-                cb(self.pin)
-            except Exception:
-                LOGGER.exception("GPIO callback error in mock")
+        self.GPIO.add_event_detect(self.pin, edge, callback=callback)
 
 
 class OPS243Service:
