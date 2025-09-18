@@ -246,14 +246,23 @@ pre_deployment_checks() {
     log "🔍 Running pre-deployment validation..."
     
     # Check if running on Raspberry Pi
-    if ! grep -q "BCM" /proc/cpuinfo; then
+    if ! grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
         warning "Not running on Raspberry Pi - some features may not work"
     fi
 
-    # Check for /dev/gpiomem device (required for GPIO access)
-    if [ ! -e "/dev/gpiomem" ]; then
-        error "/dev/gpiomem not found. Make sure you're deploying to a Raspberry Pi with GPIO enabled."
-        exit $EXIT_PRECHECK_FAILED
+    # Detect Pi 5 and check for correct GPIO device
+    if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
+        # Pi 5 uses /dev/gpiochip* (usually /dev/gpiochip4)
+        if ! ls /dev/gpiochip* >/dev/null 2>&1; then
+            error "No /dev/gpiochip* device found. Make sure you're deploying to a Raspberry Pi 5 with GPIO enabled."
+            exit $EXIT_PRECHECK_FAILED
+        fi
+    else
+        # Older Pi models use /dev/gpiomem
+        if [ ! -e "/dev/gpiomem" ]; then
+            error "/dev/gpiomem not found. Make sure you're deploying to a Raspberry Pi with GPIO enabled."
+            exit $EXIT_PRECHECK_FAILED
+        fi
     fi
     
     # Check camera availability (critical for host service)

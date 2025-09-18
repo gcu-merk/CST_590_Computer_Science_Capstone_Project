@@ -143,9 +143,16 @@ jobs:
 
       - name: Check for Raspberry Pi GPIO device
         run: |
-          if [ ! -e /dev/gpiomem ]; then
-            echo "ERROR: /dev/gpiomem not found. Make sure you're deploying to a Raspberry Pi with GPIO enabled."
-            exit 1
+          if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
+            if ! ls /dev/gpiochip* >/dev/null 2>&1; then
+              echo "ERROR: No /dev/gpiochip* device found. Make sure you're deploying to a Raspberry Pi 5 with GPIO enabled."
+              exit 1
+            fi
+          else
+            if [ ! -e /dev/gpiomem ]; then
+              echo "ERROR: /dev/gpiomem not found. Make sure you're deploying to a Raspberry Pi with GPIO enabled."
+              exit 1
+            fi
           fi
           
           # DHT22 weather service directory
