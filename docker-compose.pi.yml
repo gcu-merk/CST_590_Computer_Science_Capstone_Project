@@ -1,14 +1,25 @@
 services:
-  # Raspberry Pi 5 specific device mappings and GPIO access
+  # Raspberry Pi 5 specific device mappings and hardware access
   traffic-monitor:
     devices:
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 main GPIO chip (40-pin header)
+      - /dev/video0:/dev/video0        # Primary camera device
+      - /dev/video10:/dev/video10      # IMX500 neural processor input
+      - /dev/video11:/dev/video11      # IMX500 neural processor output
+      - /dev/dri:/dev/dri             # GPU access for libcamera
     volumes:
       - /sys/class/gpio:/sys/class/gpio
+      - /opt/vc:/opt/vc:ro            # VideoCore libraries for camera
+      - /sys/bus/i2c:/sys/bus/i2c:ro  # I2C bus access for camera control
     group_add:
       - gpio
+      - video
     cap_add:
       - SYS_RAWIO
+    environment:
+      - LIBCAMERA_LOG_LEVELS=*:INFO
+      - PI5_CAMERA_ENABLED=true
+    privileged: true  # Required for libcamera hardware access
 
   dht22-weather:
     devices:
