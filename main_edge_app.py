@@ -12,6 +12,13 @@ import threading
 import argparse
 from pathlib import Path
 
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Add edge processing modules to path
 sys.path.append(str(Path(__file__).parent / "edge_processing"))
 sys.path.append(str(Path(__file__).parent / "edge_api"))
@@ -20,7 +27,16 @@ from edge_processing.vehicle_detection.vehicle_detection_service import VehicleD
 from edge_processing.speed_analysis.speed_analysis_service import SpeedAnalysisService
 from edge_processing.data_fusion.data_fusion_engine import DataFusionEngine
 from edge_processing.system_health.system_health_monitor import SystemHealthMonitor
-from edge_api.edge_api_gateway import EdgeAPIGateway
+
+# Import Swagger-enabled API gateway (fallback to original if not available)
+try:
+    from edge_api.swagger_api_gateway import SwaggerAPIGateway as EdgeAPIGateway
+    logger.info("Using Swagger-enabled API gateway with interactive documentation")
+    SWAGGER_ENABLED = True
+except ImportError:
+    from edge_api.edge_api_gateway import EdgeAPIGateway
+    logger.warning("Swagger API gateway not available, using original API gateway")
+    SWAGGER_ENABLED = False
 
 # Weather analysis imports
 try:
@@ -29,13 +45,6 @@ try:
     WEATHER_ANALYSIS_AVAILABLE = True
 except ImportError as e:
     WEATHER_ANALYSIS_AVAILABLE = False
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # Log weather analysis availability
 if not WEATHER_ANALYSIS_AVAILABLE:
@@ -108,6 +117,13 @@ class EdgeOrchestrator:
                 host='0.0.0.0',
                 port=5000
             )
+            
+            # Log API gateway type
+            if SWAGGER_ENABLED:
+                logger.info("🚀 Swagger-enabled API gateway initialized")
+                logger.info("📖 Interactive documentation will be available at: http://0.0.0.0:5000/docs/")
+            else:
+                logger.info("🚀 Standard API gateway initialized")
             
             # Set service references in API gateway
             self.services['api_gateway'].set_services(
