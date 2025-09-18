@@ -1,39 +1,41 @@
-# Edge Processing Requirements - Cloud Build Compatible
-# Core dependencies for the Raspberry Pi 5 Edge ML Traffic Monitoring System
+# Edge Processing Requirements - Cloud/Raspberry Pi Deployment
+# Core dependencies for traffic monitoring and AI processing
 
-# Computer Vision and ML
-tensorflow>=2.13.0
-tflite-runtime>=2.13.0   # Lightweight TensorFlow for edge inference
-opencv-python>=4.8.0
+# Redis for caching and data sharing between services
+redis>=4.5.0
+
+# HTTP requests and API communication
+requests>=2.31.0
+
+# Computer vision and image processing
+opencv-python-headless>=4.8.0
 numpy>=1.24.0
+Pillow>=10.0.0
+
+# AI/ML libraries
+tensorflow>=2.13.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Data processing and analysis
+pandas>=2.0.0
 scipy>=1.11.0
 
-# Communication and APIs
-flask>=2.3.0
-flask-socketio>=5.3.0
-flask-cors>=4.0.0
-python-socketio>=5.8.0
-redis>=4.6.0
+# Database connectivity
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
 
-# Hardware interfaces
-pyserial>=3.5
+# Weather data and sensors
+adafruit-circuitpython-dht>=3.7.0
+board>=1.0
 
-# System monitoring
-psutil>=5.9.0
+# Logging and monitoring
+structlog>=23.1.0
 
-# Data processing
-pandas>=2.0.0
-scikit-learn>=1.3.0
-
-# Database (SQLite for edge devices)
-# Note: Using SQLite instead of PostgreSQL for edge deployment
-# SQLite is better suited for edge devices (no server overhead)
+# Configuration and environment
+python-dotenv>=1.0.0
+pydantic>=2.0.0
 
 # Utilities
 python-dateutil>=2.8.0
-requests>=2.31.0
-pyyaml>=6.0
-
-# Development and testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
+pytz>=2023.3

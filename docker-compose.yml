@@ -1,233 +1,135 @@
+version: '3.8'
+
 services:
-  # Redis Message Broker for Real-time Inter-service Communication
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
-    user: "${DOCKER_USER}"  # Use host UID/GID mapping
-    
-    # Redis configuration for Raspberry Pi optimization
-    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 128mb --maxmemory-policy allkeys-lru
-    
-    # Expose Redis port bound to localhost only
+    container_name: redis
     ports:
-      - "127.0.0.1:6379:6379"
-    
-    # Use container-accessible Redis data path
+      - "6379:6379"
     volumes:
-      - "${REDIS_DATA_PATH}:/data"
-    
-    # Health check
+      - ${REDIS_DATA_PATH:-/mnt/storage/redis_data}:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - traffic-monitoring-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 3s
       retries: 3
-      start_period: 10s
-    
-    # Logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
 
-  # Main Traffic Monitoring Service
-  traffic-monitor:
-    image: "${DOCKER_IMAGE}"  # Use image from workflow
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=traffic_monitoring
+      - POSTGRES_USER=traffic_user
+      - POSTGRES_PASSWORD=traffic_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ${POSTGRES_DATA_PATH:-/mnt/storage/postgres_data}:/var/lib/postgresql/data
     restart: unless-stopped
-    user: "${DOCKER_USER}"  # Use host UID/GID mapping
-    depends_on:
-      - redis
+    networks:
+      - traffic-monitoring-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traffic_user -d traffic_monitoring"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-    # Reduced privilege mode
-    privileged: false
-    
-    # Add specific capabilities
-    cap_add:
-      - NET_ADMIN
-      - SYS_TIME
-
-    # Expose API on host
+  traffic-monitor:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: traffic-monitor
     ports:
       - "5000:5000"
-
-    # Fixed volume mounts with absolute paths
-    volumes:
-      - "${STORAGE_ROOT}/traffic-monitor-deploy/data:/app/data"
-      - "${LOGS_PATH}:/mnt/storage/logs/docker"
-      - "${STORAGE_ROOT}/traffic-monitor-deploy/config:/app/config"
-      - "${STORAGE_ROOT}/camera_capture:/mnt/storage/camera_capture"
-      - "${STORAGE_ROOT}/periodic_snapshots:/mnt/storage/periodic_snapshots"
-      - "${STORAGE_ROOT}/ai_camera_images:/mnt/storage/ai_camera_images"
-      - "${STORAGE_ROOT}/processed_data:/mnt/storage/processed_data"
-      - "${STORAGE_ROOT}/backups:/mnt/storage/backups"
-
-    # Container logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        
-    # Environment variables
     environment:
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
-      
-      # Redis configuration
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_DB=0
-      - USE_REDIS_PUBSUB=true
-      
-      # Storage paths
-      - CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
-      - USE_SHARED_VOLUME_IMAGES=true
-      - HOST_CAPTURE_ARCHITECTURE=true
-      - LOG_DIRECTORY=/mnt/storage/logs/docker
-      
-      # Data paths
-      - PERIODIC_SNAPSHOT_PATH=/mnt/storage/periodic_snapshots
-      - SNAPSHOT_INTERVAL_MINUTES=5
-      - DETECTION_SAVE_PATH=/mnt/storage/ai_camera_images
-      - PROCESSED_DATA_PATH=/mnt/storage/processed_data
-      - BACKUP_PATH=/mnt/storage/backups
-      
-      # Maintenance configuration
-      - DATA_VOLUME=/mnt/storage
-      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
-      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
-      - MAINTENANCE_PROCESSED_MAX_AGE_HOURS=48
-      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
-      - MAINTENANCE_LOG_MAX_SIZE_MB=50
-      - MAINTENANCE_EMERGENCY_THRESHOLD=90
-      - MAINTENANCE_WARNING_THRESHOLD=80
-      - MAINTENANCE_MAX_LIVE_IMAGES=500
-      - MAINTENANCE_MAX_PROCESSED_IMAGES=200
-      - MAINTENANCE_MAX_SNAPSHOTS=100
-      - ENABLE_AUTO_MAINTENANCE=true
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=traffic_monitoring
+      - POSTGRES_USER=traffic_user
+      - POSTGRES_PASSWORD=traffic_password
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/camera_capture:/app/camera_capture
+      - ${STORAGE_ROOT:-/mnt/storage}/processed_data:/app/processed_data
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/ai_camera_images:/app/ai_camera_images
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traffic-monitoring-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-
-  # Automated Data Maintenance Service
   data-maintenance:
-    image: "${DOCKER_IMAGE}"
-    restart: unless-stopped
-    user: "${DOCKER_USER}"  # Use host UID/GID mapping
-    depends_on:
-      - traffic-monitor
-    
-    working_dir: /app
-    command: ["python3", "scripts/container-maintenance.py", "--daemon"]
-    
-    volumes:
-      - "${STORAGE_ROOT}:/mnt/storage"
-      - "${STORAGE_ROOT}/traffic-monitor-deploy/config:/app/config"
-    
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: data-maintenance
     environment:
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
-      - DATA_VOLUME=/mnt/storage
-      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
-      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
-      - MAINTENANCE_PROCESSED_MAX_AGE_HOURS=48
-      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
-      - MAINTENANCE_LOG_MAX_SIZE_MB=50
-      - MAINTENANCE_EMERGENCY_THRESHOLD=90
-      - MAINTENANCE_WARNING_THRESHOLD=80
-      - MAINTENANCE_MAX_LIVE_IMAGES=500
-      - MAINTENANCE_MAX_PROCESSED_IMAGES=200
-      - MAINTENANCE_MAX_SNAPSHOTS=100
-    
-    healthcheck:
-      test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
-      interval: 300s
-      timeout: 30s
-      retries: 3
-      start_period: 60s
-    
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-
-  # DHT22 Weather Sensor Service - NEEDS SPECIAL HANDLING
-  dht22-weather:
-    image: "${DOCKER_IMAGE}"
-    restart: unless-stopped
-    depends_on:
-      - redis
-    working_dir: /app
-    command: ["python3", "edge_processing/dht_22_weather_service.py"]
-    
-    # Special user handling for GPIO access
-    # Note: This service may need root for GPIO, creating potential permission conflicts
-    user: root
-    
-    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_DB=0
-      - DHT22_GPIO_PIN=4
-      - DHT22_UPDATE_INTERVAL=300
-      - DHT22_REDIS_KEY=weather:dht22:latest
-      - HOST_UID=${HOST_UID}  # Pass host UID for file operations
-      - HOST_GID=${HOST_GID}  # Pass host GID for file operations
-      
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=traffic_monitoring
+      - POSTGRES_USER=traffic_user
+      - POSTGRES_PASSWORD=traffic_password
     volumes:
-      - "${STORAGE_ROOT}/traffic-monitor-deploy/edge_processing:/app/edge_processing"
-      - "${STORAGE_ROOT}/dht22-weather/logs:/app/logs"  # Separate logging
-      
-    cap_add:
-      - SYS_RAWIO
-      
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
+      - ${STORAGE_ROOT:-/mnt/storage}:/mnt/storage
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traffic-monitoring-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
-  # Airport Weather Service
   airport-weather:
-    image: "${DOCKER_IMAGE}"
-    restart: unless-stopped
-    user: "${DOCKER_USER}"  # Use host UID/GID mapping
-    depends_on:
-      - redis
-    working_dir: /app
-    command: ["python3", "edge_processing/airport_weather_service.py"]
-    
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: airport-weather
     environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_DB=0
-      - FETCH_INTERVAL_MINUTES=5
-      
     volumes:
-      - "${STORAGE_ROOT}/traffic-monitor-deploy/edge_processing:/app/edge_processing"
-      
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traffic-monitoring-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
-volumes:
-  # All persistent data stored on SSD with proper paths
-  postgres_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: "${POSTGRES_DATA_PATH}"
+  dht22-weather:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: dht22-weather
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - /sys:/sys:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traffic-monitoring-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    privileged: true  # Needed for GPIO access
 
 networks:
-  default:
-    name: traffic-monitoring-network
+  traffic-monitoring-network:
+    driver: bridge

@@ -15,6 +15,9 @@ on:
 env:
   DEPLOY_USER: merk
   DOCKER_IMAGE: gcumerk/cst590-capstone-public:latest
+  HOST_UID: 1000
+  HOST_GID: 1000
+  STORAGE_ROOT: /mnt/storage
 
 jobs:
   validate_deployment:
@@ -38,7 +41,6 @@ jobs:
             "deployment/host-camera-capture.service"
             "deployment/deploy.sh"
             "docker-compose.yml"
-            "docker-compose.pi.yml"
           )
           missing_files=()
           for file in "${required_files[@]}"; do
@@ -54,30 +56,54 @@ jobs:
             exit 1
           fi
           
+          # Validate Python syntax
           python3 -m py_compile scripts/host-camera-capture.py
           
-          echo "Validating docker-compose configuration..."
-          docker compose -f docker-compose.yml config > /dev/null
+          # Validate docker-compose configuration with environment variables
+          export HOST_UID=1000
+          export HOST_GID=1000
+          export STORAGE_ROOT=/mnt/storage
+          export DOCKER_IMAGE=gcumerk/cst590-capstone-public:latest
+          export REDIS_DATA_PATH=/mnt/storage/redis_data
+          export POSTGRES_DATA_PATH=/mnt/storage/postgres_data
+          export LOGS_PATH=/mnt/storage/logs
           
-          if ! docker compose -f docker-compose.yml config | grep -q "redis:"; then
-            echo "❌ Redis service not found in docker-compose.yml"
+          echo "Validating docker-compose configuration..."
+          if ! docker compose -f docker-compose.yml config > /dev/null; then
+            echo "Invalid docker-compose.yml configuration"
+            docker compose -f docker-compose.yml config
             exit 1
           fi
           
+          # Verify Redis service exists
+          if ! docker compose -f docker-compose.yml config | grep -q "redis:"; then
+            echo "Redis service not found in docker-compose.yml"
+            exit 1
+          fi
+          
+          # Validate Redis dependencies in requirements files
           echo "Validating Redis dependencies..."
           if ! grep -q "redis" edge_processing/requirements-cloud.txt; then
-            echo "❌ Redis not found in edge_processing requirements"
+            echo "Redis not found in edge_processing requirements"
+            exit 1
+          fi
+          
+          if ! grep -q "redis" edge_api/requirements.txt; then
+            echo "Redis not found in edge_api requirements"
+            exit 1
+          fi
+          
+          # Validate network configuration
+          if ! docker compose -f docker-compose.yml config | grep -q "traffic-monitoring-network"; then
+            echo "Traffic monitoring network not found in docker-compose.yml"
             exit 1
           fi
           
           echo "ready=true" >> $GITHUB_OUTPUT
-          echo "✅ Deployment package validation passed (including Redis)"
+          echo "Deployment package validation passed (including Redis and network config)"
 
   deploy_to_pi:
     name: Deploy to Raspberry Pi
-    # Require a self-hosted runner with the 'raspberrypi' label so these
-    # steps (creating /mnt/storage, rsync, docker-compose, systemctl checks)
-    # only run on the Raspberry Pi runner and not on other self-hosted machines.
     runs-on: [self-hosted, raspberrypi]
     needs: validate_deployment
     if: needs.validate_deployment.outputs.deployment-ready == 'true'
@@ -87,12 +113,12 @@ jobs:
         
       - name: Prepare deployment staging and persistent directories
         run: |
-          echo "📦 Setting up deployment staging and ensuring persistent directories exist..."
+          echo "Setting up deployment staging and ensuring persistent directories exist..."
           
-          # ===== DEPLOYMENT STAGING SETUP (simplified) =====
-          echo "🧹 Ensuring clean staging environment..."
+          # ===== DEPLOYMENT STAGING SETUP =====
+          echo "Ensuring clean staging environment..."
           
-          # Remove existing staging if present (with attribute cleanup)
+          # Remove existing staging if present
           if [ -d "/mnt/storage/deployment-staging" ]; then
             echo "Removing existing staging directory..."
             if command -v chattr >/dev/null 2>&1; then
@@ -108,88 +134,57 @@ jobs:
           
           # Verify staging directory is ready
           if [ ! -w "/mnt/storage/deployment-staging" ]; then
-            echo "❌ Staging directory not writable by current user"
+            echo "Staging directory not writable by current user"
             ls -la /mnt/storage/deployment-staging
             exit 1
           fi
           
-          echo "✅ Staging directory prepared: /mnt/storage/deployment-staging"
+          echo "Staging directory prepared: /mnt/storage/deployment-staging"
           
-          # ===== PERSISTENT DIRECTORIES (your existing structure) =====
-          echo "📁 Ensuring persistent application directories exist..."
-          
-          # DHT22 weather service directory
-          sudo mkdir -p /mnt/storage/dht22-weather/{logs,config}
-          sudo chmod 755 /mnt/storage/dht22-weather /mnt/storage/dht22-weather/logs /mnt/storage/dht22-weather/config
-          sudo chown -R merk:merk /mnt/storage/dht22-weather
-          
-          # Camera capture directories
-          sudo mkdir -p /mnt/storage/camera_capture/{live,processed,metadata}
-          sudo chmod 775 /mnt/storage/camera_capture /mnt/storage/camera_capture/live /mnt/storage/camera_capture/processed /mnt/storage/camera_capture/metadata
-          sudo chown -R merk:merk /mnt/storage/camera_capture
+          # ===== PERSISTENT DIRECTORIES =====
+          echo "Ensuring persistent application directories exist..."
           
           # Get host user UID/GID for Docker containers
           HOST_UID=$(id -u merk)
           HOST_GID=$(id -g merk)
           echo "Host UID: $HOST_UID, Host GID: $HOST_GID"
           
-          # AI and processing directories
-          sudo mkdir -p /mnt/storage/{periodic_snapshots,ai_camera_images,processed_data}
-          sudo chmod 775 /mnt/storage/periodic_snapshots /mnt/storage/ai_camera_images /mnt/storage/processed_data
-          sudo chown merk:merk /mnt/storage/periodic_snapshots /mnt/storage/ai_camera_images /mnt/storage/processed_data
-          
-          # Traffic monitor deployment
-          sudo mkdir -p /mnt/storage/traffic-monitor-deploy
-          sudo chmod 755 /mnt/storage/traffic-monitor-deploy
-          sudo chown merk:merk /mnt/storage/traffic-monitor-deploy
-          
-          # Database directories (with proper container access)
-          sudo mkdir -p /mnt/storage/database/{backups,schema}
-          sudo chmod 775 /mnt/storage/database /mnt/storage/database/backups /mnt/storage/database/schema
-          sudo chown -R merk:merk /mnt/storage/database
-          
-          # Logging directories (container-accessible)
+          # Core application directories
+          sudo mkdir -p /mnt/storage/{redis_data,postgres_data,logs,data,config,scripts,backups}
+          sudo mkdir -p /mnt/storage/{camera_capture,processed_data,ai_camera_images,periodic_snapshots}
+          sudo mkdir -p /mnt/storage/camera_capture/{live,processed,metadata}
           sudo mkdir -p /mnt/storage/logs/{docker,applications,maintenance,system}
-          sudo chmod 775 /mnt/storage/logs /mnt/storage/logs/docker /mnt/storage/logs/applications /mnt/storage/logs/maintenance /mnt/storage/logs/system
-          sudo chown -R merk:merk /mnt/storage/logs
+          sudo mkdir -p /mnt/storage/database/{backups,schema}
+          sudo mkdir -p /mnt/storage/{tmp,cache}
           
-          # Redis and database data (critical for container access)
-          sudo mkdir -p /mnt/storage/redis_data /mnt/storage/postgres_data
-          sudo chmod 755 /mnt/storage/redis_data
-          sudo chmod 700 /mnt/storage/postgres_data
-          sudo chown merk:merk /mnt/storage/redis_data /mnt/storage/postgres_data
-          
-          # For containers that need to write as different users, create docker-accessible versions
-          # This ensures container processes can access these directories
+          # Container-accessible directories with proper permissions
           sudo mkdir -p /mnt/storage/container-accessible/{redis,postgres,logs,data}
           sudo chmod 777 /mnt/storage/container-accessible /mnt/storage/container-accessible/redis /mnt/storage/container-accessible/postgres /mnt/storage/container-accessible/logs /mnt/storage/container-accessible/data
           sudo chown -R merk:merk /mnt/storage/container-accessible
           
-          # Generic directories
-          sudo mkdir -p /mnt/storage/{data,config,scripts,backups}
+          # Set proper permissions for database directories
+          sudo chmod 755 /mnt/storage/redis_data
+          sudo chmod 700 /mnt/storage/postgres_data
+          sudo chown merk:merk /mnt/storage/redis_data /mnt/storage/postgres_data
+          
+          # Set permissions for other directories
           sudo chmod 755 /mnt/storage/data /mnt/storage/config /mnt/storage/scripts
-          sudo chmod 775 /mnt/storage/backups
-          sudo chown merk:merk /mnt/storage/data /mnt/storage/config /mnt/storage/scripts /mnt/storage/backups
-          
-          # Temporary directories
-          sudo mkdir -p /mnt/storage/{tmp,cache}
+          sudo chmod 775 /mnt/storage/logs /mnt/storage/camera_capture /mnt/storage/processed_data /mnt/storage/ai_camera_images
           sudo chmod 777 /mnt/storage/tmp /mnt/storage/cache
-          sudo chown merk:merk /mnt/storage/tmp /mnt/storage/cache
+          sudo chown -R merk:merk /mnt/storage/logs /mnt/storage/camera_capture /mnt/storage/processed_data /mnt/storage/ai_camera_images
+          sudo chown merk:merk /mnt/storage/data /mnt/storage/config /mnt/storage/scripts /mnt/storage/tmp /mnt/storage/cache
           
-          # Data collection services
-          sudo mkdir -p /mnt/storage/{data-maintenance,data-consolidator,utils}
+          # Specialized service directories
+          sudo mkdir -p /mnt/storage/{traffic-monitor-deploy,dht22-weather,data-maintenance,data-consolidator,utils}
+          sudo mkdir -p /mnt/storage/dht22-weather/{logs,config}
+          sudo chmod 755 /mnt/storage/traffic-monitor-deploy /mnt/storage/dht22-weather /mnt/storage/dht22-weather/logs /mnt/storage/dht22-weather/config
           sudo chmod 770 /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
-          sudo chown merk:merk /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
+          sudo chown -R merk:merk /mnt/storage/traffic-monitor-deploy /mnt/storage/dht22-weather /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
           
-          # Specialized data collection
-          sudo mkdir -p /mnt/storage/{license-plate-data-collection,speed-data-collection,stop-sign-data-collection}
-          sudo chmod 770 /mnt/storage/license-plate-data-collection /mnt/storage/speed-data-collection /mnt/storage/stop-sign-data-collection
-          sudo chown merk:merk /mnt/storage/license-plate-data-collection /mnt/storage/speed-data-collection /mnt/storage/stop-sign-data-collection
-          
-          echo "✅ All persistent directories ensured"
+          echo "All persistent directories ensured"
           
           # ===== COPY FILES TO STAGING =====
-          echo "🔄 Syncing deployment files to staging..."
+          echo "Syncing deployment files to staging..."
           
           if ! rsync -avz --delete \
             --exclude='.git*' \
@@ -199,20 +194,14 @@ jobs:
             --exclude='__pycache__/' \
             ./ /mnt/storage/deployment-staging/; then
             
-            echo "❌ rsync failed with exit code $?"
-            echo "🔎 Staging directory diagnostics:"
+            echo "rsync failed with exit code $?"
+            echo "Staging directory diagnostics:"
             ls -la /mnt/storage/deployment-staging || true
             exit 1
           fi
           
-          # Final verification
-          echo "📋 Staging ready - directory structure:"
-          ls -la /mnt/storage/deployment-staging/ | head -10
-          echo "📋 Key persistent directories:"
-          ls -la /mnt/storage/ | grep -E "(camera_capture|redis_data|logs|database)" || true
-          
           # Create .env file with host UID/GID for Docker Compose
-          echo "🔧 Creating .env file for Docker UID/GID mapping..."
+          echo "Creating .env file for Docker UID/GID mapping..."
           cat > /mnt/storage/deployment-staging/.env << EOF
           # Host user mapping for Docker containers
           HOST_UID=${HOST_UID}
@@ -221,28 +210,52 @@ jobs:
           
           # Storage paths
           STORAGE_ROOT=/mnt/storage
+          REDIS_DATA_PATH=/mnt/storage/redis_data
+          POSTGRES_DATA_PATH=/mnt/storage/postgres_data
+          LOGS_PATH=/mnt/storage/logs
           
           # Container-accessible directories
-          REDIS_DATA_PATH=/mnt/storage/container-accessible/redis
-          POSTGRES_DATA_PATH=/mnt/storage/container-accessible/postgres  
-          LOGS_PATH=/mnt/storage/container-accessible/logs
+          CONTAINER_ACCESSIBLE_PATH=/mnt/storage/container-accessible
           
           # Docker image from workflow
           DOCKER_IMAGE=${DOCKER_IMAGE}
+          
+          # Database configuration
+          POSTGRES_DB=traffic_monitoring
+          POSTGRES_USER=traffic_user
+          POSTGRES_PASSWORD=traffic_password
+          
+          # Redis configuration
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          
+          # API configuration
+          API_PORT=5000
+          API_HOST=0.0.0.0
+          
+          # Deployment settings
+          COMPOSE_PROJECT_NAME=traffic_monitoring
+          DEPLOY_USER=merk
           EOF
           
-          echo "✅ Environment file created with UID mapping: $HOST_UID:$HOST_GID"
+          echo "Environment file created with UID mapping: $HOST_UID:$HOST_GID"
+          
+          # Final verification
+          echo "Staging ready - directory structure:"
+          ls -la /mnt/storage/deployment-staging/ | head -10
+          echo "Key persistent directories:"
+          ls -la /mnt/storage/ | grep -E "(camera_capture|redis_data|postgres_data|logs|container-accessible)" || true
             
       - name: Execute deployment
         run: |
-          echo "🚀 Executing deployment on Raspberry Pi (self-hosted)..."
+          echo "Executing deployment on Raspberry Pi (self-hosted)..."
           set -e
           
           cd /mnt/storage/deployment-staging
           
           # Validate deployment script exists
           if [ ! -f "deployment/deploy.sh" ]; then
-            echo "❌ Deploy script not found: deployment/deploy.sh"
+            echo "Deploy script not found: deployment/deploy.sh"
             exit 1
           fi
           
@@ -250,23 +263,23 @@ jobs:
           
           # Execute deployment script and capture exit code
           if sudo ./deployment/deploy.sh 2>&1 | tee deployment.log; then
-            echo "✅ Deployment script completed successfully"
+            echo "Deployment script completed successfully"
           else
-            echo "❌ Deployment script failed with exit code $?"
-            echo "📋 Last 50 lines of deployment log:"
+            echo "Deployment script failed with exit code $?"
+            echo "Last 50 lines of deployment log:"
             tail -50 deployment.log || true
             exit 1
           fi
           
-      - name: Validate deployment (run host-side script)
+      - name: Validate deployment
         run: |
-          echo "🔍 Running host-side validation script from staging..."
+          echo "Running deployment validation from staging..."
           set -e
           cd /mnt/storage/deployment-staging
           
           # Check if validation script exists
           if [ ! -f "deployment/validate_deployment.sh" ]; then
-            echo "⚠️ Validation script not found: deployment/validate_deployment.sh"
+            echo "Validation script not found: deployment/validate_deployment.sh"
             echo "Skipping validation step"
           else
             sudo chmod +x deployment/validate_deployment.sh
@@ -276,7 +289,7 @@ jobs:
       - name: Cleanup staging files (only on success)
         if: success()
         run: |
-          echo "🧹 Cleaning up deployment staging directory..."
+          echo "Cleaning up deployment staging directory..."
           sudo rm -rf /mnt/storage/deployment-staging
 
   notify_status:
@@ -288,15 +301,16 @@ jobs:
       - name: Deployment Success Notification
         if: needs.deploy_to_pi.result == 'success'
         run: |
-          echo "✅ Traffic Monitoring System deployed successfully!"
-          echo "📊 Commit: ${{ github.sha }}"
-          echo "👤 Triggered by: ${{ github.actor }}"
+          echo "Traffic Monitoring System deployed successfully!"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Services: Redis, PostgreSQL, Traffic Monitor, Data Maintenance, Weather Services"
           
       - name: Deployment Failure Notification
         if: needs.deploy_to_pi.result == 'failure' || needs.validate_deployment.result == 'failure'
         run: |
-          echo "❌ Traffic Monitoring System deployment failed!"
-          echo "🌐 Environment: production"
-          echo "📊 Commit: ${{ github.sha }}"
-          echo "👤 Triggered by: ${{ github.actor }}"
+          echo "Traffic Monitoring System deployment failed!"
+          echo "Environment: production"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
           exit 1
