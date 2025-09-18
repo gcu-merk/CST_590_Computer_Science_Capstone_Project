@@ -130,13 +130,26 @@ jobs:
           # Create fresh staging directory
           sudo mkdir -p /mnt/storage/deployment-staging
           sudo chmod 775 /mnt/storage/deployment-staging
-          sudo chown $USER:$USER /mnt/storage/deployment-staging
+          
+          # Get current user for proper ownership
+          CURRENT_USER=$(whoami)
+          CURRENT_GROUP=$(id -gn)
+          echo "Setting staging ownership to $CURRENT_USER:$CURRENT_GROUP"
+          sudo chown $CURRENT_USER:$CURRENT_GROUP /mnt/storage/deployment-staging
           
           # Verify staging directory is ready
           if [ ! -w "/mnt/storage/deployment-staging" ]; then
             echo "Staging directory not writable by current user"
+            echo "Current user: $(whoami)"
+            echo "Directory details:"
             ls -la /mnt/storage/deployment-staging
-            exit 1
+            echo "Attempting to fix permissions..."
+            sudo chmod 777 /mnt/storage/deployment-staging
+            sudo chown $(whoami):$(id -gn) /mnt/storage/deployment-staging
+            if [ ! -w "/mnt/storage/deployment-staging" ]; then
+              echo "Failed to fix staging directory permissions"
+              exit 1
+            fi
           fi
           
           echo "Staging directory prepared: /mnt/storage/deployment-staging"
@@ -167,17 +180,19 @@ jobs:
           sudo chmod 700 /mnt/storage/postgres_data
           sudo chown merk:merk /mnt/storage/redis_data /mnt/storage/postgres_data
           
-          # Set permissions for other directories
+          # Set permissions for other directories (more permissive for container access)
           sudo chmod 755 /mnt/storage/data /mnt/storage/config /mnt/storage/scripts
-          sudo chmod 775 /mnt/storage/logs /mnt/storage/camera_capture /mnt/storage/processed_data /mnt/storage/ai_camera_images
-          sudo chmod 777 /mnt/storage/tmp /mnt/storage/cache
-          sudo chown -R merk:merk /mnt/storage/logs /mnt/storage/camera_capture /mnt/storage/processed_data /mnt/storage/ai_camera_images
+          sudo chmod 775 /mnt/storage/logs /mnt/storage/camera_capture /mnt/storage/processed_data /mnt/storage/ai_camera_images /mnt/storage/periodic_snapshots
+          sudo chmod 777 /mnt/storage/tmp /mnt/storage/cache /mnt/storage/backups
+          sudo chown -R merk:merk /mnt/storage/logs /mnt/storage/camera_capture /mnt/storage/processed_data /mnt/storage/ai_camera_images /mnt/storage/periodic_snapshots /mnt/storage/backups
           sudo chown merk:merk /mnt/storage/data /mnt/storage/config /mnt/storage/scripts /mnt/storage/tmp /mnt/storage/cache
           
           # Specialized service directories
           sudo mkdir -p /mnt/storage/{traffic-monitor-deploy,dht22-weather,data-maintenance,data-consolidator,utils}
+          sudo mkdir -p /mnt/storage/traffic-monitor-deploy/{data,config,logs}
           sudo mkdir -p /mnt/storage/dht22-weather/{logs,config}
-          sudo chmod 755 /mnt/storage/traffic-monitor-deploy /mnt/storage/dht22-weather /mnt/storage/dht22-weather/logs /mnt/storage/dht22-weather/config
+          sudo chmod 775 /mnt/storage/traffic-monitor-deploy /mnt/storage/dht22-weather
+          sudo chmod 775 /mnt/storage/traffic-monitor-deploy/{data,config,logs} /mnt/storage/dht22-weather/{logs,config}
           sudo chmod 770 /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
           sudo chown -R merk:merk /mnt/storage/traffic-monitor-deploy /mnt/storage/dht22-weather /mnt/storage/data-maintenance /mnt/storage/data-consolidator /mnt/storage/utils
           
