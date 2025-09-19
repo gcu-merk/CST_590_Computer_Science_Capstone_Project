@@ -128,7 +128,9 @@ services:
       start_period: 120s
 
   dht22-weather:
-    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: dht22-weather
     command: ["python", "-m", "edge_processing.dht_22_weather_service"]
     environment:
