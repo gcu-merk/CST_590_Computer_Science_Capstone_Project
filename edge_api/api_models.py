@@ -214,7 +214,7 @@ def get_model_registry() -> Dict[str, Model]:
         }),
         
         'VehicleDetectionsResponse': Model('VehicleDetectionsResponse', {
-            'detections': fields.List(fields.Nested('VehicleDetection')),
+            'detections': fields.List(fields.Raw, description='List of vehicle detections'),
             'count': fields.Integer(description='Number of detections'),
             'timespan_seconds': fields.Integer(description='Time span of data')
         }),
@@ -284,3 +284,10 @@ def validate_period(period: str) -> bool:
 def validate_limit(limit: int) -> bool:
     """Validate limit parameter"""
     return 1 <= limit <= 1000
+
+def register_models(api):
+    """Register Flask-RESTX models with the API instance"""
+    model_registry = get_model_registry()
+    for model_name, model_def in model_registry.items():
+        api.add_model(model_name, model_def)
+    return api
