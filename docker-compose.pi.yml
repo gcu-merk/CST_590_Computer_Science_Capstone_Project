@@ -26,8 +26,6 @@ services:
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
     volumes:
       - /sys/class/gpio:/sys/class/gpio
-    group_add:
-      - gpio
     cap_add:
       - SYS_RAWIO
 
@@ -37,8 +35,6 @@ services:
       - /dev/gpiochip4:/dev/gpiochip4
     volumes:
       - /sys/class/gpio:/sys/class/gpio
-    group_add:
-      - gpio
     cap_add:
       - SYS_RAWIO
 
@@ -48,8 +44,6 @@ services:
       - /dev/gpiochip4:/dev/gpiochip4
     volumes:
       - /sys/class/gpio:/sys/class/gpio
-    group_add:
-      - gpio
     cap_add:
       - SYS_RAWIO
     environment:
