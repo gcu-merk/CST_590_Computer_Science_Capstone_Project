@@ -31,7 +31,7 @@ except ImportError:
 
 # Import our Redis models
 try:
-    from .redis_models import (
+    from ..redis_models import (
         SkyAnalysis, SkyCondition, RedisDataManager, RedisKeys
     )
     MODELS_AVAILABLE = True
