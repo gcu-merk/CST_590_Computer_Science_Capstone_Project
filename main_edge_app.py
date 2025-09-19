@@ -41,7 +41,7 @@ except ImportError:
 
 # Weather analysis imports
 try:
-    from edge_processing.weather_analysis.sky_analyzer import SkyAnalyzer
+    from edge_processing.weather_analysis.sky_analysis_service import SkyAnalysisService
     from edge_api.pi_system_status import PiSystemStatus
     WEATHER_ANALYSIS_AVAILABLE = True
 except ImportError as e:
@@ -64,9 +64,9 @@ class EdgeOrchestrator:
         
         # Weather analysis components
         if self.weather_analysis_enabled:
-            self.sky_analyzer = SkyAnalyzer()
+            self.sky_analyzer = SkyAnalysisService()
             self.system_status = PiSystemStatus()
-            logger.info("Weather analysis enabled (no persistence)")
+            logger.info("Weather analysis enabled with enhanced sky analysis service")
         else:
             self.sky_analyzer = None
             self.system_status = None

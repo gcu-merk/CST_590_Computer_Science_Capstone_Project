@@ -109,6 +109,26 @@ class SkyAnalysisService:
                 logger.error(f"Failed to load image: {image_path}")
                 return None
             
+            return self.analyze_sky_condition(image, image_id)
+            
+        except Exception as e:
+            logger.error(f"Error analyzing image {image_path}: {e}")
+            return None
+    
+    def analyze_sky_condition(self, image: np.ndarray, image_id: Optional[str] = None) -> Optional[Dict]:
+        """
+        Analyze sky conditions from a numpy image array (compatibility method)
+        
+        Args:
+            image: OpenCV image array (BGR format)
+            image_id: Optional image identifier
+            
+        Returns:
+            Dictionary with analysis results or None if analysis fails
+        """
+        start_time = time.time()
+        
+        try:
             # Perform sky analysis
             analysis_result = self._analyze_sky_conditions(image)
             
@@ -123,7 +143,6 @@ class SkyAnalysisService:
             result_data = {
                 "analysis_id": analysis_id,
                 "image_id": image_id or f"img_{int(timestamp)}",
-                "image_path": image_path,
                 "timestamp": timestamp,
                 "condition": analysis_result["condition"],
                 "confidence": analysis_result["confidence"],
@@ -173,7 +192,7 @@ class SkyAnalysisService:
             return result_data
             
         except Exception as e:
-            logger.error(f"Sky analysis failed for {image_path}: {e}")
+            logger.error(f"Sky analysis failed: {e}")
             return None
     
     def _analyze_sky_conditions(self, image: np.ndarray) -> Dict[str, Any]:
@@ -377,6 +396,74 @@ class SkyAnalysisService:
             logger.error(f"Failed to retrieve latest sky analysis: {e}")
         
         return None
+    
+    def get_visibility_estimate(self, condition: str, confidence: float) -> str:
+        """
+        Get visibility estimate based on sky condition (compatibility method)
+        
+        Args:
+            condition: Sky condition string
+            confidence: Analysis confidence score
+            
+        Returns:
+            Visibility estimate string
+        """
+        if confidence < 0.5:
+            return "unknown"
+        
+        visibility_map = {
+            "clear": "excellent",
+            "partly_cloudy": "good",
+            "overcast": "fair",
+            "night_clear": "good",
+            "night_cloudy": "fair",
+            "stormy": "poor",
+            "foggy": "poor"
+        }
+        
+        return visibility_map.get(condition, "fair")
+    
+    def get_provider_status(self) -> Dict:
+        """
+        Get status of the image provider (compatibility method)
+        
+        Returns:
+            Dictionary with provider status information
+        """
+        return {
+            "provider_type": "enhanced_sky_analysis_service",
+            "redis_enabled": self.redis_enabled,
+            "total_analyses": self.total_analyses,
+            "avg_processing_time": self.avg_processing_time,
+            "service_status": "running"
+        }
+    
+    def analyze_current_sky(self, max_age_seconds: float = 5.0) -> Dict:
+        """
+        Analyze current sky conditions (compatibility method for shared volume)
+        
+        Args:
+            max_age_seconds: Maximum age of image to consider
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        # This is a compatibility method - in the enhanced service,
+        # we would typically use the motion-triggered service or
+        # get the latest analysis from Redis
+        
+        if self.redis_enabled:
+            latest = self.get_latest_analysis()
+            if latest:
+                return latest
+        
+        # Fallback response when no recent data available
+        return {
+            "error": "No recent sky analysis data available",
+            "message": "Use motion-triggered service or provide image directly",
+            "timestamp": time.time(),
+            "service": "enhanced_sky_analysis_service"
+        }
     
     def cleanup(self):
         """Cleanup resources"""

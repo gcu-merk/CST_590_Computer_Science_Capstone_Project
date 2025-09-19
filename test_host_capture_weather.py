@@ -18,13 +18,13 @@ def test_host_capture_weather():
     
     try:
         # Test the sky analyzer's analyze_current_sky method directly
-        from weather_analysis.sky_analyzer import SkyAnalyzer
+        from weather_analysis.sky_analysis_service import SkyAnalysisService
         
-        print("✓ Successfully imported SkyAnalyzer")
+        print("✓ Successfully imported SkyAnalysisService")
         
         # Create sky analyzer (should use shared volume if available)
-        sky_analyzer = SkyAnalyzer(use_shared_volume=True)
-        print("✓ Created SkyAnalyzer with shared volume enabled")
+        sky_analyzer = SkyAnalysisService(enable_redis=False)
+        print("✓ Created SkyAnalysisService")
         
         # Check provider status
         status = sky_analyzer.get_provider_status()

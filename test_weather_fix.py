@@ -18,7 +18,7 @@ def test_weather_fix():
     
     try:
         # Import the modules
-        from weather_analysis.sky_analyzer import SkyAnalyzer
+        from weather_analysis.sky_analysis_service import SkyAnalysisService
         from pi_system_status import PiSystemStatus
         from vehicle_detection.vehicle_detection_service import VehicleDetectionService
         
@@ -28,15 +28,15 @@ def test_weather_fix():
         test_frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
         print(f"✓ Created test frame with shape: {test_frame.shape}")
         
-        # Test SkyAnalyzer directly
-        sky_analyzer = SkyAnalyzer()
+        # Test SkyAnalysisService directly
+        sky_analyzer = SkyAnalysisService(enable_redis=False)
         sky_result = sky_analyzer.analyze_sky_condition(test_frame)
         
         if 'error' in sky_result:
-            print(f"✗ SkyAnalyzer failed: {sky_result['error']}")
+            print(f"✗ SkyAnalysisService failed: {sky_result['error']}")
             return False
         else:
-            print(f"✓ SkyAnalyzer works: condition={sky_result['condition']}, confidence={sky_result['confidence']:.2f}")
+            print(f"✓ SkyAnalysisService works: condition={sky_result['condition']}, confidence={sky_result['confidence']:.2f}")
         
         # Test PiSystemStatus with weather metrics
         system_status = PiSystemStatus()

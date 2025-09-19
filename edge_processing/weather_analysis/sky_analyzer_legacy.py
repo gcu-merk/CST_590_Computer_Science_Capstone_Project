@@ -3,6 +3,18 @@ import numpy as np
 import logging
 from datetime import datetime
 from typing import Dict, Tuple, Optional
+import warnings
+
+# DEPRECATION WARNING
+warnings.warn(
+    "sky_analyzer_legacy.py is deprecated. Use sky_analysis_service.py instead. "
+    "This legacy module will be removed in a future version.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+logger = logging.getLogger(__name__)
+logger.warning("DEPRECATED: sky_analyzer_legacy.py is deprecated. Use sky_analysis_service.py instead.")
 
 # Import shared volume image provider for host-capture architecture
 try:
@@ -17,9 +29,20 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class SkyAnalyzer:
-    """Analyzes sky conditions using camera feed for weather assessment"""
+    """
+    DEPRECATED: Analyzes sky conditions using camera feed for weather assessment
+    
+    WARNING: This class is deprecated. Use SkyAnalysisService instead.
+    This legacy implementation will be removed in a future version.
+    """
     
     def __init__(self, use_shared_volume: bool = True):
+        warnings.warn(
+            "SkyAnalyzer is deprecated. Use SkyAnalysisService from sky_analysis_service.py instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        logger.warning("DEPRECATED: SkyAnalyzer is deprecated. Use SkyAnalysisService instead.")
         self.sky_region_ratio = 0.3  # Top 30% of image is sky
         self.confidence_threshold = 0.7
         
