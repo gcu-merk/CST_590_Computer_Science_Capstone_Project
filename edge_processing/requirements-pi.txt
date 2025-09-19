@@ -5,6 +5,7 @@ gpiozero>=1.6.2          # Simplified GPIO control
 RPi.GPIO>=0.7.1         # Low-level GPIO access
 gpustat>=1.1.1          # GPU monitoring for Pi 5
 redis>=4.6.0            # Redis client for real-time messaging
+lgpio>=0.2.2.0          # Low-level GPIO library (lgpio daemon)
 
 # Computer vision and image processing for weather analysis
 opencv-python>=4.5.0    # OpenCV for image processing and sky analysis
