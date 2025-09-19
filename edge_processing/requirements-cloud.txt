@@ -25,9 +25,8 @@ scipy>=1.11.0
 psycopg2-binary>=2.9.0
 sqlalchemy>=2.0.0
 
-# Weather data and sensors
-adafruit-circuitpython-dht>=3.7.0
-board>=1.0
+# GPIO libraries for hardware interfaces
+lgpio>=0.2.2.0          # Modern GPIO library for Pi 5
 
 # Logging and monitoring
 structlog>=23.1.0

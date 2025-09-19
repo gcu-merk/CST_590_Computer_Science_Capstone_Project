@@ -12,6 +12,7 @@ opencv-python>=4.5.0    # OpenCV for image processing and sky analysis
 numpy>=1.21.0           # Numerical computing for image analysis
 scikit-image>=0.19.0    # Advanced image processing algorithms
 
-# CircuitPython support for DHT sensors
-Adafruit-Blinka>=8.0.0
-adafruit-circuitpython-dht>=4.0.0
+# Modern GPIO libraries for Raspberry Pi 5
+lgpio>=0.2.2.0          # Low-level GPIO library (replaces CircuitPython)
+gpiozero>=1.6.2          # Simplified GPIO control
+RPi.GPIO>=0.7.1         # Low-level GPIO access

@@ -132,28 +132,35 @@ services:
     container_name: dht22-weather
     command: ["python", "-m", "edge_processing.dht_22_weather_service"]
     environment:
-      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DHT22_GPIO_PIN=4
+      - DHT22_UPDATE_INTERVAL=300
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - /sys:/sys:ro
-      - /sys/class/gpio:/sys/class/gpio
+      - /dev:/dev
     devices:
+      - /dev/gpiochip0:/dev/gpiochip0
       - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
+      - /dev/gpiomem0:/dev/gpiomem0
+      - /dev/gpiomem1:/dev/gpiomem1
+      - /dev/gpiomem2:/dev/gpiomem2
+      - /dev/gpiomem3:/dev/gpiomem3
+      - /dev/gpiomem4:/dev/gpiomem4
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - traffic-monitoring-network
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
-    privileged: true  # Needed for GPIO access
+    privileged: true  # Required for lgpio GPIO access
     group_add:
       - gpio
     cap_add:
       - SYS_RAWIO
+      - SYS_ADMIN
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); data=r.hget('weather:dht22', 'timestamp'); exit(0 if data else 1)\""]
       interval: 60s
