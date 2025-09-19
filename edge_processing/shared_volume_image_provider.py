@@ -35,11 +35,22 @@ class SharedVolumeImageProvider:
     """
     
     def __init__(self, 
-                 capture_dir: str = "/mnt/storage/camera_capture",
+                 capture_dir: str = None,
                  max_age_seconds: float = 5.0,
                  fallback_timeout: float = 10.0,
                  image_cache_size: int = 10,
                  use_redis: bool = True):
+        
+        # Auto-detect container vs host environment
+        if capture_dir is None:
+            # Check if we're in a Docker container (common mounted path)
+            if os.path.exists("/app/camera_capture"):
+                capture_dir = "/app/camera_capture"
+            elif os.path.exists("/mnt/storage/camera_capture"):
+                capture_dir = "/mnt/storage/camera_capture"
+            else:
+                # Fallback to container-style path
+                capture_dir = "/app/camera_capture"
         
         self.capture_dir = Path(capture_dir)
         self.live_dir = self.capture_dir / "live"
