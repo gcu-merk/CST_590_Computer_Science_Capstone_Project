@@ -200,19 +200,33 @@ class EdgeOrchestrator:
             def start_api_server():
                 """Wrapper function to start API server with error handling"""
                 try:
-                    logger.info("API server thread starting...")
+                    logger.info("🚀 API server thread starting...")
+                    logger.info("📋 Starting Swagger API gateway server...")
                     self.services['api_gateway'].start_server()
+                    logger.info("✅ API server started successfully")
                 except Exception as e:
-                    logger.error(f"API server thread failed: {e}")
+                    logger.error(f"❌ API server thread failed: {e}")
                     import traceback
-                    logger.error(f"API server traceback: {traceback.format_exc()}")
+                    logger.error(f"🔥 API server traceback: {traceback.format_exc()}")
             
+            logger.info("🧵 Creating API server thread...")
             api_thread = threading.Thread(
                 target=start_api_server,
-                daemon=False
+                daemon=False,
+                name="APIServerThread"
             )
+            logger.info("🔄 Starting API server thread...")
             api_thread.start()
-            logger.info("API server thread launched")
+            logger.info("✅ API server thread launched successfully")
+            
+            # Give the API server a moment to start
+            import time
+            time.sleep(2)
+            logger.info("🔍 Checking if API server thread is alive...")
+            if api_thread.is_alive():
+                logger.info("✅ API server thread is running")
+            else:
+                logger.error("❌ API server thread died immediately")
             
             # Keep main thread alive for monitoring
             self._monitoring_loop()
