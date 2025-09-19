@@ -59,7 +59,8 @@ class SwaggerAPIGateway:
             description=API_CONFIG['description'],
             doc=API_CONFIG['doc'],
             contact=API_CONFIG['contact'],
-            license=API_CONFIG['license'],
+            license_name=API_CONFIG['license']['name'],
+            license_url=API_CONFIG['license']['url'],
             tags=API_CONFIG['tags'],
             validate=True
         )
