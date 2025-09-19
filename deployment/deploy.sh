@@ -303,7 +303,10 @@ EOF
     # Add cron job for health checks (every 5 minutes)
     (crontab -l 2>/dev/null; echo "*/5 * * * * /usr/local/bin/traffic-monitor-health >> $STORAGE_ROOT/logs/health-check.log 2>&1") | crontab -
     
-    echo -e "${GREEN}✓ Monitoring configured${NC}"
+    # Add cron job for Docker cleanup (daily at 3:00 AM)
+    (crontab -l 2>/dev/null; echo "0 3 * * * /usr/bin/docker system prune -f --filter until=24h >> $STORAGE_ROOT/logs/docker-cleanup.log 2>&1") | crontab -
+    
+    echo -e "${GREEN}✓ Monitoring and Docker cleanup cron jobs configured${NC}"
 }
 
 # Performance optimizations

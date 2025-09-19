@@ -1,6 +1,6 @@
 #!/bin/bash
 # Weather Data Pipeline Test Script
-# Tests DHT22 sensor, weather.gov API, and local API endpoint
+# Tests DHT22 service, airport weather service, and API endpoints
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,23 +21,47 @@ print_result() {
     fi
 }
 
-echo -e "\n${YELLOW}🌡️ 1. DHT22 & Weather.gov Data Collection${NC}"
+echo -e "\n${YELLOW}🌡️ 1. DHT22 Service Data Check${NC}"
 echo "----------------------------------------"
-python3 edge_processing/weather_data_collector.py > /tmp/weather_test.json 2>&1
-if grep -q '"dht22"' /tmp/weather_test.json && grep -q '"weather_api"' /tmp/weather_test.json; then
-    print_result 0 "Weather Data Collector Script"
+# Test DHT22 service data in Redis
+dht22_data=$(docker exec redis redis-cli get "weather:dht22:latest" 2>/dev/null)
+if echo "$dht22_data" | grep -q '"temperature_c"' && echo "$dht22_data" | grep -q '"humidity"'; then
+    print_result 0 "DHT22 Service Data"
 else
-    print_result 1 "Weather Data Collector Script"
+    print_result 1 "DHT22 Service Data"
+    echo "    Note: DHT22 service may not be running or data not yet collected"
 fi
 
-echo -e "\n${YELLOW}🌐 2. Local API Endpoint Test${NC}"
+echo -e "\n${YELLOW}🌐 2. Airport Weather Service Data Check${NC}"
 echo "----------------------------------------"
-API_URL="http://localhost:5000/api/weather/latest"
-response=$(curl -s "$API_URL")
-if echo "$response" | grep -q '"dht22"' && echo "$response" | grep -q '"weather_api"'; then
-    print_result 0 "Weather API Endpoint (/api/weather/latest)"
+# Test Airport weather service data in Redis
+airport_data=$(docker exec redis redis-cli get "weather:airport:latest" 2>/dev/null)
+if echo "$airport_data" | grep -q '"temperature"' && echo "$airport_data" | grep -q '"timestamp"'; then
+    print_result 0 "Airport Weather Service Data"
 else
-    print_result 1 "Weather API Endpoint (/api/weather/latest)"
+    print_result 1 "Airport Weather Service Data"
+    echo "    Note: Airport weather service may not be running or data not yet collected"
+fi
+
+echo -e "\n${YELLOW}🔗 3. DHT22 API Endpoint Test${NC}"
+echo "----------------------------------------"
+API_URL="http://localhost:5000/api/weather/dht22"
+response=$(curl -s "$API_URL")
+if echo "$response" | grep -q '"temperature_c"' && echo "$response" | grep -q '"humidity"'; then
+    print_result 0 "DHT22 API Endpoint (/api/weather/dht22)"
+else
+    print_result 1 "DHT22 API Endpoint (/api/weather/dht22)"
+    echo "    Output: $response"
+fi
+
+echo -e "\n${YELLOW}🔗 4. Airport Weather API Endpoint Test${NC}"
+echo "----------------------------------------"
+API_URL="http://localhost:5000/api/weather/airport"
+response=$(curl -s "$API_URL")
+if echo "$response" | grep -q '"data"' && echo "$response" | grep -q '"source"'; then
+    print_result 0 "Airport Weather API Endpoint (/api/weather/airport)"
+else
+    print_result 1 "Airport Weather API Endpoint (/api/weather/airport)"
     echo "    Output: $response"
 fi
 

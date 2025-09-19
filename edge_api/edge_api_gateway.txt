@@ -222,25 +222,55 @@ class EdgeAPIGateway:
 
         @self.app.route('/api/weather/latest', methods=['GET'])
         def get_weather_latest():
-            """Get latest weather data from Redis key 'weather:latest'"""
+            """Get latest combined weather data from individual services (DHT22 + Airport)
+            
+            This endpoint combines data from the DHT22 service and airport weather service
+            to maintain backward compatibility with the old weather_data_collector format.
+            """
             try:
                 if not self.redis_client:
-                    return jsonify({'error': 'Redis not available', 'key': 'weather:latest'}), 503
+                    return jsonify({'error': 'Redis not available'}), 503
                 
-                value = self.redis_client.get('weather:latest')
-                if value is None:
-                    return jsonify({'error': 'No latest weather data found', 'key': 'weather:latest'}), 404
+                # Get data from individual services
+                combined_data = {
+                    'timestamp': datetime.now().isoformat(),
+                    'dht22': None,
+                    'weather_api': None
+                }
                 
-                # Try to parse as JSON, fallback to string
+                # Get DHT22 data
                 try:
-                    data = json.loads(value)
-                except json.JSONDecodeError:
-                    data = {'value': value}
+                    dht22_value = self.redis_client.get('weather:dht22:latest')
+                    if dht22_value:
+                        combined_data['dht22'] = json.loads(dht22_value)
+                except Exception as e:
+                    logger.warning(f"Could not retrieve DHT22 data: {e}")
                 
-                return jsonify({'weather_latest': data, 'key': 'weather:latest'})
+                # Get airport weather data
+                try:
+                    airport_value = self.redis_client.get('weather:airport:latest')
+                    if airport_value:
+                        airport_data = json.loads(airport_value)
+                        # Rename to match old format
+                        combined_data['weather_api'] = {
+                            'api_temperature_c': airport_data.get('temperature'),
+                            'api_humidity': airport_data.get('relativeHumidity'),
+                            'api_wind_speed': airport_data.get('windSpeed'),
+                            'api_text': airport_data.get('textDescription'),
+                            'api_timestamp': airport_data.get('timestamp')
+                        }
+                except Exception as e:
+                    logger.warning(f"Could not retrieve airport weather data: {e}")
+                
+                return jsonify({
+                    'weather_latest': combined_data, 
+                    'note': 'Combined from individual services',
+                    'sources': ['weather:dht22:latest', 'weather:airport:latest']
+                })
+                
             except Exception as e:
-                logger.error(f"Error reading weather:latest from Redis: {e}")
-                return jsonify({'error': str(e), 'key': 'weather:latest'}), 500
+                logger.error(f"Error combining weather data: {e}")
+                return jsonify({'error': str(e)}), 500
 
         @self.app.route('/api/weather/dht22', methods=['GET'])
         def get_weather_dht22():
