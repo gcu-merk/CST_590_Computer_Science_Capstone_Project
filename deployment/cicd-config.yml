@@ -39,7 +39,7 @@ deployment:
       service: "data-maintenance"
       image: "gcumerk/cst590-capstone-public:latest"
       health_check:
-        command: "docker compose exec data-maintenance python3 /mnt/storage/scripts/container-maintenance.py --status || docker exec $(docker ps --filter \"name=data-maintenance\" --format '{{.Names}}' | head -1) python3 /mnt/storage/scripts/container-maintenance.py --status"
+        command: "docker exec data-maintenance python3 /app/scripts/container-maintenance.py --status"
         interval: 300
 
 # Deployment Requirements

@@ -43,6 +43,7 @@ services:
       - SYS_RAWIO
 
   data-maintenance:
+    command: ["bash", "/app/scripts/start-with-maintenance.sh"]
     devices:
       - /dev/gpiochip4:/dev/gpiochip4
     volumes:
@@ -51,3 +52,9 @@ services:
       - gpio
     cap_add:
       - SYS_RAWIO
+    environment:
+      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
+      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
+      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
+      - MAINTENANCE_EMERGENCY_THRESHOLD=90
+      - MAINTENANCE_WARNING_THRESHOLD=80

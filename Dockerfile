@@ -94,6 +94,9 @@ RUN pip install --no-cache-dir -r edge_processing/requirements-pi.txt || echo "P
 # Copy application code
 COPY . /app/
 
+# Make scripts executable
+RUN chmod +x /app/scripts/*.sh /app/scripts/*.py 2>/dev/null || true
+
 # Create necessary directories
 RUN mkdir -p /mnt/storage/logs/docker /mnt/storage/data/exports /mnt/storage/data/backups /mnt/storage/data/models /mnt/storage/config
 

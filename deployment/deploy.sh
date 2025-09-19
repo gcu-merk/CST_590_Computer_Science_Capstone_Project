@@ -315,6 +315,7 @@ optimize_system() {
         sudo mkdir -p /etc/docker
         sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 {
+    "data-root": "/mnt/storage/docker",
     "log-driver": "json-file",
     "log-opts": {
         "max-size": "10m",
@@ -324,6 +325,9 @@ optimize_system() {
 }
 EOF
         sudo systemctl restart docker
+        echo -e "${GREEN}✓ Docker configured to use SSD storage${NC}"
+    else
+        echo -e "${GREEN}✓ Docker daemon.json already configured${NC}"
     fi
     
     echo -e "${GREEN}✓ System optimized for Docker${NC}"

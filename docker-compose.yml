@@ -68,6 +68,7 @@ services:
   data-maintenance:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: data-maintenance
+    command: ["bash", "/app/scripts/start-with-maintenance.sh"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
@@ -77,6 +78,11 @@ services:
       - POSTGRES_DB=traffic_monitoring
       - POSTGRES_USER=traffic_user
       - POSTGRES_PASSWORD=traffic_password
+      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
+      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
+      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
+      - MAINTENANCE_EMERGENCY_THRESHOLD=90
+      - MAINTENANCE_WARNING_THRESHOLD=80
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}:/mnt/storage
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
@@ -89,6 +95,12 @@ services:
     networks:
       - traffic-monitoring-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 60s
 
   airport-weather:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}

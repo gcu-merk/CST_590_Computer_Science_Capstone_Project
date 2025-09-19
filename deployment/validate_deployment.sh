@@ -143,6 +143,22 @@ else
     # Don't fail validation for API - it might need more time
 fi
 
+# Test data maintenance service
+echo -e "${YELLOW}Testing Data Maintenance Service...${NC}"
+if docker compose -f docker-compose.yml -f docker-compose.pi.yml exec -T data-maintenance python3 /app/scripts/container-maintenance.py --status > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Data Maintenance Service is functioning${NC}"
+    
+    # Check if maintenance daemon is running
+    if docker compose -f docker-compose.yml -f docker-compose.pi.yml exec -T data-maintenance ps aux | grep -q "container-maintenance.py --daemon"; then
+        echo -e "${GREEN}✓ Maintenance daemon is running${NC}"
+    else
+        echo -e "${YELLOW}⚠ Maintenance daemon may not be running${NC}"
+    fi
+else
+    echo -e "${RED}✗ Data Maintenance Service is not functioning${NC}"
+    exit 1
+fi
+
 # Check storage directories
 echo -e "${YELLOW}Validating storage directories...${NC}"
 storage_dirs=(
