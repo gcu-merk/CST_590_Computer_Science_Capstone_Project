@@ -136,7 +136,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DHT22_GPIO_PIN=4
-      - DHT22_UPDATE_INTERVAL=300
+      - DHT22_UPDATE_INTERVAL=600
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - /sys:/sys:ro
