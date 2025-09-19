@@ -111,6 +111,9 @@ def read_dht22_lgpio(gpio_pin):
         for i in range(32, 40):
             checksum = (checksum << 1) | data_bits[i]
         
+        # Debug: Print raw data bytes
+        print(f"Raw DHT22 bytes: H_high={humidity_high:02x} H_low={humidity_low:02x} T_high={temp_high:02x} T_low={temp_low:02x} Checksum={checksum:02x}")
+        
         # Verify checksum
         calculated_checksum = (humidity_high + humidity_low + temp_high + temp_low) & 0xFF
         if checksum != calculated_checksum:
@@ -123,6 +126,9 @@ def read_dht22_lgpio(gpio_pin):
         # Handle negative temperature
         if temp_high & 0x80:
             temperature = -temperature
+        
+        # Debug: Print calculated values before validation
+        print(f"Calculated values: temp={temperature}°C, humidity={humidity}%")
         
         # Validate sensor ranges
         if humidity < 0 or humidity > 100:
