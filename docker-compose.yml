@@ -130,7 +130,6 @@ services:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DHT22_USE_MOCK=true
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - /sys:/sys:ro
