@@ -197,11 +197,22 @@ class EdgeOrchestrator:
             logger.info("=" * 50)
             
             # Start API gateway in separate thread so we can monitor
+            def start_api_server():
+                """Wrapper function to start API server with error handling"""
+                try:
+                    logger.info("API server thread starting...")
+                    self.services['api_gateway'].start_server()
+                except Exception as e:
+                    logger.error(f"API server thread failed: {e}")
+                    import traceback
+                    logger.error(f"API server traceback: {traceback.format_exc()}")
+            
             api_thread = threading.Thread(
-                target=self.services['api_gateway'].start_server,
-                daemon=True
+                target=start_api_server,
+                daemon=False
             )
             api_thread.start()
+            logger.info("API server thread launched")
             
             # Keep main thread alive for monitoring
             self._monitoring_loop()
