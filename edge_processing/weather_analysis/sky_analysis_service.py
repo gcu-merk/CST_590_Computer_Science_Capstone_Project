@@ -48,10 +48,14 @@ class SkyAnalysisService:
     """
     
     def __init__(self, 
-                 redis_host: str = "localhost",
+                 redis_host: str = None,
                  redis_port: int = 6379,
                  redis_db: int = 0,
                  enable_redis: bool = True):
+        
+        # Use Docker Redis host if no host specified
+        if redis_host is None:
+            redis_host = os.environ.get('REDIS_HOST', 'redis')
         
         self.redis_enabled = enable_redis and REDIS_AVAILABLE and MODELS_AVAILABLE
         self.redis_manager = None
