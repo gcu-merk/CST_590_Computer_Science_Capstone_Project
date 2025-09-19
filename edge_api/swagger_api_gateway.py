@@ -605,14 +605,11 @@ class SwaggerAPIGateway:
     
     def _setup_image_processing_namespace(self):
         """Setup image processing namespace with enhanced analysis endpoints"""
-        images_ns = Namespace('images', description='Image processing and analysis endpoints', path='/api/v1')
+        images_ns = Namespace('images', description='Image processing and analysis endpoints', path='/api')
         
-        @images_ns.route('/analysis')
+        @images_ns.route('/images/analysis')
         class ImageAnalysis(Resource):
             @images_ns.doc('get_image_analysis')
-            @images_ns.response(200, 'Success')
-            @images_ns.response(404, 'No data found')
-            @images_ns.response(500, 'Server error')
             def get(self):
                 """Get latest image analysis results
                 
@@ -631,13 +628,22 @@ class SwaggerAPIGateway:
                         }, 503
                     
                     # Get recent image analysis results from Redis
-                    analysis_keys = redis_client.keys('image_analysis:*')
+                    try:
+                        analysis_keys = redis_client.keys('image_analysis:*')
+                    except Exception as e:
+                        return {
+                            'error': f'Redis connection failed: {str(e)}',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
                     if not analysis_keys:
                         return {
-                            'error': 'No image analysis data available',
-                            'status_code': 404,
+                            'message': 'No image analysis data available yet',
+                            'count': 0,
+                            'status_code': 200,
                             'timestamp': datetime.now().isoformat()
-                        }, 404
+                        }
                     
                     # Sort keys by timestamp and get most recent
                     analysis_keys.sort(reverse=True)
@@ -655,13 +661,6 @@ class SwaggerAPIGateway:
                             logger.warning(f"Error parsing analysis data from {key}: {e}")
                             continue
                     
-                    if not results:
-                        return {
-                            'error': 'No valid image analysis data found',
-                            'status_code': 404,
-                            'timestamp': datetime.now().isoformat()
-                        }, 404
-                    
                     return {
                         'count': len(results),
                         'timestamp': datetime.now().isoformat(),
@@ -676,12 +675,9 @@ class SwaggerAPIGateway:
                         'timestamp': datetime.now().isoformat()
                     }, 500
         
-        @images_ns.route('/vehicle-detections')
+        @images_ns.route('/images/vehicle-detections')
         class VehicleDetections(Resource):
             @images_ns.doc('get_vehicle_detections')
-            @images_ns.response(200, 'Success')
-            @images_ns.response(404, 'No data found')
-            @images_ns.response(500, 'Server error')
             def get(self):
                 """Get latest vehicle detection results
                 
@@ -699,13 +695,22 @@ class SwaggerAPIGateway:
                         }, 503
                     
                     # Get vehicle detection results from Redis
-                    detection_keys = redis_client.keys('vehicle_detection:*')
+                    try:
+                        detection_keys = redis_client.keys('vehicle_detection:*')
+                    except Exception as e:
+                        return {
+                            'error': f'Redis connection failed: {str(e)}',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
                     if not detection_keys:
                         return {
-                            'error': 'No vehicle detection data available',
-                            'status_code': 404,
+                            'message': 'No vehicle detection data available yet',
+                            'count': 0,
+                            'status_code': 200,
                             'timestamp': datetime.now().isoformat()
-                        }, 404
+                        }
                     
                     # Sort and get most recent detections
                     detection_keys.sort(reverse=True)
@@ -737,12 +742,9 @@ class SwaggerAPIGateway:
                         'timestamp': datetime.now().isoformat()
                     }, 500
         
-        @images_ns.route('/sky-analysis')
+        @images_ns.route('/images/sky-analysis')
         class SkyAnalysis(Resource):
             @images_ns.doc('get_sky_analysis')
-            @images_ns.response(200, 'Success')
-            @images_ns.response(404, 'No data found')
-            @images_ns.response(500, 'Server error')
             def get(self):
                 """Get latest sky condition analysis
                 
@@ -761,13 +763,22 @@ class SwaggerAPIGateway:
                         }, 503
                     
                     # Get sky analysis results from Redis
-                    sky_keys = redis_client.keys('sky_analysis:*')
+                    try:
+                        sky_keys = redis_client.keys('sky_analysis:*')
+                    except Exception as e:
+                        return {
+                            'error': f'Redis connection failed: {str(e)}',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
                     if not sky_keys:
                         return {
-                            'error': 'No sky analysis data available',
-                            'status_code': 404,
+                            'message': 'No sky analysis data available yet',
+                            'count': 0,
+                            'status_code': 200,
                             'timestamp': datetime.now().isoformat()
-                        }, 404
+                        }
                     
                     # Sort and get most recent analysis
                     sky_keys.sort(reverse=True)
