@@ -86,7 +86,7 @@ class VehicleDetection:
     
 class VehicleDetectionService:
     # TEMP: Suppress camera capture warnings - set to False for debugging
-    suppress_camera_warning = False
+    suppress_camera_warning = True  # Enabled for camera-free mode deployment
     """
     Core vehicle detection service using Sony IMX500 AI Camera
     Optimized for Raspberry Pi 5 with native camera interface and edge inference
@@ -139,6 +139,27 @@ class VehicleDetectionService:
         self.input_size = (320, 320)  # Corrected: IMX500 SSD model expects 320x320 input
         self.confidence_threshold = 0.5
         self.nms_threshold = 0.4
+        
+        # Rate limiting for error messages to prevent log spam
+        self.last_error_log_time = {}
+        self.error_log_interval = 30.0  # Log errors only every 30 seconds
+        
+    def _rate_limited_log(self, level: str, message: str, log_key: str):
+        """Log messages with rate limiting to prevent spam"""
+        current_time = time.time()
+        last_log_time = self.last_error_log_time.get(log_key, 0)
+        
+        if current_time - last_log_time >= self.error_log_interval:
+            self.last_error_log_time[log_key] = current_time
+            
+            if level == "error":
+                logger.error(message)
+            elif level == "warning":
+                logger.warning(message)
+            elif level == "info":
+                logger.info(message)
+            else:
+                logger.debug(message)
         
     def initialize_camera(self):
         """Initialize camera interface - prefer shared volume for host-capture architecture"""
@@ -235,7 +256,7 @@ class VehicleDetectionService:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     return True, frame
                 else:
-                    logger.warning("Shared volume provider failed to get image - falling back")
+                    self._rate_limited_log("warning", "Shared volume provider failed to get image - falling back", "shared_volume_failed")
             
             # Second priority: Direct camera access
             if self.picamera2:

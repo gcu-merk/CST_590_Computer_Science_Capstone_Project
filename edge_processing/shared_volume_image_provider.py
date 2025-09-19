@@ -67,6 +67,10 @@ class SharedVolumeImageProvider:
         self.consecutive_failures = 0
         self.total_images_processed = 0
         
+        # Rate limiting for error messages
+        self.last_error_log_time = {}
+        self.error_log_interval = 30.0  # Log camera errors only every 30 seconds
+        
         # Background monitoring
         self.monitoring_thread = None
         self.monitoring_active = False
@@ -141,6 +145,23 @@ class SharedVolumeImageProvider:
             logger.warning("Some directory issues detected - functionality may be limited")
             
         return all_dirs_ok
+    
+    def _rate_limited_log(self, level: str, message: str, log_key: str):
+        """Log messages with rate limiting to prevent spam"""
+        current_time = time.time()
+        last_log_time = self.last_error_log_time.get(log_key, 0)
+        
+        if current_time - last_log_time >= self.error_log_interval:
+            self.last_error_log_time[log_key] = current_time
+            
+            if level == "error":
+                logger.error(message)
+            elif level == "warning":
+                logger.warning(message)
+            elif level == "info":
+                logger.info(message)
+            else:
+                logger.debug(message)
     
     def _setup_redis(self):
         """Initialize Redis connection for real-time image notifications"""
@@ -362,7 +383,7 @@ class SharedVolumeImageProvider:
         try:
             # Check if live directory exists and is accessible
             if not self.live_dir.exists():
-                logger.error(f"Live directory does not exist: {self.live_dir}")
+                self._rate_limited_log("error", f"Live directory does not exist: {self.live_dir}", "live_directory_missing")
                 return False, None, {
                     "error": "shared_volume_failed",
                     "reason": "live_directory_missing",
@@ -397,7 +418,7 @@ class SharedVolumeImageProvider:
                 }
             
             if not image_files:
-                logger.warning(f"No images found in capture directory: {self.live_dir}")
+                self._rate_limited_log("warning", f"No images found in capture directory: {self.live_dir}", "no_images_found")
                 return False, None, {
                     "error": "shared_volume_failed",
                     "reason": "no_images_found", 
