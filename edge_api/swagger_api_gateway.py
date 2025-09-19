@@ -47,6 +47,7 @@ class SwaggerAPIGateway:
         self.app = Flask(__name__)
         self.app.config['SECRET_KEY'] = 'traffic_monitoring_edge_api'
         self.app.config['RESTX_MASK_SWAGGER'] = False
+        self.app.config['gateway_instance'] = self  # Store reference for health checks
         
         # Enable CORS for cross-origin requests
         CORS(self.app)
@@ -132,28 +133,39 @@ class SwaggerAPIGateway:
                 - Hardware metrics (temperature, uptime)
                 """
                 try:
+                    # Get reference to the parent gateway instance
+                    gateway = current_app.config.get('gateway_instance')
+                    
                     health_data = {
                         'status': 'healthy',
                         'timestamp': datetime.now().isoformat(),
-                        'uptime_seconds': time.time() - getattr(self, '_start_time', time.time()),
+                        'uptime_seconds': time.time() - getattr(gateway, '_start_time', time.time()) if gateway else 0,
                         'services': {}
                     }
                     
                     # Add system metrics if available
-                    if hasattr(self, 'system_health_monitor') and self.system_health_monitor:
+                    if gateway and hasattr(gateway, 'system_health_monitor') and gateway.system_health_monitor:
                         try:
-                            metrics = self.system_health_monitor.get_system_metrics()
+                            metrics = gateway.system_health_monitor.get_system_metrics()
                             health_data.update(metrics)
                         except Exception as e:
                             logger.warning(f"Health monitor error: {e}")
                     
                     # Check service connectivity
-                    health_data['services'] = {
-                        'redis': 'connected' if self._check_redis() else 'disconnected',
-                        'vehicle_detection': 'active' if self.vehicle_detection_service else 'inactive',
-                        'speed_analysis': 'active' if self.speed_analysis_service else 'inactive',
-                        'data_fusion': 'active' if self.data_fusion_engine else 'inactive'
-                    }
+                    if gateway:
+                        health_data['services'] = {
+                            'redis': 'connected' if gateway._check_redis() else 'disconnected',
+                            'vehicle_detection': 'active' if gateway.vehicle_detection_service else 'inactive',
+                            'speed_analysis': 'active' if gateway.speed_analysis_service else 'inactive',
+                            'data_fusion': 'active' if gateway.data_fusion_engine else 'inactive'
+                        }
+                    else:
+                        health_data['services'] = {
+                            'redis': 'unknown',
+                            'vehicle_detection': 'unknown',
+                            'speed_analysis': 'unknown',
+                            'data_fusion': 'unknown'
+                        }
                     
                     return health_data
                     
