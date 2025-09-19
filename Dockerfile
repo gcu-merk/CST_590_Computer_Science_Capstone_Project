@@ -43,6 +43,8 @@ RUN apt-get update && apt-get install -y \
     fswebcam \
     libgpiod2 \
     i2c-tools \
+    # Add libcap development headers for python-prctl
+    libcap-dev \
     && rm -rf /var/lib/apt/lists/*
 
 
