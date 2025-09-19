@@ -589,15 +589,217 @@ class SwaggerAPIGateway:
                         'timestamp': datetime.now().isoformat()
                     }, 500
         
+        # Image Processing namespace (enhanced image analysis)
+        images_ns = self._setup_image_processing_namespace()
+        
         # Register all namespaces
         self.api.add_namespace(system_ns)
         self.api.add_namespace(detection_ns)
         self.api.add_namespace(speed_ns)
         self.api.add_namespace(weather_ns)
         self.api.add_namespace(analytics_ns)
+        self.api.add_namespace(images_ns)
         
         # Add legacy endpoints for backward compatibility
         self._setup_legacy_routes()
+    
+    def _setup_image_processing_namespace(self):
+        """Setup image processing namespace with enhanced analysis endpoints"""
+        images_ns = Namespace('images', description='Image processing and analysis endpoints', path='/api/v1')
+        
+        @images_ns.route('/analysis')
+        class ImageAnalysis(Resource):
+            @images_ns.doc('get_image_analysis')
+            @images_ns.response(200, 'Success')
+            @images_ns.response(404, 'No data found')
+            @images_ns.response(500, 'Server error')
+            def get(self):
+                """Get latest image analysis results
+                
+                Returns recent image analysis data including vehicle detections,
+                sky conditions, and motion detection results stored in Redis.
+                """
+                try:
+                    # Access Redis client
+                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
+                    
+                    if not redis_client:
+                        return {
+                            'error': 'Redis service not available',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
+                    # Get recent image analysis results from Redis
+                    analysis_keys = redis_client.keys('image_analysis:*')
+                    if not analysis_keys:
+                        return {
+                            'error': 'No image analysis data available',
+                            'status_code': 404,
+                            'timestamp': datetime.now().isoformat()
+                        }, 404
+                    
+                    # Sort keys by timestamp and get most recent
+                    analysis_keys.sort(reverse=True)
+                    recent_keys = analysis_keys[:5]  # Get last 5 results
+                    
+                    results = []
+                    for key in recent_keys:
+                        try:
+                            data = redis_client.get(key)
+                            if data:
+                                analysis_data = json.loads(data)
+                                analysis_data['redis_key'] = key
+                                results.append(analysis_data)
+                        except Exception as e:
+                            logger.warning(f"Error parsing analysis data from {key}: {e}")
+                            continue
+                    
+                    if not results:
+                        return {
+                            'error': 'No valid image analysis data found',
+                            'status_code': 404,
+                            'timestamp': datetime.now().isoformat()
+                        }, 404
+                    
+                    return {
+                        'count': len(results),
+                        'timestamp': datetime.now().isoformat(),
+                        'results': results
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Image analysis endpoint error: {e}")
+                    return {
+                        'error': str(e),
+                        'status_code': 500,
+                        'timestamp': datetime.now().isoformat()
+                    }, 500
+        
+        @images_ns.route('/vehicle-detections')
+        class VehicleDetections(Resource):
+            @images_ns.doc('get_vehicle_detections')
+            @images_ns.response(200, 'Success')
+            @images_ns.response(404, 'No data found')
+            @images_ns.response(500, 'Server error')
+            def get(self):
+                """Get latest vehicle detection results
+                
+                Returns recent vehicle detection data stored in Redis including
+                bounding boxes, confidence scores, and classification results.
+                """
+                try:
+                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
+                    
+                    if not redis_client:
+                        return {
+                            'error': 'Redis service not available',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
+                    # Get vehicle detection results from Redis
+                    detection_keys = redis_client.keys('vehicle_detection:*')
+                    if not detection_keys:
+                        return {
+                            'error': 'No vehicle detection data available',
+                            'status_code': 404,
+                            'timestamp': datetime.now().isoformat()
+                        }, 404
+                    
+                    # Sort and get most recent detections
+                    detection_keys.sort(reverse=True)
+                    recent_keys = detection_keys[:10]  # Get last 10 detections
+                    
+                    detections = []
+                    for key in recent_keys:
+                        try:
+                            data = redis_client.get(key)
+                            if data:
+                                detection_data = json.loads(data)
+                                detection_data['redis_key'] = key
+                                detections.append(detection_data)
+                        except Exception as e:
+                            logger.warning(f"Error parsing detection data from {key}: {e}")
+                            continue
+                    
+                    return {
+                        'count': len(detections),
+                        'timestamp': datetime.now().isoformat(),
+                        'detections': detections
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Vehicle detections endpoint error: {e}")
+                    return {
+                        'error': str(e),
+                        'status_code': 500,
+                        'timestamp': datetime.now().isoformat()
+                    }, 500
+        
+        @images_ns.route('/sky-analysis')
+        class SkyAnalysis(Resource):
+            @images_ns.doc('get_sky_analysis')
+            @images_ns.response(200, 'Success')
+            @images_ns.response(404, 'No data found')
+            @images_ns.response(500, 'Server error')
+            def get(self):
+                """Get latest sky condition analysis
+                
+                Returns recent sky analysis data including weather conditions,
+                visibility estimates, and confidence scores from the enhanced
+                sky analysis service.
+                """
+                try:
+                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
+                    
+                    if not redis_client:
+                        return {
+                            'error': 'Redis service not available',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
+                    # Get sky analysis results from Redis
+                    sky_keys = redis_client.keys('sky_analysis:*')
+                    if not sky_keys:
+                        return {
+                            'error': 'No sky analysis data available',
+                            'status_code': 404,
+                            'timestamp': datetime.now().isoformat()
+                        }, 404
+                    
+                    # Sort and get most recent analysis
+                    sky_keys.sort(reverse=True)
+                    recent_keys = sky_keys[:5]  # Get last 5 analyses
+                    
+                    analyses = []
+                    for key in recent_keys:
+                        try:
+                            data = redis_client.get(key)
+                            if data:
+                                sky_data = json.loads(data)
+                                sky_data['redis_key'] = key
+                                analyses.append(sky_data)
+                        except Exception as e:
+                            logger.warning(f"Error parsing sky data from {key}: {e}")
+                            continue
+                    
+                    return {
+                        'count': len(analyses),
+                        'timestamp': datetime.now().isoformat(),
+                        'analyses': analyses
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Sky analysis endpoint error: {e}")
+                    return {
+                        'error': str(e),
+                        'status_code': 500,
+                        'timestamp': datetime.now().isoformat()
+                    }, 500
+        
+        return images_ns
     
     def _setup_legacy_routes(self):
         """Setup legacy routes for backward compatibility"""
