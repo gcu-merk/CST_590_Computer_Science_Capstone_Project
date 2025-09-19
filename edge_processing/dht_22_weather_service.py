@@ -93,6 +93,10 @@ def read_dht22_lgpio(gpio_pin):
             # DHT22: 26-28us = 0, 70us = 1
             data_bits.append(1 if high_duration > 0.00004 else 0)  # 40us threshold
         
+        # Debug: Print raw data bits for first 10 bits to check data integrity
+        print(f"First 10 data bits: {data_bits[:10]}")
+        print(f"Last 10 data bits: {data_bits[-10:]}")
+        
         # Convert bits to bytes
         humidity_high = 0
         humidity_low = 0
@@ -112,23 +116,40 @@ def read_dht22_lgpio(gpio_pin):
             checksum = (checksum << 1) | data_bits[i]
         
         # Debug: Print raw data bytes
-        print(f"Raw DHT22 bytes: H_high={humidity_high:02x} H_low={humidity_low:02x} T_high={temp_high:02x} T_low={temp_low:02x} Checksum={checksum:02x}")
+        print(f"Raw DHT22 bytes: H_high={humidity_high:02x}({humidity_high}) H_low={humidity_low:02x}({humidity_low}) T_high={temp_high:02x}({temp_high}) T_low={temp_low:02x}({temp_low}) Checksum={checksum:02x}({checksum})")
         
         # Verify checksum
         calculated_checksum = (humidity_high + humidity_low + temp_high + temp_low) & 0xFF
         if checksum != calculated_checksum:
             raise RuntimeError(f"DHT22 checksum error: expected {checksum}, got {calculated_checksum}")
         
-        # Calculate actual values
+        # Calculate actual values according to DHT22 datasheet
         humidity = ((humidity_high << 8) | humidity_low) / 10.0
-        temperature = (((temp_high & 0x7F) << 8) | temp_low) / 10.0
+        temperature_raw = ((temp_high & 0x7F) << 8) | temp_low
+        temperature = temperature_raw / 10.0
         
-        # Handle negative temperature
+        # Handle negative temperature (MSB of temp_high indicates sign)
         if temp_high & 0x80:
             temperature = -temperature
         
-        # Debug: Print calculated values before validation
-        print(f"Calculated values: temp={temperature}°C, humidity={humidity}%")
+        # Debug: Print calculated values and conversion steps
+        print(f"Humidity calculation: ({humidity_high} << 8) | {humidity_low} = {(humidity_high << 8) | humidity_low} / 10.0 = {humidity}%")
+        print(f"Temperature calculation: ({temp_high & 0x7F} << 8) | {temp_low} = {temperature_raw} / 10.0 = {temperature}°C")
+        print(f"Temperature sign bit: {bool(temp_high & 0x80)} (negative: {temp_high & 0x80 != 0})")
+        
+        # Temperature sanity check and potential correction
+        original_temp = temperature
+        if temperature > 50.0:  # Unrealistic indoor temperature in Celsius
+            # Check if this might be Fahrenheit data being interpreted as Celsius
+            if 32.0 <= temperature <= 120.0:  # Reasonable Fahrenheit range
+                # Convert from Fahrenheit to Celsius
+                temperature = (temperature - 32.0) * 5.0 / 9.0
+                print(f"Temperature anomaly detected: {original_temp}°C seems like Fahrenheit")
+                print(f"Auto-correcting: {original_temp}°F → {temperature:.1f}°C")
+            else:
+                print(f"WARNING: Extreme temperature reading: {temperature}°C")
+        
+        print(f"Final calculated values: temp={temperature}°C, humidity={humidity}%")
         
         # Validate sensor ranges
         if humidity < 0 or humidity > 100:
