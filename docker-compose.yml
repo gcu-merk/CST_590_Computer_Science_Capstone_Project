@@ -133,6 +133,9 @@ services:
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - /sys:/sys:ro
+      - /sys/class/gpio:/sys/class/gpio
+    devices:
+      - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
     depends_on:
       redis:
         condition: service_healthy
@@ -141,6 +144,10 @@ services:
       - traffic-monitoring-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     privileged: true  # Needed for GPIO access
+    group_add:
+      - gpio
+    cap_add:
+      - SYS_RAWIO
 
 networks:
   traffic-monitoring-network:
