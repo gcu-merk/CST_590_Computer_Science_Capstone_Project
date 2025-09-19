@@ -135,6 +135,16 @@ stop_existing_services() {
         docker compose $STOP_COMPOSE_FILES down || true
     fi
     
+    # Force remove any stuck containers by name (handles conflicts)
+    echo "Ensuring all traffic monitoring containers are removed..."
+    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather 2>/dev/null || true
+    
+    # Remove stuck networks
+    echo "Cleaning up Docker networks..."
+    docker network rm traffic_monitoring_traffic-monitoring-network 2>/dev/null || true
+    docker network rm traffic-monitoring-network 2>/dev/null || true
+    docker network rm traffic_monitoring_default 2>/dev/null || true
+    
     # Stop any legacy systemd services
     sudo systemctl stop traffic-monitor.service 2>/dev/null || true
     sudo systemctl disable traffic-monitor.service 2>/dev/null || true
@@ -208,9 +218,13 @@ start_services() {
         echo -e "${YELLOW}Warning: Failed to pull some images, continuing with existing images${NC}"
     fi
     
-    # Stop any existing containers first
+    # Stop any existing containers first (with force cleanup)
     echo "Stopping any existing containers..."
     docker compose $COMPOSE_FILES down || true
+    
+    # Additional cleanup to handle stubborn containers
+    echo "Ensuring clean container state..."
+    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather 2>/dev/null || true
     
     # Start services
     echo "Starting containers..."
