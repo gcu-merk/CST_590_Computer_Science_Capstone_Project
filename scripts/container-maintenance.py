@@ -345,7 +345,6 @@ class ContainerMaintenance:
             'log_files_removed': 0,
             'log_files_rotated': 0,
             'temp_files_removed': 0,
-            'docker_cleanup_performed': 0,
             'space_freed_mb': 0
         }
         
@@ -390,27 +389,8 @@ class ContainerMaintenance:
                 except Exception:
                     pass  # Skip files we can't access
             
-            # Docker system cleanup (safe pruning of old unused images/containers)
-            cleanup_stats['docker_cleanup_performed'] = 0
-            try:
-                self.logger.info("Starting Docker system cleanup...")
-                result = subprocess.run([
-                    'docker', 'system', 'prune', '-f', '--filter', 'until=24h'
-                ], capture_output=True, text=True, timeout=60)
-                
-                if result.returncode == 0:
-                    cleanup_stats['docker_cleanup_performed'] = 1
-                    self.logger.info("Docker system cleanup completed successfully")
-                    if result.stdout.strip():
-                        self.logger.info(f"Docker cleanup output: {result.stdout.strip()}")
-                else:
-                    self.logger.warning(f"Docker cleanup warning: {result.stderr}")
-            except subprocess.TimeoutExpired:
-                self.logger.warning("Docker cleanup timed out after 60 seconds")
-            except FileNotFoundError:
-                self.logger.warning("Docker command not found - skipping Docker cleanup")
-            except Exception as e:
-                self.logger.warning(f"Docker cleanup failed: {e}")
+            # Note: Daily Docker cleanup is now handled by host-level cron job
+            # Emergency Docker cleanup is still available in emergency_cleanup()
             
             if cleanup_stats['log_files_removed'] + cleanup_stats['temp_files_removed'] > 0:
                 self.logger.info(f"Log cleanup completed: {cleanup_stats['log_files_removed']} logs removed, "
