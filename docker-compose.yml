@@ -93,6 +93,7 @@ services:
   airport-weather:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: airport-weather
+    command: ["python", "-m", "edge_processing.airport_weather_service"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
@@ -111,11 +112,13 @@ services:
   dht22-weather:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: dht22-weather
+    command: ["python", "-m", "edge_processing.dht_22_weather_service"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DHT22_USE_MOCK=true
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - /sys:/sys:ro

@@ -127,8 +127,8 @@ scripts/
 ├── git-aliases.ps1         # PowerShell aliases (optional)
 └── README.md              # This documentation
 
-# Easy access from project root:
-branch-cleanup.cmd          # Command-line interface
+# Easy access from scripts folder:
+scripts/branch-cleanup.cmd  # Command-line interface
 ```
 
 ---
@@ -139,6 +139,6 @@ When adding new automation scripts:
 
 1. Create the script in this directory
 2. Add documentation to this README
-3. Consider adding a command-line interface like `branch-cleanup.cmd`
+3. Consider adding a command-line interface like `scripts/branch-cleanup.cmd`
 4. Test thoroughly before committing
 5. Follow PowerShell best practices

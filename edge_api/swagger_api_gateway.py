@@ -4,7 +4,7 @@ Swagger-Enabled Edge API Gateway
 Flask-RESTX server providing documented REST API endpoints for the traffic monitoring system
 """
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, current_app
 from flask_restx import Api, Resource, Namespace, reqparse
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -93,6 +93,8 @@ class SwaggerAPIGateway:
             # Test connection
             self.redis_client.ping()
             logger.info(f"Redis connection established to host: {redis_host}")
+            # Attach to Flask app for access in endpoints
+            self.app.redis_client = self.redis_client
         except ImportError:
             logger.warning("Redis not available - weather:latest endpoint will not work")
         except Exception as e:
@@ -366,13 +368,22 @@ class SwaggerAPIGateway:
                     }
                     
                     # Get DHT22 sensor data from Redis
-                    if self.redis_client:
+                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
+                    if redis_client:
                         try:
-                            dht22_data = self.redis_client.get('weather:dht22:latest')
+                            dht22_data = redis_client.get('weather:dht22:latest')
                             if dht22_data:
                                 weather_data['dht22_sensor'] = json.loads(dht22_data)
                         except Exception as e:
                             logger.warning(f"DHT22 data retrieval error: {e}")
+                        
+                        # Get airport weather data from Redis
+                        try:
+                            airport_data = redis_client.get('weather:airport:latest')
+                            if airport_data:
+                                weather_data['airport_data'] = json.loads(airport_data)
+                        except Exception as e:
+                            logger.warning(f"Airport weather data retrieval error: {e}")
                     
                     # Get sky analysis if available
                     if self.sky_analyzer:
@@ -386,6 +397,126 @@ class SwaggerAPIGateway:
                     
                 except Exception as e:
                     logger.error(f"Weather endpoint error: {e}")
+                    return {
+                        'error': str(e),
+                        'status_code': 500,
+                        'timestamp': datetime.now().isoformat()
+                    }, 500
+        
+        @weather_ns.route('/weather/airport')
+        class AirportWeather(Resource):
+            @weather_ns.doc('get_airport_weather')
+            @weather_ns.marshal_with(self.api.models['AirportWeatherData'])
+            @weather_ns.response(200, 'Success', self.api.models['AirportWeatherData'])
+            @weather_ns.response(404, 'No Data Found', self.api.models['ErrorResponse'])
+            @weather_ns.response(503, 'Service Unavailable', self.api.models['ErrorResponse'])
+            def get(self):
+                """Get latest airport weather data from weather.gov API
+                
+                Returns the most recent weather observations from the Oklahoma City airport
+                weather station (KOKC) including temperature, wind, visibility, and conditions.
+                """
+                try:
+                    # Access the parent gateway's redis_client
+                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
+                    
+                    if not redis_client:
+                        return {
+                            'error': 'Redis service not available',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
+                    # Get airport weather data from Redis
+                    airport_data = redis_client.get('weather:airport:latest')
+                    if not airport_data:
+                        return {
+                            'error': 'No airport weather data found',
+                            'status_code': 404,
+                            'timestamp': datetime.now().isoformat(),
+                            'message': 'Airport weather service may not be running or data not yet collected'
+                        }, 404
+                    
+                    try:
+                        data = json.loads(airport_data)
+                        # Add metadata
+                        response_data = {
+                            'source': 'weather.gov API - KOKC Station',
+                            'redis_key': 'weather:airport:latest',
+                            'retrieved_at': datetime.now().isoformat(),
+                            'data': data
+                        }
+                        return response_data
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Invalid JSON in airport weather data: {e}")
+                        return {
+                            'error': 'Invalid data format in Redis',
+                            'status_code': 500,
+                            'timestamp': datetime.now().isoformat()
+                        }, 500
+                    
+                except Exception as e:
+                    logger.error(f"Airport weather endpoint error: {e}")
+                    return {
+                        'error': str(e),
+                        'status_code': 500,
+                        'timestamp': datetime.now().isoformat()
+                    }, 500
+        
+        @weather_ns.route('/weather/dht22')
+        class DHT22Weather(Resource):
+            @weather_ns.doc('get_dht22_weather')
+            @weather_ns.marshal_with(self.api.models['DHT22WeatherData'])
+            @weather_ns.response(200, 'Success', self.api.models['DHT22WeatherData'])
+            @weather_ns.response(404, 'No Data Found', self.api.models['ErrorResponse'])
+            @weather_ns.response(503, 'Service Unavailable', self.api.models['ErrorResponse'])
+            def get(self):
+                """Get latest DHT22 sensor weather data
+                
+                Returns the most recent temperature and humidity readings from the local
+                DHT22 sensor including Celsius/Fahrenheit temperatures and relative humidity.
+                """
+                try:
+                    # Access the parent gateway's redis_client
+                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
+                    
+                    if not redis_client:
+                        return {
+                            'error': 'Redis service not available',
+                            'status_code': 503,
+                            'timestamp': datetime.now().isoformat()
+                        }, 503
+                    
+                    # Get DHT22 weather data from Redis
+                    dht22_data = redis_client.get('weather:dht22:latest')
+                    if not dht22_data:
+                        return {
+                            'error': 'No DHT22 weather data found',
+                            'status_code': 404,
+                            'timestamp': datetime.now().isoformat(),
+                            'message': 'DHT22 weather service may not be running or data not yet collected'
+                        }, 404
+                    
+                    try:
+                        data = json.loads(dht22_data)
+                        # Add metadata
+                        response_data = {
+                            'source': 'DHT22 Local Sensor',
+                            'redis_key': 'weather:dht22:latest',
+                            'retrieved_at': datetime.now().isoformat(),
+                            'data': data
+                        }
+                        return response_data
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Invalid JSON in DHT22 weather data: {e}")
+                        return {
+                            'error': 'Invalid data format in Redis',
+                            'status_code': 500,
+                            'timestamp': datetime.now().isoformat()
+                        }, 500
+                    
+                except Exception as e:
+                    logger.error(f"DHT22 weather endpoint error: {e}")
                     return {
                         'error': str(e),
                         'status_code': 500,

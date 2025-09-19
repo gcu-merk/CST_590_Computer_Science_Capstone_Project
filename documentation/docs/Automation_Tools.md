@@ -23,8 +23,8 @@ This document describes the comprehensive automation tools developed to streamli
 
 | Tool | Purpose | Location | Usage |
 |------|---------|----------|-------|
-| **Smart Push** | Intelligent Git commit/push automation | `smart-push.cmd` | `smart-push [options]` |
-| **Branch Cleanup** | Automated cleanup of merged branches | `branch-cleanup.cmd` | `branch-cleanup [options]` |
+| **Smart Push** | Intelligent Git commit/push automation | `scripts/smart-push.cmd` | `scripts/smart-push [options]` |
+| **Branch Cleanup** | Automated cleanup of merged branches | `scripts/branch-cleanup.cmd` | `scripts/branch-cleanup [options]` |
 | **Pi Deploy** | Raspberry Pi deployment script | `scripts/deploy-to-pi.sh` | `bash scripts/deploy-to-pi.sh` |
 | **Pi Troubleshoot** | Deployment diagnostics | `scripts/pi-troubleshoot.sh` | `bash scripts/pi-troubleshoot.sh` |
 | **GitHub Actions** | CI/CD pipeline | `.github/workflows/` | Automatic |
