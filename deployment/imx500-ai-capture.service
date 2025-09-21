@@ -18,6 +18,14 @@ Environment=CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
 Environment=IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk
 Environment=CAPTURE_INTERVAL=1.0
 Environment=AI_CONFIDENCE_THRESHOLD=0.5
+Environment=REDIS_HOST=localhost
+Environment=REDIS_PORT=6379
+
+# Street ROI configuration (filters out parked cars in driveways and cross street)
+Environment=STREET_ROI_X_START=0.15
+Environment=STREET_ROI_X_END=0.85
+Environment=STREET_ROI_Y_START=0.5
+Environment=STREET_ROI_Y_END=0.9
 Environment=MAX_STORED_IMAGES=100
 Environment=REDIS_HOST=localhost
 Environment=REDIS_PORT=6379

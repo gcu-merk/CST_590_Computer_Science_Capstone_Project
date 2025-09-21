@@ -70,7 +70,8 @@ class IMX500AIHostCapture:
                  confidence_threshold: float = 0.5,
                  max_images: int = 100,
                  redis_host: str = "localhost",
-                 redis_port: int = 6379):
+                 redis_port: int = 6379,
+                 street_roi: dict = None):
         
         if not PICAMERA2_AVAILABLE:
             raise RuntimeError("picamera2 not available - required for IMX500 AI processing")
@@ -80,6 +81,16 @@ class IMX500AIHostCapture:
         self.capture_interval = capture_interval
         self.confidence_threshold = confidence_threshold
         self.max_images = max_images
+        
+        # Street Region of Interest (ROI) for filtering out parked cars in driveways
+        # and cars on cross street at top of image
+        # Default ROI covers the center 70% horizontally and excludes top cross street
+        self.street_roi = street_roi or {
+            "x_start": 0.15,  # 15% from left edge
+            "x_end": 0.85,    # 85% from left edge (center 70%)
+            "y_start": 0.5,   # 50% from top (exclude cross street at top)
+            "y_end": 0.9      # 90% from top (exclude sky, include main street only)
+        }
         
         # Directory structure
         self.live_dir = self.capture_dir / "live"
@@ -144,9 +155,8 @@ class IMX500AIHostCapture:
             
             self.camera.configure(config)
             
-            # Set AI inference parameters
-            self.imx500.set_nms_threshold(0.4)  # Non-maximum suppression
-            self.imx500.set_confidence_threshold(self.confidence_threshold)
+            # Note: IMX500 threshold parameters are configured at model level
+            # Confidence filtering will be applied during result processing
             
             logger.info("Starting camera...")
             self.camera.start()
@@ -257,6 +267,12 @@ class IMX500AIHostCapture:
         
         height, width = image_shape[:2]
         
+        # Calculate street ROI boundaries in pixels
+        roi_x1 = int(self.street_roi["x_start"] * width)
+        roi_x2 = int(self.street_roi["x_end"] * width)
+        roi_y1 = int(self.street_roi["y_start"] * height)
+        roi_y2 = int(self.street_roi["y_end"] * height)
+        
         for i, detection in enumerate(ai_outputs):
             try:
                 # Extract detection data (format may vary based on model)
@@ -274,6 +290,14 @@ class IMX500AIHostCapture:
                     else:
                         x1, y1, x2, y2 = map(int, bbox)
                     
+                    # Check if vehicle is in the street ROI (filter out parked cars in driveways)
+                    center_x = (x1 + x2) // 2
+                    center_y = (y1 + y2) // 2
+                    
+                    if not self._is_in_street_roi(center_x, center_y, roi_x1, roi_x2, roi_y1, roi_y2):
+                        logger.debug(f"Vehicle detection {i} filtered out - outside street ROI (parked car or cross street)")
+                        continue
+                    
                     detection_data = {
                         "detection_id": f"imx500_{int(time.time())}_{i}",
                         "vehicle_type": self.vehicle_classes[class_id],
@@ -283,9 +307,11 @@ class IMX500AIHostCapture:
                             "width": x2 - x1, "height": y2 - y1
                         },
                         "area_pixels": (x2 - x1) * (y2 - y1),
-                        "center_point": [(x1 + x2) // 2, (y1 + y2) // 2],
+                        "center_point": [center_x, center_y],
                         "class_id": class_id,
-                        "inference_source": "imx500_on_chip"
+                        "inference_source": "imx500_on_chip",
+                        "in_street_roi": True,
+                        "roi_filtered": "street_traffic_only"
                     }
                     
                     detections.append(detection_data)
@@ -294,6 +320,11 @@ class IMX500AIHostCapture:
                 logger.warning(f"Failed to process detection {i}: {e}")
         
         return detections
+    
+    def _is_in_street_roi(self, center_x: int, center_y: int, 
+                          roi_x1: int, roi_x2: int, roi_y1: int, roi_y2: int) -> bool:
+        """Check if vehicle center point is within the street region of interest"""
+        return (roi_x1 <= center_x <= roi_x2) and (roi_y1 <= center_y <= roi_y2)
     
     def _find_primary_vehicle(self, detections: List[Dict]) -> Optional[Dict]:
         """Find the primary vehicle (highest confidence * area)"""
@@ -439,7 +470,13 @@ def main():
         'confidence_threshold': float(os.getenv('AI_CONFIDENCE_THRESHOLD', '0.5')),
         'max_images': int(os.getenv('MAX_STORED_IMAGES', '100')),
         'redis_host': os.getenv('REDIS_HOST', 'localhost'),
-        'redis_port': int(os.getenv('REDIS_PORT', '6379'))
+        'redis_port': int(os.getenv('REDIS_PORT', '6379')),
+        'street_roi': {
+            'x_start': float(os.getenv('STREET_ROI_X_START', '0.15')),  # 15% from left
+            'x_end': float(os.getenv('STREET_ROI_X_END', '0.85')),      # 85% from left  
+            'y_start': float(os.getenv('STREET_ROI_Y_START', '0.5')),   # 50% from top (exclude cross street)
+            'y_end': float(os.getenv('STREET_ROI_Y_END', '0.9'))        # 90% from top
+        }
     }
     
     logger.info("=== IMX500 AI Host Capture Service ===")
@@ -447,6 +484,7 @@ def main():
     logger.info(f"AI model: {config['ai_model_path']}")
     logger.info(f"Confidence threshold: {config['confidence_threshold']}")
     logger.info(f"Capture interval: {config['capture_interval']}s")
+    logger.info(f"Street ROI: {config['street_roi']} (filters out parked cars and cross street)")
     
     try:
         capture_service = IMX500AIHostCapture(**config)
