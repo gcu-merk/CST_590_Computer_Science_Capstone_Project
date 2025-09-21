@@ -72,7 +72,8 @@ class IMX500AIHostCapture:
                  max_images: int = 100,
                  redis_host: str = "localhost",
                  redis_port: int = 6379,
-                 street_roi: dict = None):
+                 street_roi: dict = None,
+                 enable_radar_gpio: bool = True):
         
         if not PICAMERA2_AVAILABLE:
             raise RuntimeError("picamera2 not available - required for IMX500 AI processing")
@@ -92,6 +93,20 @@ class IMX500AIHostCapture:
             "y_start": 0.5,   # 50% from top (exclude cross street at top)
             "y_end": 0.9      # 90% from top (exclude sky, include main street only)
         }
+        
+        # Radar GPIO Integration
+        self.enable_radar_gpio = enable_radar_gpio
+        self.radar_gpio_pins = {
+            "host_interrupt": 23,  # Orange wire - Host interrupt from radar
+            "reset": 24,           # Yellow wire - Reset radar
+            "low_alert": 5,        # Blue wire - Low speed/range alert (Pin 29)
+            "high_alert": 6        # Purple wire - High speed/range alert (Pin 31)
+        }
+        self.radar_gpio_initialized = False
+        
+        # Radar-triggered capture mode
+        self.radar_triggered_mode = False
+        self.radar_last_trigger = 0
         
         # Directory structure
         self.live_dir = self.capture_dir / "live"
@@ -164,6 +179,10 @@ class IMX500AIHostCapture:
             
             # Wait for camera to settle
             time.sleep(2)
+            
+            # Initialize radar GPIO integration if enabled
+            if self.enable_radar_gpio:
+                self._initialize_radar_gpio()
             
             logger.info("✅ IMX500 AI camera initialized successfully")
             return True
@@ -456,9 +475,108 @@ class IMX500AIHostCapture:
         except Exception as e:
             logger.warning(f"Cleanup error: {e}")
     
+    def _initialize_radar_gpio(self):
+        """Initialize GPIO pins for radar integration"""
+        try:
+            import RPi.GPIO as GPIO
+            
+            # Set GPIO mode
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            
+            # Setup input pins with pull-up resistors
+            GPIO.setup(self.radar_gpio_pins["host_interrupt"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(self.radar_gpio_pins["low_alert"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(self.radar_gpio_pins["high_alert"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            
+            # Setup output pin for radar reset
+            GPIO.setup(self.radar_gpio_pins["reset"], GPIO.OUT)
+            GPIO.output(self.radar_gpio_pins["reset"], GPIO.HIGH)  # Keep radar out of reset
+            
+            # Add interrupt detection for radar signals
+            GPIO.add_event_detect(self.radar_gpio_pins["host_interrupt"], 
+                                GPIO.FALLING, callback=self._on_radar_detection, bouncetime=50)
+            GPIO.add_event_detect(self.radar_gpio_pins["low_alert"], 
+                                GPIO.FALLING, callback=self._on_radar_low_alert, bouncetime=100)
+            GPIO.add_event_detect(self.radar_gpio_pins["high_alert"], 
+                                GPIO.FALLING, callback=self._on_radar_high_alert, bouncetime=100)
+            
+            self.radar_gpio_initialized = True
+            logger.info("✅ Radar GPIO integration initialized:")
+            logger.info(f"   Host Interrupt: GPIO{self.radar_gpio_pins['host_interrupt']} (Orange wire)")
+            logger.info(f"   Reset: GPIO{self.radar_gpio_pins['reset']} (Yellow wire)")
+            logger.info(f"   Low Alert: GPIO{self.radar_gpio_pins['low_alert']} (Blue wire)")
+            logger.info(f"   High Alert: GPIO{self.radar_gpio_pins['high_alert']} (Purple wire)")
+            
+        except ImportError:
+            logger.warning("RPi.GPIO not available - radar GPIO integration disabled")
+        except Exception as e:
+            logger.error(f"Failed to initialize radar GPIO: {e}")
+    
+    def _on_radar_detection(self, channel):
+        """Handle radar detection interrupt (GPIO23 - Orange wire)"""
+        current_time = time.time()
+        logger.info(f"🎯 Radar detection interrupt triggered on GPIO{channel}")
+        
+        # Avoid duplicate triggers within 500ms
+        if current_time - self.radar_last_trigger < 0.5:
+            return
+            
+        self.radar_last_trigger = current_time
+        self.radar_triggered_mode = True
+        
+        # Trigger immediate high-priority capture
+        try:
+            logger.info("📸 Radar-triggered immediate IMX500 capture")
+            detection_data = self.capture_with_ai_analysis()
+            if detection_data:
+                detection_data["trigger_source"] = "radar_interrupt"
+                detection_data["radar_trigger_time"] = current_time
+                logger.info("✅ Radar-triggered capture completed")
+        except Exception as e:
+            logger.error(f"Error in radar-triggered capture: {e}")
+    
+    def _on_radar_low_alert(self, channel):
+        """Handle radar low speed/range alert (GPIO5 - Blue wire)"""
+        logger.info(f"🐌 Radar LOW ALERT triggered on GPIO{channel} - Slow vehicle detected")
+        # Could adjust capture parameters for slow vehicles
+        # E.g., increase capture frequency, use higher resolution
+    
+    def _on_radar_high_alert(self, channel):
+        """Handle radar high speed alert (GPIO6 - Purple wire)"""
+        logger.info(f"🏎️ Radar HIGH ALERT triggered on GPIO{channel} - Fast vehicle detected")
+        # Could trigger rapid capture sequence for fast vehicles
+        # E.g., burst mode, track vehicle progression
+    
+    def radar_reset(self):
+        """Reset the radar sensor via GPIO"""
+        if not self.radar_gpio_initialized:
+            logger.warning("Radar GPIO not initialized")
+            return
+        
+        try:
+            import RPi.GPIO as GPIO
+            logger.info("🔄 Resetting radar sensor...")
+            GPIO.output(self.radar_gpio_pins["reset"], GPIO.LOW)
+            time.sleep(0.001)  # 1ms reset pulse
+            GPIO.output(self.radar_gpio_pins["reset"], GPIO.HIGH)
+            logger.info("✅ Radar reset completed")
+        except Exception as e:
+            logger.error(f"Failed to reset radar: {e}")
+    
     def stop(self):
         """Stop the capture service"""
         self.running = False
+        
+        # Clean up GPIO
+        if self.radar_gpio_initialized:
+            try:
+                import RPi.GPIO as GPIO
+                GPIO.cleanup()
+                logger.info("GPIO cleanup completed")
+            except Exception as e:
+                logger.warning(f"GPIO cleanup error: {e}")
+        
         if self.camera:
             try:
                 self.camera.stop()

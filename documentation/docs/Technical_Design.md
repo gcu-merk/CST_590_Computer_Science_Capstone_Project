@@ -208,7 +208,91 @@ This section describes the hardware components and their specifications for the 
 - **Power & Connectivity:** Official Raspberry Pi 5 PSU (5.1V, 5A, 25W), PoE+ HAT, WiFi/Ethernet, optional cellular backup, UPS for continuous operation
 - **Environmental Housing:** IP65/IP66 weatherproof enclosure (-40°C to +71°C)
 
-## 3.1 ML/AI Workflow and Component Status
+### 3.1 Hardware Pinout and Connections
+
+This section documents the physical connections between the OPS243-C radar sensor and Raspberry Pi 5 for optimal sensor integration and real-time correlation.
+
+#### OPS243-C Radar Sensor to Raspberry Pi 5 Pinout
+
+| OPS243 Pin | Function | Wire Color | RPi Physical Pin | RPi GPIO | Description |
+|------------|----------|------------|------------------|----------|-------------|
+| Pin 3 | Host Interrupt | Orange | Pin 16 | GPIO23 | Real-time detection signal (active low) |
+| Pin 4 | Reset | Yellow | Pin 18 | GPIO24 | Software reset control (active low) |
+| Pin 6 | UART RxD | Green | Pin 8 | GPIO14 (TXD) | Radar receives commands |
+| Pin 7 | UART TxD | White | Pin 10 | GPIO15 (RXD) | Radar transmits data |
+| Pin 9 | 5V Power | Red | Pin 4 | 5V Power | Power supply (150mA typical) |
+| Pin 10 | Ground | Black | Pin 6 | Ground | Common ground |
+| **Pin 1** | **Low Alert/Sampling** | **Blue** | **Pin 29** | **GPIO5** | **Speed/range low threshold alert** |
+| **Pin 2** | **High Alert** | **Purple** | **Pin 31** | **GPIO6** | **Speed/range high threshold alert** |
+
+#### GPIO Configuration
+
+```python
+# GPIO Pin Assignments
+RADAR_GPIO_PINS = {
+    "host_interrupt": 23,  # Orange wire - Immediate detection notification
+    "reset": 24,           # Yellow wire - Software reset capability
+    "low_alert": 5,        # Blue wire - Low speed/range threshold alerts
+    "high_alert": 6        # Purple wire - High speed/range threshold alerts
+}
+
+# UART Configuration
+RADAR_UART_PORT = "/dev/ttyACM0"
+RADAR_BAUD_RATE = 115200
+```
+
+#### Physical Pin Layout on Raspberry Pi 5
+
+```
+     3V3  (1) (2)  5V     ← Pin 4 (Red - Radar Power)
+   GPIO2  (3) (4)  5V
+   GPIO3  (5) (6)  GND    ← Pin 6 (Black - Radar Ground)
+   GPIO4  (7) (8)  GPIO14 ← Pin 8 (Green - Radar RxD)
+     GND  (9) (10) GPIO15 ← Pin 10 (White - Radar TxD)
+  GPIO17 (11) (12) GPIO18
+  GPIO27 (13) (14) GND
+  GPIO22 (15) (16) GPIO23 ← Pin 16 (Orange - Radar Interrupt)
+     3V3 (17) (18) GPIO24 ← Pin 18 (Yellow - Radar Reset)
+  GPIO10 (19) (20) GND
+   GPIO9 (21) (22) GPIO25
+  GPIO11 (23) (24) GPIO8
+     GND (25) (26) GPIO7
+   GPIO0 (27) (28) GPIO1
+   GPIO5 (29) (30) GND    ← Pin 29 (Blue - Radar Low Alert)
+   GPIO6 (31) (32) GPIO12 ← Pin 31 (Purple - Radar High Alert)
+  GPIO13 (33) (34) GND
+  GPIO19 (35) (36) GPIO16
+  GPIO26 (37) (38) GPIO20
+     GND (39) (40) GPIO21
+```
+
+#### Radar GPIO Integration Benefits
+
+1. **Real-Time Detection Correlation**
+   - Host interrupt (GPIO23) triggers immediate IMX500 capture
+   - Perfect temporal synchronization between radar and camera
+   - Sub-100ms response time for detection events
+
+2. **Speed-Based Camera Behavior**
+   - Low alert (GPIO5): Adjust capture for slow vehicles
+   - High alert (GPIO6): Trigger rapid capture for fast vehicles
+   - Configurable speed thresholds via radar API
+
+3. **System Reliability**
+   - Reset capability (GPIO24) for radar recovery
+   - Hardware-level event detection without polling
+   - Reduced CPU usage through interrupt-driven processing
+
+#### Radar Configuration Commands
+
+```bash
+# Enable GPIO alert outputs
+radar_command("AL15")  # Low speed alert at 15 mph
+radar_command("AH45")  # High speed alert at 45 mph
+radar_command("IG")    # Enable host interrupt output
+```
+
+## 3.2 ML/AI Workflow and Component Status
 
 This section summarizes the ML/AI workflow, component status, and technical details for the traffic monitoring system. For full details, see `ml_ai_workflow_analysis.md` in the archive.
 

@@ -21,13 +21,14 @@ This guide provides comprehensive instructions for installing, configuring, and 
 ## Table of Contents
 
 1. [System Features Overview](#1-system-features-overview)
-2. [Web Dashboard](#2-web-dashboard)
-3. [Mobile App (if applicable)](#3-mobile-app-if-applicable)
-4. [Example Use Cases](#4-example-use-cases)
-5. [Frequently Asked Questions](#5-frequently-asked-questions)
-6. [Support](#6-support)
-7. [Glossary](#7-glossary)  
-8. [Appendices](#8-appendices)
+2. [Hardware Setup Quick Reference](#2-hardware-setup-quick-reference)
+3. [Web Dashboard](#3-web-dashboard)
+4. [Mobile App (if applicable)](#4-mobile-app-if-applicable)
+5. [Example Use Cases](#5-example-use-cases)
+6. [Frequently Asked Questions](#6-frequently-asked-questions)
+7. [Support](#7-support)
+8. [Glossary](#8-glossary)  
+9. [Appendices](#9-appendices)
 
 **See also:**
 
@@ -73,7 +74,48 @@ The Raspberry Pi 5 Edge ML Traffic Monitoring System provides real-time vehicle 
 - **Traffic Analyst:** Reviews real-time and historical data, generates reports
 - **Administrator:** Manages user access, system configuration, and cloud integration
 
-## 2. Web Dashboard
+## 2. Hardware Setup Quick Reference
+
+This section provides a quick reference for the hardware connections. For detailed installation instructions, see the [Implementation & Deployment Guide](./Implementation_Deployment.md).
+
+### OPS243-C Radar Sensor Pinout
+
+| OPS243 Pin | Function | Wire Color | RPi Physical Pin | RPi GPIO | Notes |
+|------------|----------|------------|------------------|----------|-------|
+| Pin 3 | Host Interrupt | Orange | Pin 16 | GPIO23 | Real-time detection |
+| Pin 4 | Reset | Yellow | Pin 18 | GPIO24 | Software reset |
+| Pin 6 | UART RxD | Green | Pin 8 | GPIO14 (TXD) | Commands to radar |
+| Pin 7 | UART TxD | White | Pin 10 | GPIO15 (RXD) | Data from radar |
+| Pin 9 | 5V Power | Red | Pin 4 | 5V Power | 150mA typical |
+| Pin 10 | Ground | Black | Pin 6 | Ground | Common ground |
+| **Pin 1** | **Low Alert** | **Blue** | **Pin 29** | **GPIO5** | **Speed/range alerts** |
+| **Pin 2** | **High Alert** | **Purple** | **Pin 31** | **GPIO6** | **Speed/range alerts** |
+
+### Key Hardware Features
+
+- **IMX500 AI Camera**: 12MP sensor with on-chip AI processing (CSI-2 ribbon cable)
+- **OPS243-C Radar**: 24.125 GHz FMCW radar with 200m range (GPIO + UART)
+- **External SSD**: Samsung T7 Shield 2TB for local storage (USB 3.2)
+- **Power**: 5.1V 5A official PSU or PoE+ HAT
+
+### Connection Verification
+
+```bash
+# Test camera
+libcamera-hello --preview=none --timeout=5000
+
+# Test radar UART
+sudo cat /dev/ttyACM0
+
+# Check GPIO status
+gpio readall
+```
+
+For complete installation instructions, hardware assembly, and troubleshooting, see:
+- [Technical Design Document - Hardware Design](./Technical_Design.md#3-hardware-design)
+- [Implementation & Deployment Guide - Hardware Assembly](./Implementation_Deployment.md#22-hardware-assembly)
+
+## 3. Web Dashboard
 
 The Edge UI (local web dashboard) provides real-time monitoring, configuration, and analytics for the traffic monitoring system. The Cloud UI (optional) extends these features with historical data and remote management.
 

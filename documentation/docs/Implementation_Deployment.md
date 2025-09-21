@@ -323,17 +323,39 @@ sudo ./svc.sh status
 
 2. **Wire the OPS243-C radar sensor to the Pi GPIO header**
 
+   **Complete OPS243-C to Raspberry Pi 5 Pinout:**
+
+   | OPS243 Pin | Function | Wire Color | RPi Physical Pin | RPi GPIO | Description |
+   |------------|----------|------------|------------------|----------|-------------|
+   | Pin 3 | Host Interrupt | Orange | Pin 16 | GPIO23 | Real-time detection signal |
+   | Pin 4 | Reset | Yellow | Pin 18 | GPIO24 | Software reset control |
+   | Pin 6 | UART RxD | Green | Pin 8 | GPIO14 (TXD) | Radar receives commands |
+   | Pin 7 | UART TxD | White | Pin 10 | GPIO15 (RXD) | Radar transmits data |
+   | Pin 9 | 5V Power | Red | Pin 4 | 5V Power | Power supply (150mA) |
+   | Pin 10 | Ground | Black | Pin 6 | Ground | Common ground |
+   | **Pin 1** | **Low Alert** | **Blue** | **Pin 29** | **GPIO5** | **Low speed/range alerts** |
+   | **Pin 2** | **High Alert** | **Purple** | **Pin 31** | **GPIO6** | **High speed/range alerts** |
+
+   **Wiring Instructions:**
    ```bash
-   OPS243-C Pin 9 (5V)    → Pi Pin 2 (5V)
-   OPS243-C Pin 10 (GND)  → Pi Pin 6 (GND)
-   OPS243-C Pin 6 (RxD)   → Pi Pin 8 (TXD/GPIO14)
-   OPS243-C Pin 7 (TxD)   → Pi Pin 10 (RXD/GPIO15)
+   # Essential connections (minimum required)
+   OPS243-C Pin 9 (5V, Red)    → Pi Pin 4 (5V)
+   OPS243-C Pin 10 (GND, Black) → Pi Pin 6 (GND)
+   OPS243-C Pin 6 (RxD, Green)  → Pi Pin 8 (TXD/GPIO14)
+   OPS243-C Pin 7 (TxD, White)  → Pi Pin 10 (RXD/GPIO15)
    
-   # Optional: Status LED connections
-   Radar Active LED       → Pi Pin 18 (GPIO24)
-   Camera Active LED      → Pi Pin 22 (GPIO25)
-   System Status LED      → Pi Pin 24 (GPIO8)
+   # Enhanced GPIO integration (recommended)
+   OPS243-C Pin 3 (Interrupt, Orange) → Pi Pin 16 (GPIO23)
+   OPS243-C Pin 4 (Reset, Yellow)     → Pi Pin 18 (GPIO24)
+   OPS243-C Pin 1 (Low Alert, Blue)   → Pi Pin 29 (GPIO5)
+   OPS243-C Pin 2 (High Alert, Purple) → Pi Pin 31 (GPIO6)
    ```
+
+   **GPIO Integration Benefits:**
+   - **Real-time correlation**: Host interrupt triggers immediate camera capture
+   - **Speed-based behavior**: Different capture modes for slow/fast vehicles
+   - **System reliability**: Software reset capability for radar recovery
+   - **Hardware events**: Interrupt-driven processing reduces CPU usage
 
 3. **Connect SSD for local storage and AI model storage**
 
