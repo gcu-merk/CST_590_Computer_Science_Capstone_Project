@@ -24,6 +24,7 @@ import json
 import logging
 import signal
 import threading
+import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -262,8 +263,15 @@ class IMX500AIHostCapture:
         """Process raw AI detection outputs from IMX500"""
         detections = []
         
-        if not ai_outputs:
+        if not ai_outputs or len(ai_outputs) < 4:
             return detections
+        
+        # Debug: Log the actual structure of AI outputs
+        logger.debug(f"AI outputs type: {type(ai_outputs)}, length: {len(ai_outputs) if hasattr(ai_outputs, '__len__') else 'N/A'}")
+        if ai_outputs:
+            logger.debug(f"First output type: {type(ai_outputs[0])}, shape: {getattr(ai_outputs[0], 'shape', 'N/A')}")
+            if hasattr(ai_outputs[0], 'shape') and len(ai_outputs[0].shape) > 0:
+                logger.debug(f"First output content sample: {ai_outputs[0][:5] if ai_outputs[0].shape[0] > 5 else ai_outputs[0]}")
         
         height, width = image_shape[:2]
         
@@ -273,22 +281,34 @@ class IMX500AIHostCapture:
         roi_y1 = int(self.street_roi["y_start"] * height)
         roi_y2 = int(self.street_roi["y_end"] * height)
         
-        for i, detection in enumerate(ai_outputs):
-            try:
-                # Extract detection data (format may vary based on model)
-                class_id = detection.get('category', detection.get('class_id', 0))
-                confidence = detection.get('conf', detection.get('confidence', 0.0))
-                bbox = detection.get('bbox', [0, 0, 0, 0])
+        # IMX500 SSD MobileNet format: [boxes, scores, classes, num_detections]
+        try:
+            boxes = ai_outputs[0]  # Shape: (N, 4) - normalized coordinates [y1, x1, y2, x2]
+            scores = ai_outputs[1] # Shape: (N,) - confidence scores
+            classes = ai_outputs[2] # Shape: (N,) - class IDs
+            num_detections = int(ai_outputs[3].item()) if hasattr(ai_outputs[3], 'item') else int(ai_outputs[3][0])
+            
+            logger.debug(f"Boxes shape: {boxes.shape}, Scores shape: {scores.shape}, Classes shape: {classes.shape}, Num detections: {num_detections}")
+            
+            # Process only valid detections
+            for i in range(min(num_detections, len(boxes), len(scores), len(classes))):
+                confidence = float(scores[i])
+                class_id = int(classes[i])
                 
                 # Only process vehicle classes above confidence threshold
                 if class_id in self.vehicle_classes and confidence >= self.confidence_threshold:
-                    # Convert normalized bbox to pixel coordinates if needed
-                    if all(coord <= 1.0 for coord in bbox):
-                        x1, y1, x2, y2 = bbox
-                        x1, x2 = int(x1 * width), int(x2 * width)
-                        y1, y2 = int(y1 * height), int(y2 * height)
+                    # Convert normalized coordinates to pixels
+                    # Note: IMX500 often uses [y1, x1, y2, x2] format
+                    if boxes.shape[1] == 4:
+                        y1, x1, y2, x2 = boxes[i]
+                        # Convert to pixel coordinates
+                        x1 = int(x1 * width)
+                        x2 = int(x2 * width)
+                        y1 = int(y1 * height)
+                        y2 = int(y2 * height)
                     else:
-                        x1, y1, x2, y2 = map(int, bbox)
+                        logger.warning(f"Unexpected bbox format for detection {i}: {boxes[i]}")
+                        continue
                     
                     # Check if vehicle is in the street ROI (filter out parked cars in driveways)
                     center_x = (x1 + x2) // 2
@@ -315,10 +335,11 @@ class IMX500AIHostCapture:
                     }
                     
                     detections.append(detection_data)
+                    logger.debug(f"✅ Valid vehicle detection {i}: {self.vehicle_classes[class_id]} confidence={confidence:.2f} bbox=({x1},{y1},{x2},{y2})")
                     
-            except Exception as e:
-                logger.warning(f"Failed to process detection {i}: {e}")
-        
+        except Exception as e:
+            logger.error(f"Failed to parse IMX500 detection format: {e}")
+            
         return detections
     
     def _is_in_street_roi(self, center_x: int, center_y: int, 
