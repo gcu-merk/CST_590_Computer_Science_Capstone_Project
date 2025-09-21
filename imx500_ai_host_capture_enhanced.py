@@ -1,0 +1,639 @@
+#!/usr/bin/env python3
+"""
+IMX500 AI-Enabled Host Camera Capture Service
+Leverages Sony IMX500's on-chip AI processing for real-time vehicle detection
+
+This service replaces the traditional rpicam-still approach with picamera2 + IMX500 AI
+to utilize the sensor's built-in neural network processor for sub-100ms vehicle detection.
+
+Key Benefits:
+- Sub-100ms inference directly on sensor (vs seconds in software)
+- Zero CPU usage for AI processing (dedicated AI chip)
+- Real-time object detection with 4K image capture
+- Outputs both high-resolution images AND AI detection results
+- Eliminates need for software-based vehicle detection in Docker
+
+Architecture:
+IMX500 Sensor -> On-Chip AI (Vehicle Detection) -> Host Python Service -> Redis + Shared Volume -> Docker (Sky Analysis Only)
+"""
+
+import os
+import sys
+import time
+import json
+import logging
+import signal
+import threading
+import numpy as np
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional, Dict, Any, List
+import uuid
+
+# IMX500 AI Camera imports
+try:
+    from picamera2 import Picamera2
+    from picamera2.devices.imx500 import IMX500
+    PICAMERA2_AVAILABLE = True
+except ImportError:
+    PICAMERA2_AVAILABLE = False
+    print("WARNING: picamera2 not available. Install with: pip install picamera2")
+
+# Redis for real-time data distribution
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    print("WARNING: Redis not available. Install with: pip install redis")
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('/tmp/imx500_ai_capture.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class IMX500AIHostCapture:
+    """
+    Host service that leverages IMX500's on-chip AI for vehicle detection
+    Processes both images and AI inference results from the camera sensor
+    """
+    
+    def __init__(self,
+                 capture_dir: str = "/mnt/storage/camera_capture",
+                 ai_model_path: str = "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk",
+                 capture_interval: float = 1.0,
+                 confidence_threshold: float = 0.5,
+                 max_images: int = 100,
+                 redis_host: str = "localhost",
+                 redis_port: int = 6379,
+                 street_roi: dict = None,
+                 enable_radar_gpio: bool = True):
+        
+        if not PICAMERA2_AVAILABLE:
+            raise RuntimeError("picamera2 not available - required for IMX500 AI processing")
+        
+        self.capture_dir = Path(capture_dir)
+        self.ai_model_path = ai_model_path
+        self.capture_interval = capture_interval
+        self.confidence_threshold = confidence_threshold
+        self.max_images = max_images
+        
+        # Street Region of Interest (ROI) for filtering out parked cars in driveways
+        # and cars on cross street at top of image
+        # Default ROI covers the center 70% horizontally and excludes top cross street
+        self.street_roi = street_roi or {
+            "x_start": 0.15,  # 15% from left edge
+            "x_end": 0.85,    # 85% from left edge (center 70%)
+            "y_start": 0.5,   # 50% from top (exclude cross street at top)
+            "y_end": 0.9      # 90% from top (exclude sky, include main street only)
+        }
+        
+        # Radar GPIO Integration
+        self.enable_radar_gpio = enable_radar_gpio
+        self.radar_gpio_pins = {
+            "host_interrupt": 23,  # Orange wire - Host interrupt from radar
+            "reset": 24,           # Yellow wire - Reset radar
+            "low_alert": 5,        # Blue wire - Low speed/range alert (Pin 29)
+            "high_alert": 6        # Purple wire - High speed/range alert (Pin 31)
+        }
+        self.radar_gpio_initialized = False
+        
+        # Radar-triggered capture mode
+        self.radar_triggered_mode = False
+        self.radar_last_trigger = 0
+        
+        # Directory structure
+        self.live_dir = self.capture_dir / "live"
+        self.ai_results_dir = self.capture_dir / "ai_results"
+        self.metadata_dir = self.capture_dir / "metadata"
+        
+        # Initialize directories
+        for dir_path in [self.live_dir, self.ai_results_dir, self.metadata_dir]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+        
+        # Camera and AI setup
+        self.camera = None
+        self.imx500 = None
+        self.running = False
+        
+        # Redis setup
+        self.redis_client = None
+        if REDIS_AVAILABLE:
+            try:
+                self.redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+                self.redis_client.ping()
+                logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
+            except Exception as e:
+                logger.warning(f"Redis connection failed: {e}")
+                self.redis_client = None
+        
+        # Vehicle class mapping for SSD MobileNetV2 model
+        self.vehicle_classes = {
+            2: "car",           # COCO class ID 2
+            3: "motorcycle",    # COCO class ID 3  
+            5: "bus",           # COCO class ID 5
+            7: "truck",         # COCO class ID 7
+        }
+        
+        logger.info(f"IMX500 AI Host Capture initialized")
+        logger.info(f"Model: {self.ai_model_path}")
+        logger.info(f"Confidence threshold: {self.confidence_threshold}")
+        logger.info(f"Capture interval: {self.capture_interval}s")
+    
+    def initialize_camera(self) -> bool:
+        """Initialize IMX500 camera with AI model"""
+        try:
+            # Check if AI model exists
+            if not os.path.exists(self.ai_model_path):
+                logger.error(f"AI model not found: {self.ai_model_path}")
+                return False
+            
+            logger.info("Initializing IMX500 AI camera...")
+            
+            # Initialize camera
+            self.camera = Picamera2()
+            
+            # Load AI model onto IMX500 sensor
+            self.imx500 = IMX500(self.ai_model_path)
+            logger.info(f"AI model loaded: {self.ai_model_path}")
+            
+            # Configure camera for high-resolution capture with AI
+            config = self.camera.create_still_configuration(
+                main={"size": (4056, 3040), "format": "RGB888"},
+                controls={"FrameRate": 1.0}  # 1 FPS for high-quality AI processing
+            )
+            
+            self.camera.configure(config)
+            
+            # Note: IMX500 threshold parameters are configured at model level
+            # Confidence filtering will be applied during result processing
+            
+            logger.info("Starting camera...")
+            self.camera.start()
+            
+            # Wait for camera to settle
+            time.sleep(2)
+            
+            # Initialize radar GPIO integration if enabled
+            if self.enable_radar_gpio:
+                self._initialize_radar_gpio()
+            
+            logger.info("✅ IMX500 AI camera initialized successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize IMX500 camera: {e}")
+            return False
+    
+    def capture_with_ai_analysis(self) -> Optional[Dict[str, Any]]:
+        """
+        Capture image and get AI detection results from IMX500 on-chip processor
+        Returns both image data and vehicle detection results
+        """
+        try:
+            capture_start = time.time()
+            timestamp = datetime.now()
+            
+            # Generate unique IDs
+            image_id = f"img_{int(timestamp.timestamp())}"
+            capture_id = str(uuid.uuid4())
+            
+            # Capture high-resolution image with AI processing
+            logger.debug("Triggering IMX500 capture with AI...")
+            
+            # Capture image array and request metadata with AI results
+            image_array = self.camera.capture_array("main")
+            metadata = self.camera.capture_metadata()
+            
+            # Get AI inference results from camera
+            ai_outputs = self.imx500.get_outputs(metadata)
+            
+            capture_time = (time.time() - capture_start) * 1000  # Convert to ms
+            
+            # Process AI detection results
+            detections = self._process_ai_detections(ai_outputs, image_array.shape)
+            
+            # Save high-resolution image
+            filename = f"capture_{timestamp.strftime('%Y%m%d_%H%M%S_%f')[:-3]}.jpg"
+            image_path = self.live_dir / filename
+            
+            # Convert RGB to BGR for OpenCV saving
+            import cv2
+            image_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(str(image_path), image_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            
+            file_size = image_path.stat().st_size
+            
+            # Create comprehensive result package
+            result_package = {
+                "capture_info": {
+                    "capture_id": capture_id,
+                    "image_id": image_id,
+                    "timestamp": timestamp.isoformat(),
+                    "filename": filename,
+                    "file_size": file_size,
+                    "resolution": f"{image_array.shape[1]}x{image_array.shape[0]}",
+                    "capture_latency_ms": capture_time,
+                    "processing_method": "imx500_on_chip_ai"
+                },
+                "ai_results": {
+                    "inference_time_ms": capture_time,  # On-chip inference is included in capture time
+                    "model_used": self.ai_model_path,
+                    "confidence_threshold": self.confidence_threshold,
+                    "detection_count": len(detections),
+                    "detections": detections,
+                    "primary_vehicle": self._find_primary_vehicle(detections) if detections else None
+                },
+                "redis_keys": {
+                    "image_key": f"sky:analysis:image:{image_id}",
+                    "vehicle_keys": [f"vehicle:detection:{det['detection_id']}" for det in detections]
+                }
+            }
+            
+            # Save AI results
+            ai_results_path = self.ai_results_dir / f"{filename}.json"
+            with open(ai_results_path, 'w') as f:
+                json.dump(result_package, f, indent=2)
+            
+            # Save metadata
+            metadata_path = self.metadata_dir / f"{filename}.json"
+            with open(metadata_path, 'w') as f:
+                json.dump(result_package["capture_info"], f, indent=2)
+            
+            # Publish to Redis for real-time processing
+            if self.redis_client:
+                self._publish_ai_results(result_package)
+            
+            logger.info(f"✅ IMX500 AI capture: {filename} ({file_size} bytes, {len(detections)} vehicles, {capture_time:.1f}ms)")
+            
+            return result_package
+            
+        except Exception as e:
+            logger.error(f"IMX500 AI capture failed: {e}")
+            return None
+    
+    def _process_ai_detections(self, ai_outputs: List, image_shape: tuple) -> List[Dict[str, Any]]:
+        """Process raw AI detection outputs from IMX500"""
+        detections = []
+        
+        if not ai_outputs or len(ai_outputs) < 4:
+            return detections
+        
+        # Debug: Log the actual structure of AI outputs
+        logger.debug(f"AI outputs type: {type(ai_outputs)}, length: {len(ai_outputs) if hasattr(ai_outputs, '__len__') else 'N/A'}")
+        if ai_outputs:
+            logger.debug(f"First output type: {type(ai_outputs[0])}, shape: {getattr(ai_outputs[0], 'shape', 'N/A')}")
+            if hasattr(ai_outputs[0], 'shape') and len(ai_outputs[0].shape) > 0:
+                logger.debug(f"First output content sample: {ai_outputs[0][:5] if ai_outputs[0].shape[0] > 5 else ai_outputs[0]}")
+        
+        height, width = image_shape[:2]
+        
+        # Calculate street ROI boundaries in pixels
+        roi_x1 = int(self.street_roi["x_start"] * width)
+        roi_x2 = int(self.street_roi["x_end"] * width)
+        roi_y1 = int(self.street_roi["y_start"] * height)
+        roi_y2 = int(self.street_roi["y_end"] * height)
+        
+        # IMX500 SSD MobileNet format: [boxes, scores, classes, num_detections]
+        try:
+            boxes = ai_outputs[0]  # Shape: (N, 4) - normalized coordinates [y1, x1, y2, x2]
+            scores = ai_outputs[1] # Shape: (N,) - confidence scores
+            classes = ai_outputs[2] # Shape: (N,) - class IDs
+            num_detections = int(ai_outputs[3].item()) if hasattr(ai_outputs[3], 'item') else int(ai_outputs[3][0])
+            
+            logger.debug(f"Boxes shape: {boxes.shape}, Scores shape: {scores.shape}, Classes shape: {classes.shape}, Num detections: {num_detections}")
+            
+            # Process only valid detections
+            for i in range(min(num_detections, len(boxes), len(scores), len(classes))):
+                confidence = float(scores[i])
+                class_id = int(classes[i])
+                
+                # Only process vehicle classes above confidence threshold
+                if class_id in self.vehicle_classes and confidence >= self.confidence_threshold:
+                    # Convert normalized coordinates to pixels
+                    # Note: IMX500 often uses [y1, x1, y2, x2] format
+                    if boxes.shape[1] == 4:
+                        y1, x1, y2, x2 = boxes[i]
+                        # Convert to pixel coordinates
+                        x1 = int(x1 * width)
+                        x2 = int(x2 * width)
+                        y1 = int(y1 * height)
+                        y2 = int(y2 * height)
+                    else:
+                        logger.warning(f"Unexpected bbox format for detection {i}: {boxes[i]}")
+                        continue
+                    
+                    # Check if vehicle is in the street ROI (filter out parked cars in driveways)
+                    center_x = (x1 + x2) // 2
+                    center_y = (y1 + y2) // 2
+                    
+                    if not self._is_in_street_roi(center_x, center_y, roi_x1, roi_x2, roi_y1, roi_y2):
+                        logger.debug(f"Vehicle detection {i} filtered out - outside street ROI (parked car or cross street)")
+                        continue
+                    
+                    detection_data = {
+                        "detection_id": f"imx500_{int(time.time())}_{i}",
+                        "vehicle_type": self.vehicle_classes[class_id],
+                        "confidence": float(confidence),
+                        "bounding_box": {
+                            "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                            "width": x2 - x1, "height": y2 - y1
+                        },
+                        "area_pixels": (x2 - x1) * (y2 - y1),
+                        "center_point": [center_x, center_y],
+                        "class_id": class_id,
+                        "inference_source": "imx500_on_chip",
+                        "in_street_roi": True,
+                        "roi_filtered": "street_traffic_only"
+                    }
+                    
+                    detections.append(detection_data)
+                    logger.debug(f"✅ Valid vehicle detection {i}: {self.vehicle_classes[class_id]} confidence={confidence:.2f} bbox=({x1},{y1},{x2},{y2})")
+                    
+        except Exception as e:
+            logger.error(f"Failed to parse IMX500 detection format: {e}")
+            
+        return detections
+    
+    def _is_in_street_roi(self, center_x: int, center_y: int, 
+                          roi_x1: int, roi_x2: int, roi_y1: int, roi_y2: int) -> bool:
+        """Check if vehicle center point is within the street region of interest"""
+        return (roi_x1 <= center_x <= roi_x2) and (roi_y1 <= center_y <= roi_y2)
+    
+    def _find_primary_vehicle(self, detections: List[Dict]) -> Optional[Dict]:
+        """Find the primary vehicle (highest confidence * area)"""
+        if not detections:
+            return None
+        
+        return max(detections, key=lambda d: d["confidence"] * d["area_pixels"])
+    
+    def _publish_ai_results(self, result_package: Dict[str, Any]):
+        """Publish AI results to Redis for Docker container consumption"""
+        if not self.redis_client:
+            return
+        
+        try:
+            # Publish vehicle detections
+            for detection in result_package["ai_results"]["detections"]:
+                detection_key = f"vehicle:detection:{detection['detection_id']}"
+                detection_data = {
+                    **detection,
+                    "timestamp": time.time(),
+                    "image_id": result_package["capture_info"]["image_id"],
+                    "source": "imx500_host_ai"
+                }
+                self.redis_client.setex(detection_key, 300, json.dumps(detection_data))  # 5 min TTL
+            
+            # Publish image metadata for sky analysis processing
+            image_key = f"sky:analysis:image:{result_package['capture_info']['image_id']}"
+            image_metadata = {
+                "image_path": result_package["capture_info"]["filename"],
+                "timestamp": time.time(),
+                "resolution": result_package["capture_info"]["resolution"],
+                "file_size": result_package["capture_info"]["file_size"],
+                "ai_processing": "imx500_vehicle_detection_complete",
+                "vehicle_count": result_package["ai_results"]["detection_count"]
+            }
+            self.redis_client.setex(image_key, 300, json.dumps(image_metadata))
+            
+            # Publish real-time event
+            event_data = {
+                "event_type": "imx500_ai_capture",
+                "timestamp": time.time(),
+                "vehicle_detections": len(result_package["ai_results"]["detections"]),
+                "primary_vehicle": result_package["ai_results"]["primary_vehicle"]["vehicle_type"] if result_package["ai_results"]["primary_vehicle"] else None,
+                "inference_time_ms": result_package["ai_results"]["inference_time_ms"],
+                "image_id": result_package["capture_info"]["image_id"]
+            }
+            self.redis_client.publish("traffic_events", json.dumps(event_data))
+            
+            logger.debug(f"Published AI results to Redis: {len(result_package['ai_results']['detections'])} vehicles")
+            
+        except Exception as e:
+            logger.error(f"Failed to publish AI results to Redis: {e}")
+    
+    def run(self):
+        """Main capture loop using IMX500 on-chip AI"""
+        if not self.initialize_camera():
+            logger.error("Failed to initialize camera - cannot start capture service")
+            return False
+        
+        self.running = True
+        logger.info(f"🚗 Starting IMX500 AI capture service (interval: {self.capture_interval}s)")
+        
+        try:
+            while self.running:
+                start_time = time.time()
+                
+                # Capture with AI analysis
+                result = self.capture_with_ai_analysis()
+                
+                if result:
+                    # Log performance metrics
+                    vehicle_count = result["ai_results"]["detection_count"]
+                    inference_time = result["ai_results"]["inference_time_ms"]
+                    
+                    if vehicle_count > 0:
+                        primary = result["ai_results"]["primary_vehicle"]
+                        logger.info(f"🚗 Detected {vehicle_count} vehicles (primary: {primary['vehicle_type'] if primary else 'none'}, {inference_time:.1f}ms)")
+                
+                # Cleanup old files periodically
+                self._cleanup_old_files()
+                
+                # Wait for next capture
+                elapsed = time.time() - start_time
+                sleep_time = max(0, self.capture_interval - elapsed)
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                
+        except KeyboardInterrupt:
+            logger.info("Capture service interrupted by user")
+        except Exception as e:
+            logger.error(f"Capture service error: {e}")
+        finally:
+            self.stop()
+        
+        return True
+    
+    def _cleanup_old_files(self):
+        """Remove old images to prevent disk space issues"""
+        try:
+            images = list(self.live_dir.glob("*.jpg"))
+            if len(images) > self.max_images:
+                images.sort(key=lambda x: x.stat().st_mtime)
+                for old_image in images[:-self.max_images]:
+                    old_image.unlink()
+                    # Also remove associated metadata
+                    (self.metadata_dir / f"{old_image.name}.json").unlink(missing_ok=True)
+                    (self.ai_results_dir / f"{old_image.name}.json").unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Cleanup error: {e}")
+    
+    def _initialize_radar_gpio(self):
+        """Initialize GPIO pins for radar integration"""
+        try:
+            import RPi.GPIO as GPIO
+            
+            # Set GPIO mode
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            
+            # Setup input pins with pull-up resistors
+            GPIO.setup(self.radar_gpio_pins["host_interrupt"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(self.radar_gpio_pins["low_alert"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(self.radar_gpio_pins["high_alert"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            
+            # Setup output pin for radar reset
+            GPIO.setup(self.radar_gpio_pins["reset"], GPIO.OUT)
+            GPIO.output(self.radar_gpio_pins["reset"], GPIO.HIGH)  # Keep radar out of reset
+            
+            # Add interrupt detection for radar signals
+            GPIO.add_event_detect(self.radar_gpio_pins["host_interrupt"], 
+                                GPIO.FALLING, callback=self._on_radar_detection, bouncetime=50)
+            GPIO.add_event_detect(self.radar_gpio_pins["low_alert"], 
+                                GPIO.FALLING, callback=self._on_radar_low_alert, bouncetime=100)
+            GPIO.add_event_detect(self.radar_gpio_pins["high_alert"], 
+                                GPIO.FALLING, callback=self._on_radar_high_alert, bouncetime=100)
+            
+            self.radar_gpio_initialized = True
+            logger.info("✅ Radar GPIO integration initialized:")
+            logger.info(f"   Host Interrupt: GPIO{self.radar_gpio_pins['host_interrupt']} (Orange wire)")
+            logger.info(f"   Reset: GPIO{self.radar_gpio_pins['reset']} (Yellow wire)")
+            logger.info(f"   Low Alert: GPIO{self.radar_gpio_pins['low_alert']} (Blue wire)")
+            logger.info(f"   High Alert: GPIO{self.radar_gpio_pins['high_alert']} (Purple wire)")
+            
+        except ImportError:
+            logger.warning("RPi.GPIO not available - radar GPIO integration disabled")
+        except Exception as e:
+            logger.error(f"Failed to initialize radar GPIO: {e}")
+    
+    def _on_radar_detection(self, channel):
+        """Handle radar detection interrupt (GPIO23 - Orange wire)"""
+        current_time = time.time()
+        logger.info(f"🎯 Radar detection interrupt triggered on GPIO{channel}")
+        
+        # Avoid duplicate triggers within 500ms
+        if current_time - self.radar_last_trigger < 0.5:
+            return
+            
+        self.radar_last_trigger = current_time
+        self.radar_triggered_mode = True
+        
+        # Trigger immediate high-priority capture
+        try:
+            logger.info("📸 Radar-triggered immediate IMX500 capture")
+            detection_data = self.capture_with_ai_analysis()
+            if detection_data:
+                detection_data["trigger_source"] = "radar_interrupt"
+                detection_data["radar_trigger_time"] = current_time
+                logger.info("✅ Radar-triggered capture completed")
+        except Exception as e:
+            logger.error(f"Error in radar-triggered capture: {e}")
+    
+    def _on_radar_low_alert(self, channel):
+        """Handle radar low speed/range alert (GPIO5 - Blue wire)"""
+        logger.info(f"🐌 Radar LOW ALERT triggered on GPIO{channel} - Slow vehicle detected")
+        # Could adjust capture parameters for slow vehicles
+        # E.g., increase capture frequency, use higher resolution
+    
+    def _on_radar_high_alert(self, channel):
+        """Handle radar high speed alert (GPIO6 - Purple wire)"""
+        logger.info(f"🏎️ Radar HIGH ALERT triggered on GPIO{channel} - Fast vehicle detected")
+        # Could trigger rapid capture sequence for fast vehicles
+        # E.g., burst mode, track vehicle progression
+    
+    def radar_reset(self):
+        """Reset the radar sensor via GPIO"""
+        if not self.radar_gpio_initialized:
+            logger.warning("Radar GPIO not initialized")
+            return
+        
+        try:
+            import RPi.GPIO as GPIO
+            logger.info("🔄 Resetting radar sensor...")
+            GPIO.output(self.radar_gpio_pins["reset"], GPIO.LOW)
+            time.sleep(0.001)  # 1ms reset pulse
+            GPIO.output(self.radar_gpio_pins["reset"], GPIO.HIGH)
+            logger.info("✅ Radar reset completed")
+        except Exception as e:
+            logger.error(f"Failed to reset radar: {e}")
+    
+    def stop(self):
+        """Stop the capture service"""
+        self.running = False
+        
+        # Clean up GPIO
+        if self.radar_gpio_initialized:
+            try:
+                import RPi.GPIO as GPIO
+                GPIO.cleanup()
+                logger.info("GPIO cleanup completed")
+            except Exception as e:
+                logger.warning(f"GPIO cleanup error: {e}")
+        
+        if self.camera:
+            try:
+                self.camera.stop()
+                self.camera.close()
+                logger.info("IMX500 camera stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping camera: {e}")
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    logger.info(f"Received signal {signum}, shutting down...")
+    global capture_service
+    if capture_service:
+        capture_service.stop()
+    sys.exit(0)
+
+def main():
+    """Main entry point"""
+    global capture_service
+    
+    # Register signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Configuration from environment or defaults
+    config = {
+        'capture_dir': os.getenv('CAMERA_CAPTURE_DIR', '/mnt/storage/camera_capture'),
+        'ai_model_path': os.getenv('IMX500_MODEL_PATH', '/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk'),
+        'capture_interval': float(os.getenv('CAPTURE_INTERVAL', '1.0')),
+        'confidence_threshold': float(os.getenv('AI_CONFIDENCE_THRESHOLD', '0.5')),
+        'max_images': int(os.getenv('MAX_STORED_IMAGES', '100')),
+        'redis_host': os.getenv('REDIS_HOST', 'localhost'),
+        'redis_port': int(os.getenv('REDIS_PORT', '6379')),
+        'street_roi': {
+            'x_start': float(os.getenv('STREET_ROI_X_START', '0.15')),  # 15% from left
+            'x_end': float(os.getenv('STREET_ROI_X_END', '0.85')),      # 85% from left  
+            'y_start': float(os.getenv('STREET_ROI_Y_START', '0.5')),   # 50% from top (exclude cross street)
+            'y_end': float(os.getenv('STREET_ROI_Y_END', '0.9'))        # 90% from top
+        }
+    }
+    
+    logger.info("=== IMX500 AI Host Capture Service ===")
+    logger.info(f"Capture directory: {config['capture_dir']}")
+    logger.info(f"AI model: {config['ai_model_path']}")
+    logger.info(f"Confidence threshold: {config['confidence_threshold']}")
+    logger.info(f"Capture interval: {config['capture_interval']}s")
+    logger.info(f"Street ROI: {config['street_roi']} (filters out parked cars and cross street)")
+    
+    try:
+        capture_service = IMX500AIHostCapture(**config)
+        success = capture_service.run()
+        return 0 if success else 1
+        
+    except Exception as e:
+        logger.error(f"Service startup failed: {e}")
+        return 1
+
+if __name__ == "__main__":
+    capture_service = None
+    sys.exit(main())

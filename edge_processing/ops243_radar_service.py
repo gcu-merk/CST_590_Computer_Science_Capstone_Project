@@ -1,13 +1,39 @@
-"""OPS243-C Radar Sensor Servicclass HardwareGPIO:
+"""OPS243-C Radar Sensor Service
+
+This module provides a small, testable service class for OmniPreSense OPS243-C connected via UART and a host interrupt line wired to a GPIO pin.
+
+This module provides a small, testable service class with a hardware abstraction layer (HAL)
+so it can run on a Raspberry Pi (using RPi.GPIO) or in a desktop/dev environment (mocked).
+
+Contract (simple):
+- Inputs: serial port path (e.g. '/dev/ttyACM0'), baudrate (default 9600), optional gpio_pin for host interrupt
+- Outputs: emits parsed radar readings via a callback (callable taking one dict)
+- Error modes: serial open failure, parse errors, GPIO not available
+
+"""
+
+from __future__ import annotations
+
+import json
+import time
+import threading
+import logging
+from typing import Callable, Optional, Dict
+
+try:
+    import serial
+except Exception:
+    serial = None  # serial may be absent in test environments
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.addHandler(logging.NullHandler())
+
+
+class HardwareGPIO:
     """GPIO HAL for Raspberry Pi 5."""
 
     def __init__(self, pin: int):
         self.pin = pin
-        import RPi.GPIO as GPIO
-        self.GPIO = GPIO
-        self.GPIO.setmode(GPIO.BCM)
-        self.GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        self._available = TrueniPreSense OPS243-C connected via UART and a host interrupt line wired to a GPIO pin.
 
 This module provides a small, testable service class with a hardware abstraction layer (HAL)
 so it can run on a Raspberry Pi (using RPi.GPIO) or in a desktop/dev environment (mocked).

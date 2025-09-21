@@ -1,0 +1,37 @@
+[Unit]
+Description=OPS243-C Radar Service
+Documentation=man:radar_service(1)
+After=redis-server.service network.target
+Wants=redis-server.service
+PartOf=traffic-monitor.target
+
+[Service]
+Type=simple
+User=merk
+Group=merk
+WorkingDirectory=/mnt/storage/traffic-monitor-deploy/scripts
+ExecStart=/usr/bin/python3 /mnt/storage/traffic-monitor-deploy/scripts/radar_service.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/storage/traffic-monitor-deploy
+
+# Resource limits
+LimitNOFILE=1024
+MemoryMax=256M
+
+# Environment
+Environment=PYTHONPATH=/mnt/storage/traffic-monitor-deploy
+Environment=REDIS_HOST=localhost
+Environment=REDIS_PORT=6379
+
+[Install]
+WantedBy=multi-user.target
+Also=imx500-ai-capture.service
