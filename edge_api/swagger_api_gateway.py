@@ -696,7 +696,7 @@ class SwaggerAPIGateway:
                     
                     # Get vehicle detection results from Redis
                     try:
-                        detection_keys = redis_client.keys('vehicle_detection:*')
+                        detection_keys = redis_client.keys('vehicle:detection:*')
                     except Exception as e:
                         return {
                             'error': f'Redis connection failed: {str(e)}',
@@ -764,7 +764,7 @@ class SwaggerAPIGateway:
                     
                     # Get sky analysis results from Redis
                     try:
-                        sky_keys = redis_client.keys('sky_analysis:*')
+                        sky_keys = redis_client.keys('sky:analysis:*')
                     except Exception as e:
                         return {
                             'error': f'Redis connection failed: {str(e)}',
