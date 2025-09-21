@@ -10,8 +10,8 @@ echo "====================================="
 # Configuration
 SERVICE_NAME="imx500-ai-capture"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-SCRIPT_PATH="/home/merk/traffic-monitor-deploy/scripts/imx500_ai_host_capture.py"
-DEPLOYMENT_DIR="/home/merk/traffic-monitor-deploy"
+SCRIPT_PATH="/mnt/storage/traffic-monitor-deploy/scripts/imx500_ai_host_capture.py"
+DEPLOYMENT_DIR="/mnt/storage/traffic-monitor-deploy"
 
 # Colors for output
 RED='\033[0;31m'
