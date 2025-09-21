@@ -1,0 +1,41 @@
+[Unit]
+Description=IMX500 AI Host Camera Capture Service
+Documentation=https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=merk
+Group=merk
+WorkingDirectory=/home/merk/traffic-monitor-deploy
+ExecStart=/usr/bin/python3 /home/merk/traffic-monitor-deploy/scripts/imx500_ai_host_capture.py
+Restart=always
+RestartSec=10
+
+# Environment variables
+Environment=CAMERA_CAPTURE_DIR=/mnt/storage/camera_capture
+Environment=IMX500_MODEL_PATH=/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk
+Environment=CAPTURE_INTERVAL=1.0
+Environment=AI_CONFIDENCE_THRESHOLD=0.5
+Environment=MAX_STORED_IMAGES=100
+Environment=REDIS_HOST=localhost
+Environment=REDIS_PORT=6379
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=false
+ProtectSystem=strict
+ReadWritePaths=/mnt/storage /tmp /var/log
+
+# Hardware access for camera
+SupplementaryGroups=video
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=imx500-ai-capture
+
+[Install]
+WantedBy=multi-user.target
