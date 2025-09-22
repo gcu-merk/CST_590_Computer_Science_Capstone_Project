@@ -171,6 +171,8 @@ class VehicleDetectionConsolidator:
                         
                         if event_data.get('event_type') == 'imx500_ai_capture':
                             self._process_imx500_capture_event(event_data)
+                        elif event_data.get('event_type') == 'radar_motion_detected':
+                            self._process_radar_motion_event(event_data)
                             
                     except json.JSONDecodeError:
                         logger.warning("Invalid JSON in Redis message")
@@ -219,6 +221,137 @@ class VehicleDetectionConsolidator:
                 
         except Exception as e:
             logger.error(f"Error processing IMX500 event: {e}")
+    
+    def _process_radar_motion_event(self, event_data: Dict[str, Any]):
+        """Process radar motion detection event and trigger full data consolidation"""
+        try:
+            speed = event_data.get('speed', 0)
+            magnitude = event_data.get('magnitude', 0)
+            direction = event_data.get('direction', 'unknown')
+            timestamp = event_data.get('timestamp', time.time())
+            
+            logger.info(f"🎯 Radar motion detected: {speed} mph (magnitude: {magnitude}, direction: {direction})")
+            
+            # Trigger comprehensive data collection
+            consolidated_data = self._collect_comprehensive_data(event_data)
+            
+            if consolidated_data:
+                logger.info(f"✅ Comprehensive data collected for radar event")
+                # TODO: Send to database persistence service when implemented
+                
+        except Exception as e:
+            logger.error(f"Error processing radar motion event: {e}")
+    
+    def _collect_comprehensive_data(self, radar_event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Collect all environmental and sensor data triggered by radar motion"""
+        try:
+            timestamp = time.time()
+            consolidation_id = f"consolidation_{int(timestamp)}"
+            
+            # 1. Radar data (already provided in event)
+            radar_data = radar_event.copy()
+            
+            # 2. Get weather data (airport + DHT22)
+            weather_data = self._fetch_all_weather_data()
+            
+            # 3. Get recent camera/IMX500 data
+            camera_data = self._fetch_recent_camera_data()
+            
+            # 4. Create consolidated record
+            consolidated_record = {
+                'consolidation_id': consolidation_id,
+                'timestamp': timestamp,
+                'trigger_source': 'radar_motion',
+                'radar_data': radar_data,
+                'weather_data': weather_data,
+                'camera_data': camera_data,
+                'processing_notes': f"Triggered by radar detection at {radar_event.get('speed', 0)} mph"
+            }
+            
+            # Store consolidated data in Redis for database persistence service
+            self._store_consolidated_data(consolidated_record)
+            
+            return consolidated_record
+            
+        except Exception as e:
+            logger.error(f"Error collecting comprehensive data: {e}")
+            return None
+    
+    def _fetch_all_weather_data(self) -> Dict[str, Any]:
+        """Fetch weather data from both airport and DHT22 sources"""
+        weather_data = {}
+        
+        try:
+            # Get airport weather data
+            airport_data = self.redis_client.get('weather:airport:latest')
+            if airport_data:
+                weather_data['airport'] = json.loads(airport_data)
+                logger.debug("✅ Retrieved airport weather data")
+        except Exception as e:
+            logger.warning(f"Failed to fetch airport weather: {e}")
+        
+        try:
+            # Get DHT22 weather data
+            dht22_data = self.redis_client.get('weather:dht22:latest')
+            if dht22_data:
+                weather_data['dht22'] = json.loads(dht22_data)
+                logger.debug("✅ Retrieved DHT22 weather data")
+        except Exception as e:
+            logger.warning(f"Failed to fetch DHT22 weather: {e}")
+        
+        return weather_data
+    
+    def _fetch_recent_camera_data(self) -> Dict[str, Any]:
+        """Fetch recent camera/IMX500 detection data"""
+        camera_data = {}
+        
+        try:
+            # Get latest IMX500 detection results
+            latest_detection = self.redis_client.get('imx500:latest_detection')
+            if latest_detection:
+                camera_data['latest_detection'] = json.loads(latest_detection)
+                
+            # Get recent detection summary
+            if self.recent_detections:
+                camera_data['recent_summary'] = {
+                    'count': len(self.recent_detections),
+                    'latest': dict(self.recent_detections[-1]) if self.recent_detections else None
+                }
+                
+        except Exception as e:
+            logger.warning(f"Failed to fetch camera data: {e}")
+        
+        return camera_data
+    
+    def _store_consolidated_data(self, consolidated_record: Dict[str, Any]):
+        """Store consolidated data for database persistence service consumption"""
+        try:
+            # Store latest consolidated record
+            self.redis_client.set(
+                'consolidation:latest',
+                json.dumps(consolidated_record, default=str),
+                ex=3600  # 1 hour TTL
+            )
+            
+            # Store in time-series for historical access
+            ts_key = f"consolidation:history:{consolidated_record['consolidation_id']}"
+            self.redis_client.set(
+                ts_key,
+                json.dumps(consolidated_record, default=str),
+                ex=86400  # 24 hour TTL
+            )
+            
+            # Publish event for database persistence service
+            self.redis_client.publish('database_events', json.dumps({
+                'event_type': 'new_consolidated_data',
+                'consolidation_id': consolidated_record['consolidation_id'],
+                'timestamp': consolidated_record['timestamp']
+            }))
+            
+            logger.info(f"📦 Stored consolidated data: {consolidated_record['consolidation_id']}")
+            
+        except Exception as e:
+            logger.error(f"Failed to store consolidated data: {e}")
     
     def _check_new_vehicle_detections(self):
         """Check for new vehicle detection keys in Redis"""

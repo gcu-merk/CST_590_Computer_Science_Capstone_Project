@@ -266,6 +266,21 @@ class RadarService:
             # Store in radar data stream
             self.redis_client.xadd('radar_data', data)
             
+            # Trigger consolidator for motion detection
+            if data.get('speed', 0) >= 0.1:  # Any significant motion
+                consolidator_event = {
+                    'event_type': 'radar_motion_detected',
+                    'speed': data.get('speed', 0),
+                    'magnitude': data.get('magnitude', 'unknown'),
+                    'direction': data.get('direction', 'unknown'),
+                    'timestamp': data.get('_timestamp', time.time()),
+                    'trigger_source': 'radar_speed_detection'
+                }
+                
+                # Publish to traffic_events channel (consolidator listens here)
+                self.redis_client.publish('traffic_events', json.dumps(consolidator_event))
+                logger.debug(f"🚨 Triggered consolidator for {data.get('speed', 0)} mph detection")
+            
             # Update statistics
             stats = {
                 'last_detection': data.get('_timestamp', time.time()),

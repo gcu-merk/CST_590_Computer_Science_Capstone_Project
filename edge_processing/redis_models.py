@@ -52,6 +52,7 @@ class VehicleDetection:
     confidence: float
     bounding_box: BoundingBox
     timestamp: float
+    image_id: str = ""
     additional_metadata: Optional[Dict] = None
 
 @dataclass
