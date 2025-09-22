@@ -1,0 +1,16 @@
+{
+  "street_roi": {
+    "x_start": 0.1,
+    "x_end": 0.9,
+    "y_start": 0.4,
+    "y_end": 0.9
+  },
+  "description": "Camera ROI configuration for traffic monitoring",
+  "timestamp": "2025-09-22",
+  "notes": [
+    "x_start/x_end: Horizontal boundaries (0.0 = left edge, 1.0 = right edge)",
+    "y_start/y_end: Vertical boundaries (0.0 = top edge, 1.0 = bottom edge)",
+    "Configured to exclude cross street at top of image",
+    "Focus on main street traffic only"
+  ]
+}

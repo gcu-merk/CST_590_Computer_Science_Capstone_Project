@@ -27,7 +27,7 @@ class RadarService:
     
     def __init__(self, 
                  uart_port='/dev/ttyAMA0',
-                 baudrate=9600,
+                 baudrate=19200,  # CORRECTED: Use 19200 baud for proper CSV data
                  redis_host='localhost',
                  redis_port=6379):
         self.uart_port = uart_port
@@ -161,13 +161,33 @@ class RadarService:
         self._publish_to_redis(data)
     
     def _parse_radar_line(self, line: str) -> Optional[Dict]:
-        """Parse radar data line"""
+        """Parse radar data line with CSV support"""
         if not line:
             return None
         
         timestamp = time.time()
         
-        # Try JSON format first
+        # Try CSV format first: "m",0.7 (magnitude, speed)
+        import re
+        csv_match = re.match(r'^"([^"]+)",([\\d\\.]+)$', line)
+        if csv_match:
+            try:
+                magnitude = csv_match.group(1)
+                speed_raw = float(csv_match.group(2))
+                speed = abs(speed_raw)  # Ensure positive speed
+                
+                return {
+                    'speed': speed,
+                    'magnitude': magnitude,
+                    'unit': 'mph',
+                    '_raw': line,
+                    '_timestamp': timestamp,
+                    '_source': 'ops243_radar'
+                }
+            except Exception:
+                pass
+        
+        # Try JSON format
         try:
             if line.startswith('{'):
                 data = json.loads(line)
@@ -193,7 +213,7 @@ class RadarService:
             except Exception:
                 pass
         
-        # Unknown format - still record it
+        # Unknown format - still record it for debugging
         return {
             '_raw': line,
             '_timestamp': timestamp,

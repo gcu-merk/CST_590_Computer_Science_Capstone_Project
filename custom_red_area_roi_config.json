@@ -1,0 +1,18 @@
+{
+  "street_roi": {
+    "x_start": 0.15,
+    "x_end": 0.85,
+    "y_start": 0.45,
+    "y_end": 0.85
+  },
+  "description": "Custom ROI configuration matching user-defined red shaded monitoring area",
+  "timestamp": "2025-09-22",
+  "source": "User-defined red shaded area from camera view",
+  "notes": [
+    "ROI boundaries precisely match the red shaded area in user's camera image",
+    "Excludes cross street at top of image",
+    "Excludes driveways, parking areas, and grass on sides",
+    "Focuses exclusively on main street vehicle travel area",
+    "Coordinates based on visual analysis of red overlay"
+  ]
+}
