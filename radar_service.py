@@ -42,8 +42,8 @@ class RadarService:
         self.thread = None
         
         # Speed thresholds (configured via radar commands)
-        self.low_speed_threshold = 15   # mph - triggers GPIO5 (Blue)
-        self.high_speed_threshold = 45  # mph - triggers GPIO6 (Purple)
+        self.low_speed_threshold = 2    # mph - triggers GPIO5 (Blue)
+        self.high_speed_threshold = 26  # mph - triggers GPIO6 (Purple)
         
         # Statistics
         self.detection_count = 0
@@ -137,11 +137,6 @@ class RadarService:
         if not data:
             return
         
-                # Process radar detection data
-        data = self._parse_radar_line(line)
-        if not data:
-            return
-        
         # Debug logging for data types
         if 'speed' in data:
             logger.debug(f"Speed value: {data['speed']} (type: {type(data['speed'])})")
@@ -227,6 +222,14 @@ class RadarService:
                 data = json.loads(line)
                 data['_timestamp'] = timestamp
                 data['_source'] = 'ops243_radar'
+                
+                # Convert speed if present and numeric
+                if 'speed' in data:
+                    try:
+                        data['speed'] = float(data['speed'])
+                    except (ValueError, TypeError):
+                        pass
+                
                 return data
         except Exception:
             pass
@@ -303,8 +306,6 @@ class RadarService:
 def signal_handler(signum, frame):
     """Handle shutdown signals"""
     logger.info(f"Received signal {signum}, shutting down...")
-    if 'service' in globals():
-        service.stop()
     sys.exit(0)
 
 def main():
