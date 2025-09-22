@@ -40,8 +40,8 @@ class TestRedisModels(unittest.TestCase):
             import os
             sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'edge_processing'))
             from redis_models import (
-                VehicleType, SkyCondition, BoundingBox, VehicleDetection, 
-                SkyAnalysis, ImageAnalysisResult, RedisDataManager, RedisKeys
+                VehicleType, VehicleDetection, WeatherData, RadarData, ConsolidatedData,
+                RedisDataManager, RedisKeys
             )
             
             # Try to connect to Redis
@@ -163,26 +163,17 @@ class TestRedisModels(unittest.TestCase):
         self.assertEqual(stored_analysis['condition'], "partly_cloudy")
         self.assertEqual(stored_analysis['confidence'], 0.8)
 
-class TestSkyAnalysisService(unittest.TestCase):
-    """Test sky analysis service functionality"""
-    
-    def setUp(self):
-        """Set up test environment"""
-        try:
-            import sys
-            import os
-            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'edge_processing', 'weather_analysis'))
-            from sky_analysis_service import SkyAnalysisService
-            
-            # Initialize service without Redis for basic testing
-            self.sky_service = SkyAnalysisService(enable_redis=False)
-            
-        except Exception as e:
-            self.skipTest(f"Sky analysis service not available: {e}")
-    
-    def test_service_initialization(self):
-        """Test service initialization"""
-        self.assertIsNotNone(self.sky_service)
+# Sky analysis service removed - tests disabled
+# class TestSkyAnalysisService(unittest.TestCase):
+#     """Test sky analysis service functionality - DISABLED"""
+#     
+#     def setUp(self):
+#         """Sky analysis removed for Redis optimization"""
+#         self.skipTest("Sky analysis service removed to optimize Redis storage")
+#     
+#     def test_service_initialization(self):
+#         """Test service initialization - DISABLED"""
+#         self.skipTest("Sky analysis service removed")
         self.assertFalse(self.sky_service.redis_enabled)
     
     def test_brightness_analysis(self):
@@ -617,7 +608,7 @@ def create_test_suite():
     # Add test classes
     test_classes = [
         TestRedisModels,
-        TestSkyAnalysisService,
+        # TestSkyAnalysisService,  # Removed - sky analysis disabled
         TestEnhancedVehicleDetection,
         TestMotionTriggeredService,
         TestEnhancedDataConsolidator,

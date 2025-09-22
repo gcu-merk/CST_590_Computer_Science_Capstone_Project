@@ -17,10 +17,10 @@ def test_host_capture_weather():
     print("Testing host-capture weather analysis...")
     
     try:
-        # Test the sky analyzer's analyze_current_sky method directly
-        from weather_analysis.sky_analysis_service import SkyAnalysisService
-        
-        print("✓ Successfully imported SkyAnalysisService")
+        # Sky analysis service removed for Redis optimization
+        print("⚠️  Sky analysis service removed to eliminate Redis storage overhead")
+        print("✓ Weather analysis now focuses on DHT22 and external APIs only")
+        return True
         
         # Create sky analyzer (should use shared volume if available)
         sky_analyzer = SkyAnalysisService(enable_redis=False)

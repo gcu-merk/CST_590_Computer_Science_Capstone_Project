@@ -1,0 +1,3 @@
+# Redis Optimization Service Requirements
+redis==5.0.1
+python-dateutil==2.8.2

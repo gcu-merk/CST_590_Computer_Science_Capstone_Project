@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # Redis for data storage and communication
+  redis:
+    image: redis:7-alpine
+    container_name: traffic_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    networks:
+      - traffic_network
+
+  # Database persistence service
+  database_persistence:
+    build:
+      context: .
+      dockerfile: Dockerfile.persistence
+    container_name: traffic_database_persistence
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - traffic_network
+
+  # Redis optimization service
+  redis_optimization:
+    build:
+      context: .
+      dockerfile: Dockerfile.redis_optimization
+    container_name: traffic_redis_optimization
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OPTIMIZATION_INTERVAL=300  # 5 minutes
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - traffic_network
+
+  # Enhanced API service
+  consolidated_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: traffic_consolidated_api
+    depends_on:
+      - database_persistence
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - traffic_network
+
+  # Vehicle consolidator service (enhanced)
+  vehicle_consolidator:
+    build:
+      context: .
+      dockerfile: Dockerfile.consolidator
+    container_name: traffic_vehicle_consolidator
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DHT22_API_URL=http://host.docker.internal:5000
+      - AIRPORT_WEATHER_API_KEY=${AIRPORT_WEATHER_API_KEY}
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - traffic_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  traffic_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

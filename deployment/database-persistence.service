@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""
+Database Persistence Service - Production Deployment
+
+This systemd service file enables automatic startup and management
+of the database persistence service for consolidated traffic data.
+
+Service Architecture:
+- Consumes consolidated traffic data from Redis pub/sub
+- Stores structured data in SQLite database with proper schema
+- Implements data retention and cleanup policies  
+- Provides optimized data access for API consumption
+- Runs as a system service with automatic restart
+
+Installation:
+1. Copy to /etc/systemd/system/database-persistence.service
+2. sudo systemctl daemon-reload
+3. sudo systemctl enable database-persistence.service
+4. sudo systemctl start database-persistence.service
+
+Monitoring:
+- sudo systemctl status database-persistence.service
+- sudo journalctl -u database-persistence.service -f
+"""
+
+[Unit]
+Description=Database Persistence Service - Traffic Monitoring
+Documentation=https://github.com/project/traffic-monitoring
+After=network.target redis.service
+Wants=redis.service
+PartOf=traffic-monitoring.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/traffic-monitoring
+ExecStart=/usr/bin/python3 -u edge_processing/data_persistence/database_persistence_service.py
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Environment variables
+Environment=REDIS_HOST=localhost
+Environment=REDIS_PORT=6379
+Environment=DB_PATH=/mnt/storage/traffic_monitoring.db
+Environment=RETENTION_DAYS=90
+Environment=BATCH_SIZE=100
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=25%
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/mnt/storage
+ReadOnlyPaths=/home/pi/traffic-monitoring
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=database-persistence
+
+[Install]
+WantedBy=multi-user.target
+WantedBy=traffic-monitoring.target

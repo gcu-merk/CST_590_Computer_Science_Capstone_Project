@@ -1,0 +1,26 @@
+# Database Persistence Service Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements for persistence service
+COPY requirements-persistence.txt .
+RUN pip install --no-cache-dir -r requirements-persistence.txt
+
+# Copy source code
+COPY edge_processing/ ./edge_processing/
+COPY edge_processing/data_persistence/database_persistence_service.py ./
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs
+
+# Set Python path
+ENV PYTHONPATH=/app:/app/edge_processing
+
+# Run database persistence service
+CMD ["python", "database_persistence_service.py"]
