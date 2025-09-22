@@ -1,0 +1,31 @@
+{
+  "street_roi": {
+    "x_start": 0.0,
+    "x_end": 0.75,
+    "y_start": 0.15,
+    "y_end": 1.0
+  },
+  "description": "ROI configuration for new sensor location - expanded monitoring area with ground",
+  "timestamp": "2025-09-22",
+  "location": "New sensor station position",
+  "notes": [
+    "EXPANDED AREA: Left 75% of image (0% to 75% width)",
+    "INCLUDES: All ground area for better vehicle detection",
+    "EXCLUDES: Sky and buildings in background (top 15%)",
+    "EXCLUDES: Right 25% parking lot with vehicles",
+    "Monitor vehicles passing through expanded detection zone including ground level",
+    "Updated coordinates for better coverage"
+  ],
+  "exclusions": {
+    "right_parking_area": {
+      "x_start": 0.75,
+      "x_end": 1.0,
+      "description": "Parking lot with trucks - exclude from detection"
+    },
+    "sky_area": {
+      "y_start": 0.0,
+      "y_end": 0.15,
+      "description": "Sky and buildings - exclude from detection"
+    }
+  }
+}
