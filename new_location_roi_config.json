@@ -1,0 +1,36 @@
+{
+  "street_roi": {
+    "x_start": 0.0,
+    "x_end": 0.5,
+    "y_start": 0.15,
+    "y_end": 0.85
+  },
+  "description": "ROI configuration for new sensor location - green area monitoring",
+  "timestamp": "2025-09-22",
+  "location": "New sensor station position",
+  "notes": [
+    "GREEN AREA FOCUS: Left side of image (0% to 50% width)",
+    "EXCLUDES: Right side parking lot with vehicles", 
+    "EXCLUDES: Sky and buildings in background",
+    "EXCLUDES: Ground/pavement edges",
+    "Monitor vehicles passing through the green designated area",
+    "Coordinates based on user-specified green area of interest"
+  ],
+  "exclusions": {
+    "right_parking_area": {
+      "x_start": 0.5,
+      "x_end": 1.0,
+      "description": "Parking lot with trucks - exclude from detection"
+    },
+    "sky_area": {
+      "y_start": 0.0,
+      "y_end": 0.15,
+      "description": "Sky and buildings - exclude from detection"
+    },
+    "ground_edges": {
+      "y_start": 0.85,
+      "y_end": 1.0,
+      "description": "Ground/pavement edges - exclude from detection"
+    }
+  }
+}

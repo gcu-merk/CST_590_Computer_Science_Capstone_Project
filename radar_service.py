@@ -137,34 +137,48 @@ class RadarService:
         if not data:
             return
         
+                # Process radar detection data
+        data = self._parse_radar_line(line)
+        if not data:
+            return
+        
+        # Debug logging for data types
+        if 'speed' in data:
+            logger.debug(f"Speed value: {data['speed']} (type: {type(data['speed'])})")
+        
         # Only count and process meaningful detections
         is_significant = False
         
         # Check if this is a significant detection worth logging
         if 'speed' in data:
-            speed = data['speed']
-            magnitude = data.get('magnitude', 'unknown')
-            
-            # Only log if speed is above minimum threshold (filters out noise)
-            if speed >= 2.0:  # Minimum 2 mph to filter noise (lowered for better sensitivity)
-                is_significant = True
-                self.detection_count += 1
+            try:
+                # Ensure speed is converted to float (handles string inputs)
+                speed = float(data['speed'])
+                magnitude = data.get('magnitude', 'unknown')
                 
-                logger.info(f"🚗 Vehicle detected: {speed} mph (magnitude: {magnitude})")
-                
-                # Check speed thresholds
-                if speed >= self.high_speed_threshold:
-                    logger.warning(f"🚨 HIGH SPEED ALERT: {speed} mph")
-                    data['alert_level'] = 'high'
-                elif speed >= self.low_speed_threshold:
-                    logger.info(f"⚠️  LOW SPEED ALERT: {speed} mph")
-                    data['alert_level'] = 'low'
+                # Only log if speed is above minimum threshold (filters out noise)
+                if speed >= 2.0:  # Minimum 2 mph to filter noise (lowered for better sensitivity)
+                    is_significant = True
+                    self.detection_count += 1
+                    
+                    logger.info(f"🚗 Vehicle detected: {speed} mph (magnitude: {magnitude})")
+                    
+                    # Check speed thresholds
+                    if speed >= self.high_speed_threshold:
+                        logger.warning(f"🚨 HIGH SPEED ALERT: {speed} mph")
+                        data['alert_level'] = 'high'
+                    elif speed >= self.low_speed_threshold:
+                        logger.info(f"⚠️  LOW SPEED ALERT: {speed} mph")
+                        data['alert_level'] = 'low'
+                    else:
+                        logger.info(f"✅ Normal speed: {speed} mph")
+                        data['alert_level'] = 'normal'
                 else:
-                    logger.info(f"✅ Normal speed: {speed} mph")
-                    data['alert_level'] = 'normal'
-            else:
-                # Still record low-speed data but don't log it (reduces spam)
-                data['alert_level'] = 'noise'
+                    # Still record low-speed data but don't log it (reduces spam)
+                    data['alert_level'] = 'noise'
+            except (ValueError, TypeError) as e:
+                logger.debug(f"Error converting speed to float: {data['speed']} - {e}")
+                data['alert_level'] = 'parse_error'
         elif '_raw' in data and data['_raw'] not in ['(*', '(*(*', '(*(*(*']:
             # Log unknown but potentially meaningful formats
             logger.debug(f"📊 Unknown radar format: {data['_raw']}")
