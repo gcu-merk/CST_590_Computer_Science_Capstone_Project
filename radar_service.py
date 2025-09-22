@@ -132,32 +132,44 @@ class RadarService:
                 time.sleep(1)
     
     def _process_radar_data(self, line: str):
-        """Process and publish radar data"""
+        """Process and publish radar data - only log significant movements"""
         data = self._parse_radar_line(line)
         if not data:
             return
         
-        self.detection_count += 1
+        # Only count and process meaningful detections
+        is_significant = False
         
-        # Log detection
+        # Check if this is a significant detection worth logging
         if 'speed' in data:
             speed = data['speed']
-            logger.info(f"🚗 Vehicle detected: {speed} mph")
+            magnitude = data.get('magnitude', 'unknown')
             
-            # Check speed thresholds
-            if speed >= self.high_speed_threshold:
-                logger.warning(f"🚨 HIGH SPEED ALERT: {speed} mph (GPIO6/Purple should trigger)")
-                data['alert_level'] = 'high'
-            elif speed >= self.low_speed_threshold:
-                logger.info(f"⚠️  LOW SPEED ALERT: {speed} mph (GPIO5/Blue should trigger)")
-                data['alert_level'] = 'low'
+            # Only log if speed is above minimum threshold (filters out noise)
+            if speed >= 5.0:  # Minimum 5 mph to filter noise
+                is_significant = True
+                self.detection_count += 1
+                
+                logger.info(f"🚗 Vehicle detected: {speed} mph (magnitude: {magnitude})")
+                
+                # Check speed thresholds
+                if speed >= self.high_speed_threshold:
+                    logger.warning(f"🚨 HIGH SPEED ALERT: {speed} mph")
+                    data['alert_level'] = 'high'
+                elif speed >= self.low_speed_threshold:
+                    logger.info(f"⚠️  LOW SPEED ALERT: {speed} mph")
+                    data['alert_level'] = 'low'
+                else:
+                    logger.info(f"✅ Normal speed: {speed} mph")
+                    data['alert_level'] = 'normal'
             else:
-                logger.info(f"✅ Normal speed: {speed} mph")
-                data['alert_level'] = 'normal'
-        else:
-            logger.debug(f"📊 Radar data: {data}")
+                # Still record low-speed data but don't log it (reduces spam)
+                data['alert_level'] = 'noise'
+        elif '_raw' in data and data['_raw'] not in ['(*', '(*(*', '(*(*(*']:
+            # Log unknown but potentially meaningful formats
+            logger.debug(f"📊 Unknown radar format: {data['_raw']}")
         
-        # Publish to Redis
+        # Always publish to Redis (for data analysis) but only log significant detections
         self._publish_to_redis(data)
     
     def _parse_radar_line(self, line: str) -> Optional[Dict]:
@@ -174,16 +186,24 @@ class RadarService:
             try:
                 magnitude = csv_match.group(1)
                 speed_raw = float(csv_match.group(2))
-                speed = abs(speed_raw)  # Ensure positive speed
                 
-                return {
-                    'speed': speed,
-                    'magnitude': magnitude,
-                    'unit': 'mph',
-                    '_raw': line,
-                    '_timestamp': timestamp,
-                    '_source': 'ops243_radar'
-                }
+                # Convert speed based on magnitude indicator
+                if magnitude == 'm':
+                    # Magnitude data - speed might need conversion or filtering
+                    speed = abs(speed_raw)  # Use raw value for now
+                else:
+                    speed = abs(speed_raw)
+                
+                # Only return if speed is meaningful (filters out background noise)
+                if speed >= 0.1:  # Minimum threshold to avoid zero/noise values
+                    return {
+                        'speed': speed,
+                        'magnitude': magnitude,
+                        'unit': 'mph',
+                        '_raw': line,
+                        '_timestamp': timestamp,
+                        '_source': 'ops243_radar'
+                    }
             except Exception:
                 pass
         
@@ -235,7 +255,7 @@ class RadarService:
                 'detection_count': self.detection_count,
                 'uptime': time.time() - self.startup_time if self.startup_time else 0
             }
-            self.redis_client.hmset('radar_stats', stats)
+            self.redis_client.hset('radar_stats', mapping=stats)
             
         except Exception as e:
             logger.error(f"Error publishing to Redis: {e}")
