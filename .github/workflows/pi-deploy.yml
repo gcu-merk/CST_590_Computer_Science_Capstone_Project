@@ -73,33 +73,54 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.PI_SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
+          # Create SSH directory with proper permissions
+          install -d -m 700 ~/.ssh
+          
+          # Check if SSH private key secret is available
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "Error: PI_SSH_KEY secret not found!"
+            echo "Please add your SSH private key to repository secrets as 'PI_SSH_KEY'"
+            exit 1
+          fi
+          
+          # Write SSH private key
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H $PI_HOST >> ~/.ssh/known_hosts
+          
+          # Add Pi host to known hosts
+          ssh-keyscan -H $PI_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Test SSH connection
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no $DEPLOY_USER@$PI_HOST "echo 'SSH connection successful'"
         
       - name: Deploy to Pi via SSH
         run: |
           echo "Deploying to Raspberry Pi remotely..."
           
-          # Create staging directory on Pi
-          ssh $DEPLOY_USER@$PI_HOST "sudo mkdir -p /mnt/storage/deployment-staging && sudo chown $DEPLOY_USER:$DEPLOY_USER /mnt/storage/deployment-staging"
+          # SSH connection options for reliability
+          SSH_OPTS="-o ConnectTimeout=30 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          SCP_OPTS="-o ConnectTimeout=30 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           
-          # Copy deployment files
-          scp -r ./* $DEPLOY_USER@$PI_HOST:/mnt/storage/deployment-staging/
+          # Create staging directory on Pi
+          ssh $SSH_OPTS $DEPLOY_USER@$PI_HOST "sudo mkdir -p /mnt/storage/deployment-staging && sudo chown $DEPLOY_USER:$DEPLOY_USER /mnt/storage/deployment-staging"
+          
+          # Copy deployment files (exclude .git directory to speed up transfer)
+          scp $SCP_OPTS -r --exclude='.git' ./* $DEPLOY_USER@$PI_HOST:/mnt/storage/deployment-staging/
           
           # Run deployment script remotely
-          ssh $DEPLOY_USER@$PI_HOST "cd /mnt/storage/deployment-staging && sudo chmod +x deployment/deploy.sh && sudo -E ./deployment/deploy.sh"
+          ssh $SSH_OPTS $DEPLOY_USER@$PI_HOST "cd /mnt/storage/deployment-staging && sudo chmod +x deployment/deploy.sh && sudo -E ./deployment/deploy.sh"
           
       - name: Validate deployment remotely
         run: |
           echo "Running deployment validation remotely..."
-          ssh $DEPLOY_USER@$PI_HOST "cd /mnt/storage/deployment-staging && sudo chmod +x deployment/validate_deployment.sh && sudo ./deployment/validate_deployment.sh"
+          SSH_OPTS="-o ConnectTimeout=30 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          ssh $SSH_OPTS $DEPLOY_USER@$PI_HOST "cd /mnt/storage/deployment-staging && sudo chmod +x deployment/validate_deployment.sh && sudo ./deployment/validate_deployment.sh"
           
       - name: Cleanup staging files
         if: always()
         run: |
-          ssh $DEPLOY_USER@$PI_HOST "sudo rm -rf /mnt/storage/deployment-staging"
+          SSH_OPTS="-o ConnectTimeout=30 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          ssh $SSH_OPTS $DEPLOY_USER@$PI_HOST "sudo rm -rf /mnt/storage/deployment-staging"
 
   notify_status:
     name: Notify Deployment Status
