@@ -357,7 +357,31 @@ sudo ./svc.sh status
    - **System reliability**: Software reset capability for radar recovery
    - **Hardware events**: Interrupt-driven processing reduces CPU usage
 
-3. **Connect SSD for local storage and AI model storage**
+3. **Wire the DHT22 weather sensor to the Pi GPIO header**
+
+   **DHT22 to Raspberry Pi 5 Pinout:**
+
+   | DHT22 Pin | Function | Wire Color | RPi Physical Pin | RPi GPIO | Description |
+   |-----------|----------|------------|------------------|----------|-------------|
+   | Pin 1 (VCC) | Power | Red | Pin 2 | 5V Power | Power supply (5V recommended) |
+   | Pin 2 (Data) | Data Line | Yellow/White | Pin 7 | GPIO4 | Bi-directional data communication |
+   | Pin 3 (NC) | Not Connected | - | - | - | Not used |
+   | Pin 4 (GND) | Ground | Black | Pin 6 | Ground | Common ground |
+
+   **Wiring Instructions:**
+   ```bash
+   # DHT22 Weather Sensor connections
+   DHT22 Pin 1 (VCC, Red)    → Pi Pin 2 (5V)    # 5V for optimal performance
+   DHT22 Pin 2 (Data, Yellow) → Pi Pin 7 (GPIO4) # Data communication
+   DHT22 Pin 4 (GND, Black)  → Pi Pin 6 (GND)   # Shared with radar ground
+   ```
+
+   **Important:** DHT22 is connected to **Pin 2 (5V)** instead of Pin 1 (3.3V) for:
+   - Better signal strength and timing reliability
+   - Improved noise immunity  
+   - Reduced communication errors and checksum failures
+
+4. **Connect SSD for local storage and AI model storage**
 
    ```bash
    # Format and mount external SSD
@@ -370,7 +394,7 @@ sudo ./svc.sh status
    echo "/dev/sda1 /mnt/storage ext4 defaults 0 2" | sudo tee -a /etc/fstab
    ```
 
-4. **Verify hardware connections**
+5. **Verify hardware connections**
 
    ```bash
    # Test camera
@@ -378,6 +402,12 @@ sudo ./svc.sh status
    
    # Test UART (should show radar sensor data)
    sudo cat /dev/serial0
+   
+   # Test DHT22 weather sensor
+   python3 test_dht22_detailed.py
+   
+   # Verify DHT22 GPIO state
+   python3 test_gpio4.py
    
    # Check USB devices
    lsusb

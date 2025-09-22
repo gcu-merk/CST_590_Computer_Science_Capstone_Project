@@ -21,13 +21,31 @@ This document provides the complete pinout reference for connecting the OmniPreS
 | **Pin 1** | **Low Alert/Sampling** | **Blue** | **Pin 29** | **GPIO5** | **Speed/range low threshold alert** |
 | **Pin 2** | **High Alert** | **Purple** | **Pin 31** | **GPIO6** | **Speed/range high threshold alert** |
 
+## DHT22 Weather Sensor to Raspberry Pi 5 Pinout
+
+This section documents the connection for the DHT22 temperature and humidity sensor used for environmental monitoring.
+
+### DHT22 Connection Table
+
+| DHT22 Pin | Function | Wire Color | RPi Physical Pin | RPi GPIO | Description |
+|-----------|----------|------------|------------------|----------|-------------|
+| Pin 1 (VCC) | Power | Red | Pin 2 | 5V Power | Power supply (5V recommended for optimal performance) |
+| Pin 2 (Data) | Data Line | Yellow/White | Pin 7 | GPIO4 | Bi-directional data communication |
+| Pin 3 (NC) | Not Connected | - | - | - | Not used |
+| Pin 4 (GND) | Ground | Black | Pin 6 | Ground | Common ground |
+
+**Note:** DHT22 operates on 3.3V-6V range, but **5V is strongly recommended** for:
+- Better signal strength and timing reliability
+- Improved noise immunity
+- Reduced communication errors and checksum failures
+
 ### Raspberry Pi 5 GPIO Header Layout
 
 ```
-     3V3  (1) (2)  5V     ← Pin 4 (Red - Radar Power)
+     3V3  (1) (2)  5V     ← Pin 2 (Red - DHT22 Power), Pin 4 (Red - Radar Power)
    GPIO2  (3) (4)  5V
-   GPIO3  (5) (6)  GND    ← Pin 6 (Black - Radar Ground)
-   GPIO4  (7) (8)  GPIO14 ← Pin 8 (Green - Radar RxD)
+   GPIO3  (5) (6)  GND    ← Pin 6 (Black - DHT22/Radar Ground)
+   GPIO4  (7) (8)  GPIO14 ← Pin 7 (Yellow - DHT22 Data), Pin 8 (Green - Radar RxD)
      GND  (9) (10) GPIO15 ← Pin 10 (White - Radar TxD)
   GPIO17 (11) (12) GPIO18
   GPIO27 (13) (14) GND
@@ -62,6 +80,13 @@ These connections enable advanced radar-camera correlation:
 - **Reset Control**: Pin 4 (Yellow) → Pi Pin 18 (GPIO24)
 - **Speed Alerts**: Pin 1 (Blue) → Pi Pin 29 (GPIO5), Pin 2 (Purple) → Pi Pin 31 (GPIO6)
 
+#### DHT22 Weather Sensor Integration
+These connections enable environmental monitoring with temperature and humidity data:
+
+- **Power**: DHT22 VCC (Red) → Pi Pin 2 (5V) - **Upgraded from 3.3V for improved reliability**
+- **Data**: DHT22 Data (Yellow/White) → Pi Pin 7 (GPIO4)
+- **Ground**: DHT22 GND (Black) → Pi Pin 6 (GND)
+
 ### Software Configuration
 
 #### GPIO Pin Assignments in Code
@@ -74,6 +99,11 @@ RADAR_GPIO_PINS = {
     "low_alert": 5,        # Blue wire - Low speed/range alerts
     "high_alert": 6        # Purple wire - High speed/range alerts
 }
+
+# DHT22 Weather Sensor Configuration
+DHT22_GPIO_PIN = 4         # Yellow/White wire - Data communication
+DHT22_UPDATE_INTERVAL = 600  # Read every 10 minutes
+DHT22_POWER_VOLTAGE = "5V"   # Connected to Pin 2 (5V) for optimal performance
 ```
 
 #### UART Configuration
@@ -138,6 +168,12 @@ AH45        # Set high speed alert to 45 mph
    - Verify ground connection: Pin 10 to Pi Pin 6
    - Monitor voltage: Should be stable 4.75-5.25V
 
+4. **DHT22 Weather Sensor Issues**
+   - **No Temperature/Humidity Data**: Check DHT22 power on Pin 2 (5V) and data on GPIO4
+   - **Timing/Checksum Errors**: Ensure 5V power supply (3.3V causes reliability issues)
+   - **Intermittent Readings**: Check wiring connections, sensor may need 2-second delay between reads
+   - **Invalid Readings**: Verify sensor range (-40°C to 80°C, 0-100% humidity)
+
 #### Verification Commands
 
 ```bash
@@ -152,6 +188,15 @@ sudo journalctl -u imx500-ai-capture -f
 
 # Verify radar configuration
 echo "?A" | sudo tee /dev/ttyACM0
+
+# Test DHT22 sensor
+docker logs dht22-weather --tail=20
+
+# Check DHT22 API endpoint
+curl http://localhost:5000/api/weather/dht22
+
+# Test DHT22 GPIO communication
+python3 test_dht22_detailed.py
 ```
 
 ### Hardware Specifications
@@ -163,6 +208,17 @@ echo "?A" | sudo tee /dev/ttyACM0
 - **Beam Pattern**: 20° horizontal × 24° vertical
 - **Power Consumption**: 150mA @ 5V typical
 - **Interface**: UART (9600-115200 baud), GPIO
+
+#### DHT22 Weather Sensor
+
+- **Operating Voltage**: 3.3V-6V DC (5V recommended for optimal performance)
+- **Temperature Range**: -40°C to +80°C (±0.5°C accuracy)
+- **Humidity Range**: 0-100% RH (±2-5% accuracy)
+- **Resolution**: 0.1°C temperature, 0.1% humidity
+- **Response Time**: <10 seconds
+- **Power Consumption**: 1-1.5mA during measurement, 40-50µA standby
+- **Interface**: Single-wire digital (GPIO4)
+- **Update Interval**: 10 minutes (configurable)
 
 #### Raspberry Pi 5 GPIO
 - **Voltage Levels**: 3.3V logic (5V tolerant on some pins)
@@ -191,3 +247,4 @@ echo "?A" | sudo tee /dev/ttyACM0
 
 **Document History**
 - v1.0 (Sep 21, 2025): Initial pinout documentation with enhanced GPIO integration
+- v1.1 (Sep 21, 2025): Added DHT22 weather sensor pinout documentation with 5V power upgrade
