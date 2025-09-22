@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Analytics Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="logo">📊</div>
+                <div class="header-text">
+                    <h1>Traffic Analytics Dashboard</h1>
+                    <p class="subtitle">Comprehensive traffic monitoring across all locations</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="location-selector">
+                    <label for="location">Location:</label>
+                    <select id="location">
+                        <option value="all">All Locations</option>
+                        <option value="main-street">Main Street Monitor</option>
+                        <option value="school-zone">School Zone</option>
+                        <option value="residential">Residential Area</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+        <button class="tab active" data-tab="overview">
+            <span class="tab-icon">📈</span>
+            <span>Overview</span>
+        </button>
+        <button class="tab" data-tab="patterns">
+            <span class="tab-icon">🕐</span>
+            <span>Traffic Patterns</span>
+        </button>
+        <button class="tab" data-tab="safety">
+            <span class="tab-icon">⚠️</span>
+            <span>Safety Analysis</span>
+        </button>
+        <button class="tab" data-tab="reports">
+            <span class="tab-icon">📋</span>
+            <span>Reports</span>
+        </button>
+        <button class="tab" data-tab="alerts">
+            <span class="tab-icon">🚨</span>
+            <span>Alerts</span>
+        </button>
+    </div>
+
+    <!-- Overview Tab Content -->
+    <div id="overview" class="tab-content active">
+        <!-- Metric Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon vehicles">🚗</div>
+                <div class="metric-value" id="total-vehicles">12,847</div>
+                <div class="metric-label">Total Vehicles (30 days)</div>
+                <div class="metric-trend positive">↑ 15% vs last month</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon speed">🏃</div>
+                <div class="metric-value" id="avg-speed">45.2</div>
+                <div class="metric-label">Avg Speed (mph)</div>
+                <div class="metric-trend positive">↑ 7% vs last month</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon violations">⚠️</div>
+                <div class="metric-value" id="speed-violations">127</div>
+                <div class="metric-label">Speed Violations</div>
+                <div class="metric-trend negative">↑ 8% vs last month</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon weather">🌡️</div>
+                <div class="metric-value" id="temperature">72°F</div>
+                <div class="metric-label">Current Weather</div>
+                <div class="metric-trend neutral">Clear conditions</div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-card large">
+                <div class="chart-header">
+                    <h3>📈 Traffic Volume Over Time</h3>
+                    <div class="chart-controls">
+                        <button class="time-filter active" data-period="24h">24H</button>
+                        <button class="time-filter" data-period="7d">7D</button>
+                        <button class="time-filter" data-period="30d">30D</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="traffic-volume-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>⚡ Speed Distribution</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="speed-distribution-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Info Cards -->
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>🚨 Recent Alerts</h3>
+                <div class="alert-list">
+                    <div class="alert-item high">
+                        <span>Speed violation detected</span>
+                        <span class="priority">High Priority</span>
+                    </div>
+                    <div class="alert-item medium">
+                        <span>Heavy traffic volume</span>
+                        <span class="priority">Medium</span>
+                    </div>
+                    <div class="alert-item low">
+                        <span>Normal traffic flow</span>
+                        <span class="priority">Low</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h3>⏰ Peak Hours Analysis</h3>
+                <div class="peak-hours">
+                    <div class="peak-item">
+                        <span>Morning Rush (7-9 AM)</span>
+                        <span class="value">2,847 vehicles</span>
+                    </div>
+                    <div class="peak-item">
+                        <span>Evening Rush (5-7 PM)</span>
+                        <span class="value">3,124 vehicles</span>
+                    </div>
+                    <div class="peak-item">
+                        <span>Off-Peak Average</span>
+                        <span class="value">892 vehicles</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weather Impact -->
+        <div class="weather-impact">
+            <h3>🌤️ Weather Impact Analysis</h3>
+            <p>Current clear weather conditions are contributing to normal traffic patterns. Rain expected tomorrow may increase congestion by 15-20%.</p>
+        </div>
+    </div>
+
+    <!-- Traffic Patterns Tab Content -->
+    <div id="patterns" class="tab-content">
+        <div class="patterns-section">
+            <div class="chart-card large">
+                <div class="chart-header">
+                    <h3>📊 Weekly Traffic Patterns</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weekly-patterns-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h3>📅 Daily Patterns</h3>
+                <div class="daily-patterns">
+                    <div class="pattern-item">
+                        <span>Monday - Highest Volume</span>
+                        <span class="value">4,230 vehicles</span>
+                    </div>
+                    <div class="pattern-item">
+                        <span>Wednesday - Peak Speed</span>
+                        <span class="value">48.7 mph avg</span>
+                    </div>
+                    <div class="pattern-item">
+                        <span>Friday - Most Violations</span>
+                        <span class="value">34 violations</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="not-implemented">
+            <p>⚠️ <strong>Note:</strong> Advanced pattern analysis features are not yet implemented. This includes:</p>
+            <ul>
+                <li>Hourly traffic heat maps</li>
+                <li>Day-of-week comparison charts</li>
+                <li>Seasonal trend analysis</li>
+                <li>Predictive traffic modeling</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Safety Analysis Tab Content -->
+    <div id="safety" class="tab-content">
+        <div class="safety-metrics">
+            <div class="metric-card">
+                <div class="metric-icon violations">⚠️</div>
+                <div class="metric-value">127</div>
+                <div class="metric-label">Speed Violations</div>
+                <div class="metric-trend negative">↑ 8% this month</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon braking">🛑</div>
+                <div class="metric-value">23</div>
+                <div class="metric-label">Hard Braking Events</div>
+                <div class="metric-trend positive">↓ 12% this month</div>
+            </div>
+        </div>
+
+        <div class="safety-recommendations">
+            <h3>🔧 Safety Recommendations</h3>
+            <div class="recommendation-list">
+                <div class="recommendation high">
+                    <span>Install speed bumps on Maple Street</span>
+                    <span class="priority">High Priority</span>
+                </div>
+                <div class="recommendation medium">
+                    <span>Increase signage on Oak Avenue</span>
+                    <span class="priority">Medium</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="not-implemented">
+            <p>⚠️ <strong>Note:</strong> Advanced safety analysis features are not yet implemented. This includes:</p>
+            <ul>
+                <li>Accident prediction models</li>
+                <li>Real-time safety alerts</li>
+                <li>Speed zone optimization</li>
+                <li>Traffic calming effectiveness analysis</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Reports Tab Content -->
+    <div id="reports" class="tab-content">
+        <div class="reports-section">
+            <h3>📋 Available Reports</h3>
+            <div class="reports-grid">
+                <div class="report-item">
+                    <span>Monthly Traffic Summary</span>
+                    <button class="download-btn">Download PDF</button>
+                </div>
+                <div class="report-item">
+                    <span>Speed Violation Report</span>
+                    <button class="download-btn">Download CSV</button>
+                </div>
+                <div class="report-item">
+                    <span>Weather Impact Analysis</span>
+                    <button class="download-btn">Download PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="export-section">
+            <h3>📤 Export Data</h3>
+            <div class="export-buttons">
+                <button class="export-btn primary">Export PDF Report</button>
+                <button class="export-btn primary">Export CSV Data</button>
+                <button class="export-btn secondary">Export Excel</button>
+                <button class="export-btn secondary">Schedule Report</button>
+            </div>
+        </div>
+        
+        <div class="not-implemented">
+            <p>⚠️ <strong>Note:</strong> Report generation features are not yet implemented. This includes:</p>
+            <ul>
+                <li>Automated PDF report generation</li>
+                <li>CSV data export with filtering</li>
+                <li>Scheduled report delivery</li>
+                <li>Custom report templates</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Alerts Tab Content -->
+    <div id="alerts" class="tab-content">
+        <div class="alerts-section">
+            <h3>🚨 Active Alerts</h3>
+            <div class="alert-list">
+                <div class="alert-item high">
+                    <div class="alert-content">
+                        <span class="alert-title">Speed Violation Detected</span>
+                        <span class="alert-time">2 minutes ago</span>
+                    </div>
+                    <span class="priority">High Priority</span>
+                </div>
+                <div class="alert-item medium">
+                    <div class="alert-content">
+                        <span class="alert-title">Heavy Traffic Volume</span>
+                        <span class="alert-time">15 minutes ago</span>
+                    </div>
+                    <span class="priority">Medium</span>
+                </div>
+                <div class="alert-item low">
+                    <div class="alert-content">
+                        <span class="alert-title">System Status Normal</span>
+                        <span class="alert-time">1 hour ago</span>
+                    </div>
+                    <span class="priority">Low</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="not-implemented">
+            <p>⚠️ <strong>Note:</strong> Real-time alert features are not yet implemented. This includes:</p>
+            <ul>
+                <li>Real-time speed violation alerts</li>
+                <li>Traffic congestion notifications</li>
+                <li>System health monitoring</li>
+                <li>Email/SMS alert delivery</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- API Status Indicator -->
+    <div class="api-status">
+        <div id="api-indicator" class="status-indicator offline">
+            <span class="status-dot"></span>
+            <span class="status-text">API Offline</span>
+        </div>
+        <button id="connect-btn" class="connect-btn">Configure API</button>
+    </div>
+
+    <!-- API Configuration Modal -->
+    <div id="api-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔧 API Configuration</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <label for="api-url">Tailscale Pi IP Address:</label>
+                <input type="text" id="api-url" placeholder="http://100.64.1.23:8080/api/v1">
+                <button id="test-connection">Test Connection</button>
+                <div id="connection-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
