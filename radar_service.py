@@ -146,7 +146,7 @@ class RadarService:
             magnitude = data.get('magnitude', 'unknown')
             
             # Only log if speed is above minimum threshold (filters out noise)
-            if speed >= 5.0:  # Minimum 5 mph to filter noise
+            if speed >= 2.0:  # Minimum 2 mph to filter noise (lowered for better sensitivity)
                 is_significant = True
                 self.detection_count += 1
                 
