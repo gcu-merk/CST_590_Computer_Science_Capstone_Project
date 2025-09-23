@@ -1,0 +1,297 @@
+﻿#!/usr/bin/env python3
+"""Redis data models for vehicle detection system - sky analysis removed"""
+
+import json
+import redis
+import time
+import uuid
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Union
+from dataclasses import dataclass, asdict
+from enum import Enum
+
+
+@dataclass
+class WeatherData:
+    """Weather information from DHT22 sensor and external APIs"""
+    temperature: float
+    humidity: float
+    pressure: Optional[float] = None
+    wind_speed: Optional[float] = None
+    wind_direction: Optional[str] = None
+    timestamp: datetime = None
+    source: str = "dht22"
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
+
+
+@dataclass 
+class RadarData:
+    """Radar sensor detection data"""
+    speed_mph: float
+    distance_ft: float
+    signal_strength: float
+    timestamp: datetime = None
+    detection_id: str = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
+        if self.detection_id is None:
+            self.detection_id = str(uuid.uuid4())[:8]
+
+
+class VehicleType(Enum):
+    """Vehicle classification types"""
+    CAR = "car"
+    TRUCK = "truck" 
+    BUS = "bus"
+    MOTORCYCLE = "motorcycle"
+    BICYCLE = "bicycle"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class VehicleDetection:
+    """Vehicle detection from IMX500 AI camera"""
+    vehicle_type: VehicleType
+    confidence: float
+    bounding_box: Dict[str, float]  # {x, y, width, height}
+    timestamp: datetime = None
+    detection_id: str = None
+    image_id: str = None  # Link to captured image
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
+        if self.detection_id is None:
+            self.detection_id = str(uuid.uuid4())[:8]
+
+
+@dataclass
+class ConsolidatedData:
+    """Complete traffic monitoring record without sky analysis"""
+    detection_id: str
+    timestamp: datetime
+    weather_data: WeatherData
+    radar_data: RadarData
+    vehicle_detection: Optional[VehicleDetection] = None
+    image_path: Optional[str] = None
+    notes: Optional[str] = None
+    
+    def __post_init__(self):
+        if self.detection_id is None:
+            self.detection_id = str(uuid.uuid4())[:8]
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
+
+
+class RedisKeys:
+    """Redis key patterns for data storage"""
+    
+    # Vehicle detection
+    VEHICLE_DETECTION = "vehicle:detection:{detection_id}"
+    VEHICLE_DETECTIONS_BY_IMAGE = "vehicle:detections:image:{image_id}"
+    
+    # Weather data
+    WEATHER_DATA = "weather:data:{timestamp}"
+    CURRENT_WEATHER = "weather:current"
+    
+    # Radar data
+    RADAR_DATA = "radar:data:{detection_id}"
+    RADAR_DETECTIONS = "radar:detections"
+    
+    # Consolidated data
+    CONSOLIDATED_DATA = "consolidated:{detection_id}"
+    
+    # Motion trigger events
+    MOTION_EVENTS = "motion:events"
+    
+    @staticmethod
+    def format_key(pattern: str, **kwargs) -> str:
+        """Format a key pattern with provided values"""
+        return pattern.format(**kwargs)
+
+
+class RedisDataManager:
+    """Manages Redis storage for vehicle detection system"""
+    
+    def __init__(self, redis_host: str = "localhost", redis_port: int = 6379, redis_db: int = 0):
+        self.redis = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+        
+    def store_weather_data(self, weather: WeatherData, ttl: Optional[int] = None) -> str:
+        """Store weather data in Redis"""
+        timestamp_key = weather.timestamp.strftime("%Y%m%d_%H%M%S")
+        weather_key = RedisKeys.format_key(RedisKeys.WEATHER_DATA, timestamp=timestamp_key)
+        
+        weather_dict = asdict(weather)
+        weather_dict['timestamp'] = weather.timestamp.isoformat()
+        
+        self.redis.hset(weather_key, mapping=weather_dict)
+        if ttl:
+            self.redis.expire(weather_key, ttl)
+            
+        # Also store as current weather
+        self.redis.hset(RedisKeys.CURRENT_WEATHER, mapping=weather_dict)
+        
+        return weather_key
+    
+    def store_radar_data(self, radar: RadarData, ttl: Optional[int] = None) -> str:
+        """Store radar detection data"""
+        radar_key = RedisKeys.format_key(RedisKeys.RADAR_DATA, detection_id=radar.detection_id)
+        
+        radar_dict = asdict(radar)
+        radar_dict['timestamp'] = radar.timestamp.isoformat()
+        
+        self.redis.hset(radar_key, mapping=radar_dict)
+        if ttl:
+            self.redis.expire(radar_key, ttl)
+            
+        # Add to detection set
+        self.redis.sadd(RedisKeys.RADAR_DETECTIONS, radar.detection_id)
+        
+        return radar_key
+    
+    def store_vehicle_detection(self, detection: VehicleDetection, ttl: Optional[int] = None) -> str:
+        """Store vehicle detection data"""
+        detection_key = RedisKeys.format_key(RedisKeys.VEHICLE_DETECTION, detection_id=detection.detection_id)
+        
+        detection_dict = asdict(detection)
+        detection_dict['timestamp'] = detection.timestamp.isoformat()
+        detection_dict['vehicle_type'] = detection.vehicle_type.value
+        
+        self.redis.hset(detection_key, mapping=detection_dict)
+        if ttl:
+            self.redis.expire(detection_key, ttl)
+            
+        # Link to image if available
+        if detection.image_id:
+            image_key = RedisKeys.format_key(RedisKeys.VEHICLE_DETECTIONS_BY_IMAGE, image_id=detection.image_id)
+            self.redis.sadd(image_key, detection.detection_id)
+            if ttl:
+                self.redis.expire(image_key, ttl)
+                
+        return detection_key
+    
+    def store_consolidated_data(self, data: ConsolidatedData, ttl: Optional[int] = None) -> str:
+        """Store consolidated traffic monitoring data"""
+        consolidated_key = RedisKeys.format_key(RedisKeys.CONSOLIDATED_DATA, detection_id=data.detection_id)
+        
+        # Convert to dict with proper serialization
+        data_dict = {
+            'detection_id': data.detection_id,
+            'timestamp': data.timestamp.isoformat(),
+            'weather_data': asdict(data.weather_data),
+            'radar_data': asdict(data.radar_data),
+            'image_path': data.image_path,
+            'notes': data.notes
+        }
+        
+        # Handle weather timestamp
+        data_dict['weather_data']['timestamp'] = data.weather_data.timestamp.isoformat()
+        data_dict['radar_data']['timestamp'] = data.radar_data.timestamp.isoformat()
+        
+        # Add vehicle detection if available
+        if data.vehicle_detection:
+            vehicle_dict = asdict(data.vehicle_detection)
+            vehicle_dict['timestamp'] = data.vehicle_detection.timestamp.isoformat()
+            vehicle_dict['vehicle_type'] = data.vehicle_detection.vehicle_type.value
+            data_dict['vehicle_detection'] = vehicle_dict
+        
+        self.redis.hset(consolidated_key, mapping={'data': json.dumps(data_dict)})
+        if ttl:
+            self.redis.expire(consolidated_key, ttl)
+            
+        return consolidated_key
+    
+    def get_consolidated_data(self, detection_id: str) -> Optional[ConsolidatedData]:
+        """Retrieve consolidated data by detection ID"""
+        consolidated_key = RedisKeys.format_key(RedisKeys.CONSOLIDATED_DATA, detection_id=detection_id)
+        
+        raw_data = self.redis.hget(consolidated_key, 'data')
+        if not raw_data:
+            return None
+            
+        try:
+            data = json.loads(raw_data)
+            
+            # Reconstruct weather data
+            weather_data = WeatherData(**data['weather_data'])
+            weather_data.timestamp = datetime.fromisoformat(data['weather_data']['timestamp'])
+            
+            # Reconstruct radar data
+            radar_data = RadarData(**data['radar_data'])
+            radar_data.timestamp = datetime.fromisoformat(data['radar_data']['timestamp'])
+            
+            # Reconstruct vehicle detection if present
+            vehicle_detection = None
+            if 'vehicle_detection' in data and data['vehicle_detection']:
+                vehicle_data = data['vehicle_detection'].copy()
+                vehicle_data['vehicle_type'] = VehicleType(vehicle_data['vehicle_type'])
+                vehicle_detection = VehicleDetection(**vehicle_data)
+                vehicle_detection.timestamp = datetime.fromisoformat(data['vehicle_detection']['timestamp'])
+            
+            return ConsolidatedData(
+                detection_id=data['detection_id'],
+                timestamp=datetime.fromisoformat(data['timestamp']),
+                weather_data=weather_data,
+                radar_data=radar_data,
+                vehicle_detection=vehicle_detection,
+                image_path=data.get('image_path'),
+                notes=data.get('notes')
+            )
+            
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            print(f"Error deserializing consolidated data: {e}")
+            return None
+
+
+# Sample data creation functions for testing
+def create_sample_weather() -> WeatherData:
+    """Create sample weather data"""
+    return WeatherData(
+        temperature=72.5,
+        humidity=65.2,
+        pressure=29.92,
+        wind_speed=8.5,
+        wind_direction="NW",
+        source="dht22"
+    )
+
+
+def create_sample_radar() -> RadarData:
+    """Create sample radar data"""
+    return RadarData(
+        speed_mph=35.2,
+        distance_ft=150.0,
+        signal_strength=0.85
+    )
+
+
+def create_sample_vehicle() -> VehicleDetection:
+    """Create sample vehicle detection"""
+    return VehicleDetection(
+        vehicle_type=VehicleType.CAR,
+        confidence=0.92,
+        bounding_box={"x": 100, "y": 50, "width": 200, "height": 150},
+        image_id="img_001"
+    )
+
+
+def create_sample_consolidated() -> ConsolidatedData:
+    """Create sample consolidated data"""
+    weather = create_sample_weather()
+    radar = create_sample_radar()
+    vehicle = create_sample_vehicle()
+    
+    return ConsolidatedData(
+        detection_id="det_001",
+        timestamp=datetime.now(),
+        weather_data=weather,
+        radar_data=radar,
+        vehicle_detection=vehicle,
+        image_path="/data/images/traffic_001.jpg",
+        notes="Clear conditions, normal traffic flow"
+    )
