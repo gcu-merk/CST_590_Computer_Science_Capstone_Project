@@ -1,6 +1,7 @@
 # Consolidated API Service Requirements
 redis==5.0.1
-sqlite3
+flask==3.0.0
+flask-cors==4.0.0
 fastapi==0.104.1
 uvicorn==0.24.0
 pydantic==2.5.0

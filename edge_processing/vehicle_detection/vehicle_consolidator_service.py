@@ -36,13 +36,13 @@ except ImportError:
 
 # Import our Redis data models
 try:
-    from ..redis_models import (
+    from redis_models import (
         VehicleDetection, VehicleType, BoundingBox, 
         RedisDataManager, RedisKeys
     )
 except ImportError:
     try:
-        from redis_models import (
+        from edge_processing.redis_models import (
             VehicleDetection, VehicleType, BoundingBox, 
             RedisDataManager, RedisKeys
         )
