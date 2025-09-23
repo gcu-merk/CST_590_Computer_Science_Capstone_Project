@@ -212,7 +212,7 @@ class TrafficDashboard {
         }
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/health`, {
+            const response = await fetch(`${this.apiBaseUrl}/health`, {
                 timeout: 5000
             });
             
@@ -244,7 +244,7 @@ class TrafficDashboard {
         statusDiv.style.color = '#4a5568';
         
         try {
-            const response = await fetch(`${apiUrl}/api/health`, {
+            const response = await fetch(`${apiUrl}/health`, {
                 timeout: 10000
             });
             
@@ -301,7 +301,7 @@ class TrafficDashboard {
         try {
             // Load recent vehicle detections (last 24 hours = 86400 seconds)
             try {
-                const detectionsResponse = await fetch(`${this.apiBaseUrl}/api/detections?seconds=86400`);
+                const detectionsResponse = await fetch(`${this.apiBaseUrl}/detections?seconds=86400`);
                 if (detectionsResponse.ok) {
                     const detectionsData = await detectionsResponse.json();
                     this.updateMetricsFromDetections(detectionsData);
@@ -317,7 +317,7 @@ class TrafficDashboard {
             
             // Load recent speed data (last 24 hours)
             try {
-                const speedsResponse = await fetch(`${this.apiBaseUrl}/api/speeds?seconds=86400`);
+                const speedsResponse = await fetch(`${this.apiBaseUrl}/speeds?seconds=86400`);
                 if (speedsResponse.ok) {
                     const speedsData = await speedsResponse.json();
                     this.updateSpeedMetrics(speedsData);
@@ -335,7 +335,7 @@ class TrafficDashboard {
             
             // Load analytics data
             try {
-                const analyticsResponse = await fetch(`${this.apiBaseUrl}/api/analytics`);
+                const analyticsResponse = await fetch(`${this.apiBaseUrl}/analytics`);
                 if (analyticsResponse.ok) {
                     const analyticsData = await analyticsResponse.json();
                     this.updateAnalyticsFromData(analyticsData);
@@ -349,7 +349,7 @@ class TrafficDashboard {
             
             // Load weather data
             try {
-                const weatherResponse = await fetch(`${this.apiBaseUrl}/api/weather`);
+                const weatherResponse = await fetch(`${this.apiBaseUrl}/weather`);
                 if (weatherResponse.ok) {
                     const weatherData = await weatherResponse.json();
                     this.updateWeatherData(weatherData);
