@@ -3,7 +3,7 @@
 
 class TrafficDashboard {
     constructor() {
-        this.apiBaseUrl = localStorage.getItem('api-url') || '';
+        this.apiBaseUrl = localStorage.getItem('api-url') || 'http://100.121.231.16:5000/api';
         this.isOnline = false;
         this.charts = {};
         this.refreshInterval = null;
