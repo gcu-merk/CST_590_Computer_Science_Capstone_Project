@@ -243,36 +243,40 @@ def get_model_registry() -> Dict[str, Model]:
             'weather_description': fields.String(description='Weather description')
         }),
         
+        'AirportObservation': Model('AirportObservation', {
+            'timestamp': fields.String(description='Observation timestamp'),
+            'textDescription': fields.String(description='Weather description'),
+            'temperature': fields.Float(description='Temperature value'),
+            'windDirection': fields.Float(description='Wind direction in degrees'),
+            'windSpeed': fields.Float(description='Wind speed'),
+            'visibility': fields.Float(description='Visibility'),
+            'precipitationLast3Hours': fields.Float(description='Precipitation in last 3 hours'),
+            'relativeHumidity': fields.Float(description='Relative humidity percentage'),
+            'cloudLayers': fields.List(fields.Raw, description='Cloud layer information'),
+            'stationId': fields.String(description='Weather station ID'),
+            'stationName': fields.String(description='Weather station name'),
+            'error': fields.String(description='Error message if any')
+        }),
+
         'AirportWeatherData': Model('AirportWeatherData', {
             'source': fields.String(required=True, description='Data source (weather.gov API)'),
             'redis_key': fields.String(required=True, description='Redis key used'),
             'retrieved_at': fields.String(required=True, description='Timestamp when data was retrieved'),
-            'data': fields.Nested(Model('AirportObservation', {
-                'timestamp': fields.String(description='Observation timestamp'),
-                'textDescription': fields.String(description='Weather description'),
-                'temperature': fields.Float(description='Temperature value'),
-                'windDirection': fields.Float(description='Wind direction in degrees'),
-                'windSpeed': fields.Float(description='Wind speed'),
-                'visibility': fields.Float(description='Visibility'),
-                'precipitationLast3Hours': fields.Float(description='Precipitation in last 3 hours'),
-                'relativeHumidity': fields.Float(description='Relative humidity percentage'),
-                'cloudLayers': fields.List(fields.Raw, description='Cloud layer information'),
-                'stationId': fields.String(description='Weather station ID'),
-                'stationName': fields.String(description='Weather station name'),
-                'error': fields.String(description='Error message if any')
-            }), required=True, description='Weather observation data')
+            'data': fields.Nested('AirportObservation', required=True, description='Weather observation data')
         }),
         
+        'DHT22Observation': Model('DHT22Observation', {
+            'temperature_c': fields.Float(description='Temperature in Celsius'),
+            'temperature_f': fields.Float(description='Temperature in Fahrenheit'),
+            'humidity': fields.Float(description='Relative humidity percentage'),
+            'timestamp': fields.String(description='Reading timestamp')
+        }),
+
         'DHT22WeatherData': Model('DHT22WeatherData', {
             'source': fields.String(required=True, description='Data source (DHT22 Local Sensor)'),
             'redis_key': fields.String(required=True, description='Redis key used'),
             'retrieved_at': fields.String(required=True, description='Timestamp when data was retrieved'),
-            'data': fields.Nested(Model('DHT22Observation', {
-                'temperature_c': fields.Float(description='Temperature in Celsius'),
-                'temperature_f': fields.Float(description='Temperature in Fahrenheit'),
-                'humidity': fields.Float(description='Relative humidity percentage'),
-                'timestamp': fields.String(description='Reading timestamp')
-            }), required=True, description='DHT22 sensor data')
+            'data': fields.Nested('DHT22Observation', required=True, description='DHT22 sensor data')
         }),
         
         'TrafficAnalytics': Model('TrafficAnalytics', {
