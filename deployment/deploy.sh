@@ -137,13 +137,24 @@ stop_existing_services() {
     
     # Force remove any stuck containers by name (handles conflicts)
     echo "Ensuring all traffic monitoring containers are removed..."
-    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather 2>/dev/null || true
+    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather vehicle-consolidator 2>/dev/null || true
     
-    # Remove stuck networks
+    # More aggressive network cleanup - disconnect all endpoints first
     echo "Cleaning up Docker networks..."
-    docker network rm traffic_monitoring_traffic-monitoring-network 2>/dev/null || true
-    docker network rm traffic-monitoring-network 2>/dev/null || true
-    docker network rm traffic_monitoring_default 2>/dev/null || true
+    
+    # List and disconnect all endpoints from our networks
+    for network in "traffic_monitoring_traffic-monitoring-network" "traffic-monitoring-network" "traffic_monitoring_default"; do
+        if docker network inspect "$network" >/dev/null 2>&1; then
+            echo "Cleaning endpoints from network: $network"
+            # Get all connected containers and disconnect them
+            docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -r -n1 docker network disconnect "$network" 2>/dev/null || true
+            # Force remove the network
+            docker network rm "$network" 2>/dev/null || true
+        fi
+    done
+    
+    # Additional cleanup for any orphaned containers
+    docker system prune -f --volumes 2>/dev/null || true
     
     # Stop any legacy systemd services
     sudo systemctl stop traffic-monitor.service 2>/dev/null || true
@@ -222,9 +233,18 @@ start_services() {
     echo "Stopping any existing containers..."
     docker compose $COMPOSE_FILES down || true
     
-    # Additional cleanup to handle stubborn containers
+    # Additional cleanup to handle stubborn containers and networks
     echo "Ensuring clean container state..."
-    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather 2>/dev/null || true
+    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather vehicle-consolidator 2>/dev/null || true
+    
+    # Force cleanup any remaining network endpoints
+    for network in "traffic_monitoring_traffic-monitoring-network" "traffic-monitoring-network" "traffic_monitoring_default"; do
+        if docker network inspect "$network" >/dev/null 2>&1; then
+            echo "Force cleaning network: $network"
+            docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -r -n1 docker network disconnect "$network" 2>/dev/null || true
+            docker network rm "$network" 2>/dev/null || true
+        fi
+    done
     
     # Start services
     echo "Starting containers..."
