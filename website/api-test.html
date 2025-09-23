@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Traffic Monitoring API Test</h1>
+    <div id="status">Testing API connection...</div>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                statusDiv.textContent = 'Connecting to API...';
+                
+                const response = await fetch('http://100.121.231.16:5000/api/health');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.textContent = '✅ API Connection Successful!';
+                    resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    statusDiv.textContent = '❌ API returned error: ' + response.status;
+                }
+            } catch (error) {
+                statusDiv.textContent = '❌ API Connection Failed: ' + error.message;
+                console.error('API Test Error:', error);
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
