@@ -14,8 +14,8 @@ class TrafficDashboard {
     init() {
         this.setupEventListeners();
         this.setupCharts();
+        this.showDataUnavailable(); // Show data unavailable until API connects
         this.checkApiConnection();
-        this.loadMockData();
         
         // Start refresh timer if API is configured
         if (this.apiBaseUrl) {
@@ -212,7 +212,7 @@ class TrafficDashboard {
         }
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/health/database`, {
+            const response = await fetch(`${this.apiBaseUrl}/api/health`, {
                 timeout: 5000
             });
             
@@ -244,7 +244,7 @@ class TrafficDashboard {
         statusDiv.style.color = '#4a5568';
         
         try {
-            const response = await fetch(`${apiUrl}/health/database`, {
+            const response = await fetch(`${apiUrl}/api/health`, {
                 timeout: 10000
             });
             
@@ -253,7 +253,7 @@ class TrafficDashboard {
                 this.apiBaseUrl = apiUrl;
                 localStorage.setItem('api-url', apiUrl);
                 
-                statusDiv.textContent = `✅ Connected! Found ${data.database?.record_count || 0} records`;
+                statusDiv.textContent = `✅ Connected! System status: ${data.status || 'OK'}`;
                 statusDiv.style.background = '#c6f6d5';
                 statusDiv.style.color = '#276749';
                 
@@ -291,27 +291,82 @@ class TrafficDashboard {
     }
     
     async loadRealData() {
-        if (!this.isOnline) return;
+        if (!this.isOnline) {
+            this.showDataUnavailable();
+            return;
+        }
+        
+        console.log('Loading real data from API...');
         
         try {
-            // Load recent traffic data
-            const recentResponse = await fetch(`${this.apiBaseUrl}/traffic/recent?hours=24`);
-            if (recentResponse.ok) {
-                const recentData = await recentResponse.json();
-                this.updateMetricsFromData(recentData.data);
-                this.updateTrafficChartFromData(recentData.data);
+            // Load recent vehicle detections (last 24 hours = 86400 seconds)
+            try {
+                const detectionsResponse = await fetch(`${this.apiBaseUrl}/api/detections?seconds=86400`);
+                if (detectionsResponse.ok) {
+                    const detectionsData = await detectionsResponse.json();
+                    this.updateMetricsFromDetections(detectionsData);
+                    console.log('✅ Vehicle detections loaded successfully');
+                } else {
+                    console.error(`❌ Detections API failed: ${detectionsResponse.status}`);
+                    document.getElementById('total-vehicles').textContent = `Error ${detectionsResponse.status}`;
+                }
+            } catch (error) {
+                console.error('❌ Detections API error:', error.message);
+                document.getElementById('total-vehicles').textContent = 'API Error';
+            }
+            
+            // Load recent speed data (last 24 hours)
+            try {
+                const speedsResponse = await fetch(`${this.apiBaseUrl}/api/speeds?seconds=86400`);
+                if (speedsResponse.ok) {
+                    const speedsData = await speedsResponse.json();
+                    this.updateSpeedMetrics(speedsData);
+                    console.log('✅ Speed data loaded successfully');
+                } else {
+                    console.error(`❌ Speeds API failed: ${speedsResponse.status}`);
+                    document.getElementById('avg-speed').textContent = `Error ${speedsResponse.status}`;
+                    document.getElementById('speed-violations').textContent = `Error ${speedsResponse.status}`;
+                }
+            } catch (error) {
+                console.error('❌ Speeds API error:', error.message);
+                document.getElementById('avg-speed').textContent = 'API Error';
+                document.getElementById('speed-violations').textContent = 'API Error';
             }
             
             // Load analytics data
-            const analyticsResponse = await fetch(`${this.apiBaseUrl}/traffic/analytics?period=week`);
-            if (analyticsResponse.ok) {
-                const analyticsData = await analyticsResponse.json();
-                this.updateAnalyticsFromData(analyticsData.data);
+            try {
+                const analyticsResponse = await fetch(`${this.apiBaseUrl}/api/analytics`);
+                if (analyticsResponse.ok) {
+                    const analyticsData = await analyticsResponse.json();
+                    this.updateAnalyticsFromData(analyticsData);
+                    console.log('✅ Analytics data loaded successfully');
+                } else {
+                    console.error(`❌ Analytics API failed: ${analyticsResponse.status}`);
+                }
+            } catch (error) {
+                console.error('❌ Analytics API error:', error.message);
+            }
+            
+            // Load weather data
+            try {
+                const weatherResponse = await fetch(`${this.apiBaseUrl}/api/weather`);
+                if (weatherResponse.ok) {
+                    const weatherData = await weatherResponse.json();
+                    this.updateWeatherData(weatherData);
+                    console.log('✅ Weather data loaded successfully');
+                } else {
+                    console.error(`❌ Weather API failed: ${weatherResponse.status}`);
+                    document.getElementById('temperature').textContent = `Error ${weatherResponse.status}`;
+                }
+            } catch (error) {
+                console.error('❌ Weather API error:', error.message);
+                document.getElementById('temperature').textContent = 'API Error';
             }
             
         } catch (error) {
-            console.error('Failed to load real data:', error);
+            console.error('❌ Critical error loading real data:', error);
             this.updateApiStatus(false);
+            this.showDataUnavailable();
         }
     }
     
@@ -366,73 +421,257 @@ class TrafficDashboard {
         }
     }
     
-    loadMockData() {
-        // Load mock data for demonstration
-        this.updateTrafficChart('24h');
+    updateMetricsFromDetections(detectionsData) {
+        if (!detectionsData) {
+            console.error('❌ No detections data received');
+            document.getElementById('total-vehicles').textContent = 'No Data';
+            return;
+        }
+        
+        if (!detectionsData.detections || !Array.isArray(detectionsData.detections)) {
+            console.error('❌ Invalid detections data format:', detectionsData);
+            document.getElementById('total-vehicles').textContent = 'Invalid Data';
+            return;
+        }
+        
+        const detections = detectionsData.detections;
+        const totalVehicles = detections.length;
+        
+        // Update vehicle count
+        document.getElementById('total-vehicles').textContent = totalVehicles.toLocaleString();
+        console.log(`📊 Updated vehicle count: ${totalVehicles}`);
+        
+        // Update chart with hourly detection data
+        this.updateTrafficChartFromDetections(detections);
     }
     
-    updateTrafficChart(period) {
-        if (!this.charts.traffic) return;
+    updateSpeedMetrics(speedsData) {
+        if (!speedsData) {
+            console.error('❌ No speeds data received');
+            document.getElementById('avg-speed').textContent = 'No Data';
+            document.getElementById('speed-violations').textContent = 'No Data';
+            return;
+        }
         
-        let labels, data;
+        if (!speedsData.speeds || !Array.isArray(speedsData.speeds)) {
+            console.error('❌ Invalid speeds data format:', speedsData);
+            document.getElementById('avg-speed').textContent = 'Invalid Data';
+            document.getElementById('speed-violations').textContent = 'Invalid Data';
+            return;
+        }
         
-        switch (period) {
-            case '24h':
-                labels = Array.from({length: 24}, (_, i) => `${i}:00`);
-                data = [120, 95, 80, 75, 85, 110, 180, 250, 220, 190, 200, 210, 
-                       230, 220, 200, 190, 210, 280, 320, 280, 240, 200, 170, 140];
-                break;
-            case '7d':
-                labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                data = [4230, 3950, 4100, 4200, 4350, 2800, 2600];
-                break;
-            case '30d':
-                labels = Array.from({length: 30}, (_, i) => `${i + 1}`);
-                data = Array.from({length: 30}, () => Math.floor(Math.random() * 1000) + 3000);
-                break;
+        const speeds = speedsData.speeds;
+        if (speeds.length === 0) {
+            document.getElementById('avg-speed').textContent = '0';
+            document.getElementById('speed-violations').textContent = '0';
+            console.log('📊 No speed measurements available');
+            return;
+        }
+        
+        // Calculate average speed
+        const avgSpeed = speeds.reduce((sum, record) => sum + (record.speed || 0), 0) / speeds.length;
+        document.getElementById('avg-speed').textContent = avgSpeed.toFixed(1);
+        
+        // Count speed violations (assuming 25 mph speed limit)
+        const violations = speeds.filter(record => record.speed && record.speed > 25).length;
+        document.getElementById('speed-violations').textContent = violations;
+        
+        console.log(`📊 Updated speeds - Avg: ${avgSpeed.toFixed(1)} mph, Violations: ${violations}`);
+    }
+    
+    updateWeatherData(weatherData) {
+        if (!weatherData) {
+            console.error('❌ No weather data received');
+            document.getElementById('temperature').textContent = 'No Data';
+            return;
+        }
+        
+        // Update temperature if available
+        if (weatherData.data && weatherData.data.temperature) {
+            const tempF = Math.round(weatherData.data.temperature * 9/5 + 32);
+            document.getElementById('temperature').textContent = `${tempF}°F`;
+            console.log(`📊 Updated temperature: ${tempF}°F`);
+        } else if (weatherData.temperature) {
+            // Handle direct temperature field
+            const tempF = Math.round(weatherData.temperature * 9/5 + 32);
+            document.getElementById('temperature').textContent = `${tempF}°F`;
+            console.log(`📊 Updated temperature: ${tempF}°F`);
+        } else {
+            document.getElementById('temperature').textContent = 'No Temp Data';
+            console.log('📊 No temperature data in weather response');
+        }
+        
+        // Update weather condition display if element exists
+        const weatherElement = document.getElementById('weather-condition');
+        if (weatherElement && weatherData.sky_condition) {
+            weatherElement.textContent = weatherData.sky_condition.condition || 'Unknown';
+        }
+    }
+    
+    updateTrafficChartFromDetections(detections) {
+        if (!detections || detections.length === 0) {
+            console.log('📊 No detections data for chart');
+            if (this.charts.traffic) {
+                this.charts.traffic.data.labels = ['No Data Available'];
+                this.charts.traffic.data.datasets[0].data = [0];
+                this.charts.traffic.update();
+            }
+            return;
+        }
+        
+        if (!this.charts.traffic) {
+            console.error('❌ Traffic chart not initialized');
+            return;
+        }
+        
+        // Group detections by hour
+        const hourlyData = {};
+        let validDetections = 0;
+        
+        detections.forEach(detection => {
+            if (detection.timestamp) {
+                const hour = new Date(detection.timestamp).getHours();
+                if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+                    hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+                    validDetections++;
+                }
+            }
+        });
+        
+        if (validDetections === 0) {
+            console.log('📊 No valid timestamps in detections data');
+            this.charts.traffic.data.labels = ['Invalid Data'];
+            this.charts.traffic.data.datasets[0].data = [0];
+            this.charts.traffic.update();
+            return;
+        }
+        
+        const labels = [];
+        const values = [];
+        for (let hour = 0; hour < 24; hour++) {
+            labels.push(`${hour}:00`);
+            values.push(hourlyData[hour] || 0);
         }
         
         this.charts.traffic.data.labels = labels;
-        this.charts.traffic.data.datasets[0].data = data;
+        this.charts.traffic.data.datasets[0].data = values;
         this.charts.traffic.update();
+        
+        console.log(`📊 Updated traffic chart with ${validDetections} valid detections`);
+    }
+    
+    showDataUnavailable() {
+        // Show clear indicators that data is unavailable
+        document.getElementById('total-vehicles').textContent = 'No Data';
+        document.getElementById('avg-speed').textContent = 'No Data';
+        document.getElementById('speed-violations').textContent = 'No Data';
+        document.getElementById('temperature').textContent = 'No Data';
+        
+        // Clear charts and show "No Data" message
+        this.showChartsUnavailable();
+    }
+    
+    showChartsUnavailable() {
+        // Clear traffic chart and show no data message
+        if (this.charts.traffic) {
+            this.charts.traffic.data.labels = ['No API Connection'];
+            this.charts.traffic.data.datasets[0].data = [0];
+            this.charts.traffic.update();
+        }
+        
+        // Clear weekly patterns chart
+        if (this.charts.weekly) {
+            this.charts.weekly.data.labels = ['No Data Available'];
+            this.charts.weekly.data.datasets[0].data = [0];
+            this.charts.weekly.update();
+        }
+        
+        // Clear speed distribution chart
+        if (this.charts.speed) {
+            this.charts.speed.data.labels = ['No Data'];
+            this.charts.speed.data.datasets[0].data = [0];
+            this.charts.speed.update();
+        }
+    }
+    
+    updateTrafficChart(period) {
+        // Only update chart if we have real data - no mock data fallback
+        console.log(`Chart update requested for period: ${period} - Use real API data only`);
     }
     
     loadTabData(tabName) {
-        // Load tab-specific data
+        // Load tab-specific data from API only - no mock data
+        console.log(`Loading real data for tab: ${tabName}`);
+        
         switch (tabName) {
             case 'patterns':
-                // Update weekly patterns chart if needed
+                // Load weekly patterns from analytics API
+                if (this.isOnline) {
+                    this.loadWeeklyPatterns();
+                } else {
+                    console.log('❌ Cannot load patterns - API offline');
+                }
                 break;
             case 'safety':
-                // Load safety-specific data
+                // Load safety-specific data from API
+                if (this.isOnline) {
+                    this.loadSafetyData();
+                } else {
+                    console.log('❌ Cannot load safety data - API offline');
+                }
                 break;
             case 'reports':
-                // Update available reports
+                // Load reports from API
+                if (this.isOnline) {
+                    this.loadReportsData();
+                } else {
+                    console.log('❌ Cannot load reports - API offline');
+                }
                 break;
             case 'alerts':
-                // Load recent alerts
-                this.loadAlerts();
+                // Load recent alerts from API
+                if (this.isOnline) {
+                    this.loadRealAlerts();
+                } else {
+                    console.log('❌ Cannot load alerts - API offline');
+                }
+                break;
+            default:
+                // Overview tab - data already loaded in loadRealData
                 break;
         }
     }
     
-    loadAlerts() {
-        // Mock alert loading
-        const alertsList = document.querySelector('.alerts-section .alert-list');
-        if (alertsList) {
-            // Alerts are already in HTML, could be updated from API here
-        }
+    async loadWeeklyPatterns() {
+        console.log('🔄 Loading weekly patterns from API...');
+        // Placeholder for future implementation when historical endpoints are available
+    }
+    
+    async loadSafetyData() {
+        console.log('🔄 Loading safety data from API...');
+        // Placeholder for future implementation when safety endpoints are available
+    }
+    
+    async loadReportsData() {
+        console.log('🔄 Loading reports data from API...');
+        // Placeholder for future implementation when reports endpoints are available
+    }
+    
+    async loadRealAlerts() {
+        console.log('🔄 Loading real alerts from API...');
+        // Placeholder for future implementation when alerts endpoints are available
     }
     
     filterByLocation(location) {
         // Filter data by location
         console.log('Filtering by location:', location);
         
-        if (location === 'all') {
-            // Show all data
+        if (location === 'oklahoma-city') {
+            // Show Oklahoma City data (default and only location)
+            console.log('Displaying Oklahoma City traffic data');
         } else {
-            // Filter data for specific location
-            this.showNotImplemented('Location filtering');
+            // Handle any other location (should not occur with current setup)
+            console.log('Unknown location selected');
         }
     }
     
