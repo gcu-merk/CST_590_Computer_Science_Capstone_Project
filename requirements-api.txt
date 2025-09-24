@@ -7,6 +7,7 @@ flask-socketio==5.3.6
 
 # Data storage and caching
 redis==5.0.1
+psycopg2-binary==2.9.9
 
 # Configuration and environment management
 python-decouple==3.8

@@ -22,6 +22,9 @@ fi
 # Create necessary directories
 echo "📁 Creating directory structure..."
 mkdir -p data logs
+sudo mkdir -p /mnt/storage/data /mnt/storage/logs
+sudo chmod -R 777 /mnt/storage/data /mnt/storage/logs
+echo "✅ Created storage directories with proper permissions"
 
 # Stop any existing services
 echo "🛑 Stopping existing services..."
@@ -82,6 +85,14 @@ echo "   - Check status: docker-compose -f docker-compose.services.yml ps"
 echo "   - Stop services: docker-compose -f docker-compose.services.yml down"
 echo ""
 echo "🎯 Architecture: Radar triggers → Consolidator → Database → API → External Website"
+echo ""
+echo "🔍 Running post-deployment validation..."
+if [ -f "scripts/validate-deployment.sh" ]; then
+    chmod +x scripts/validate-deployment.sh
+    ./scripts/validate-deployment.sh
+else
+    echo "⚠️ Validation script not found, skipping validation"
+fi
 echo "📉 Storage: 94% reduction from sky analysis removal"
 echo ""
 echo "Deployment complete! 🚀"

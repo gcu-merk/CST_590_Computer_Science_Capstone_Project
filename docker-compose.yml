@@ -274,7 +274,7 @@ services:
       - POSTGRES_DB=traffic_monitoring
       - POSTGRES_USER=traffic_user
       - POSTGRES_PASSWORD=traffic_password
-      - DATABASE_PATH=${STORAGE_ROOT:-/mnt/storage}/traffic_data.db
+      - DATABASE_PATH=/app/data/traffic_data.db
       - LOG_LEVEL=INFO
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
