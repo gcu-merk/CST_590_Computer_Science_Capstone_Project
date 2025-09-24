@@ -9,7 +9,7 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -29,7 +29,7 @@ services:
       - ${POSTGRES_DATA_PATH:-/mnt/storage/postgres_data}:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U traffic_user -d traffic_monitoring"]
       interval: 10s
@@ -62,7 +62,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
   data-maintenance:
@@ -93,7 +93,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     healthcheck:
       test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
@@ -118,7 +118,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); data=r.get('weather:airport:latest'); exit(0 if data else 1)\""]
@@ -156,7 +156,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     privileged: true  # Required for lgpio GPIO access
     group_add:
       - gpio
@@ -188,7 +188,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - traffic-monitoring-network
+      - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); data=r.get('stats:realtime:vehicles'); exit(0 if data else 1)\""]
@@ -197,6 +197,27 @@ services:
       retries: 3
       start_period: 120s
 
+  nginx-proxy:
+    image: nginx:1.25-alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      traffic-monitor:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 networks:
-  traffic-monitoring-network:
+  app-network:
     driver: bridge
