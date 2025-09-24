@@ -178,14 +178,26 @@ class SpeedAnalysisService:
                 }
             }
         
-        # Calculate speeds from range measurements
-        speed_measurements = self.redis_client.calculate_speeds_from_ranges(radar_data)
-        
-        # Apply speed filters
-        if min_speed is not None:
-            speed_measurements = [s for s in speed_measurements if s['speed_mph'] >= min_speed]
-        if max_speed is not None:
-            speed_measurements = [s for s in speed_measurements if s['speed_mph'] <= max_speed]
+        # Use direct speed measurements from radar (no calculation needed)
+        speed_measurements = []
+        for entry in radar_data:
+            if 'speed' in entry and entry['speed'] is not None:
+                try:
+                    speed_mph = float(entry['speed'])
+                    
+                    # Apply speed filters
+                    if (min_speed is None or speed_mph >= min_speed) and \
+                       (max_speed is None or speed_mph <= max_speed):
+                        speed_measurements.append({
+                            'timestamp': entry['timestamp'],
+                            'speed_mph': speed_mph,
+                            'speed_ms': round(speed_mph / 2.237, 2),  # Convert mph to m/s
+                            'source': entry.get('source', 'radar_direct'),
+                            'magnitude': entry.get('magnitude', 'unknown'),
+                            'unit': entry.get('unit', 'mph')
+                        })
+                except (ValueError, TypeError):
+                    continue
         
         # Limit results
         if len(speed_measurements) > limit:
@@ -203,9 +215,9 @@ class SpeedAnalysisService:
                 'speed_ms': speed['speed_ms'],
                 'source': speed['source'],
                 'metadata': {
-                    'calculation_method': 'range_difference',
-                    'time_difference_seconds': speed['time_diff'],
-                    'range_change_meters': abs(speed['range_current'] - speed['range_previous'])
+                    'measurement_method': 'doppler_radar_direct',
+                    'magnitude': speed.get('magnitude', 'unknown'),
+                    'unit': speed.get('unit', 'mph')
                 }
             })
         
@@ -224,7 +236,7 @@ class SpeedAnalysisService:
             },
             'metadata': {
                 'total_radar_entries': len(radar_data),
-                'calculation_method': 'consecutive_range_differences',
+                'measurement_method': 'doppler_radar_direct',
                 'speed_limit_mph': config.radar.speed_limit_mph
             }
         }

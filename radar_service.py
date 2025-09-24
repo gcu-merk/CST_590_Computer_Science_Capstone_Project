@@ -204,7 +204,7 @@ class RadarService:
                     speed = abs(speed_raw)
                 
                 # Only return if speed is meaningful (filters out background noise)
-                if speed >= 0.1:  # Minimum threshold to avoid zero/noise values
+                if speed >= 2.0:  # Minimum 2 mph to filter noise - must match logging threshold
                     return {
                         'speed': speed,
                         'magnitude': magnitude,
@@ -216,21 +216,34 @@ class RadarService:
             except Exception:
                 pass
         
-        # Try JSON format
+        # Try JSON format - ONLY process speed data, ignore range data
         try:
             if line.startswith('{'):
                 data = json.loads(line)
-                data['_timestamp'] = timestamp
-                data['_source'] = 'ops243_radar'
                 
-                # Convert speed if present and numeric
-                if 'speed' in data:
+                # Only process entries with speed data (unit: "mps")
+                if data.get('unit') == 'mps' and 'speed' in data:
                     try:
-                        data['speed'] = float(data['speed'])
+                        speed_mps = float(data['speed'])
+                        # Convert m/s to mph (1 m/s = 2.237 mph)
+                        speed_mph = abs(speed_mps * 2.237)
+                        
+                        # Only return if speed is above threshold (filters noise)
+                        if speed_mph >= 2.0:
+                            return {
+                                'speed': speed_mph,
+                                'speed_mps': speed_mps,
+                                'magnitude': data.get('magnitude', 'unknown'),
+                                'unit': 'mph',
+                                '_raw': line,
+                                '_timestamp': timestamp,
+                                '_source': 'ops243_radar'
+                            }
                     except (ValueError, TypeError):
                         pass
                 
-                return data
+                # Ignore range data (unit: "m") and configuration messages
+                return None
         except Exception:
             pass
         
@@ -267,7 +280,7 @@ class RadarService:
             self.redis_client.xadd('radar_data', data)
             
             # Trigger consolidator for motion detection
-            if data.get('speed', 0) >= 0.1:  # Any significant motion
+            if data.get('speed', 0) >= 2.0:  # Only for actual vehicle speeds (filters noise)
                 consolidator_event = {
                     'event_type': 'radar_motion_detected',
                     'speed': data.get('speed', 0),

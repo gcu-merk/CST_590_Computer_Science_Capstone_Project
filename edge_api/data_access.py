@@ -129,12 +129,16 @@ class RedisDataAccess:
                     timestamp_ms = int(entry_id.split('-')[0])
                     entry_time = datetime.fromtimestamp(timestamp_ms / 1000)
                     
+                    # Radar service now only stores actual speed data (no range data)
+                    speed_value = float(fields.get('speed', 0))
+                    
                     radar_entries.append({
                         'id': entry_id,
                         'timestamp': entry_time,
                         'timestamp_ms': timestamp_ms,
-                        'range': float(fields.get('range', 0)),
-                        'unit': fields.get('unit', 'm'),
+                        'speed': speed_value,
+                        'unit': fields.get('unit', 'mph'),
+                        'magnitude': fields.get('magnitude', 'unknown'),
                         'source': fields.get('_source', 'unknown')
                     })
                 except (ValueError, TypeError) as e:
@@ -197,52 +201,6 @@ class RedisDataAccess:
         except redis.ResponseError:
             return 0
     
-    def calculate_speeds_from_ranges(self, radar_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Calculate vehicle speeds from radar range measurements"""
-        speeds = []
-        
-        if len(radar_data) < 2:
-            return speeds
-        
-        # Sort by timestamp to ensure chronological order
-        sorted_data = sorted(radar_data, key=lambda x: x['timestamp_ms'])
-        
-        for i in range(1, len(sorted_data)):
-            current = sorted_data[i]
-            previous = sorted_data[i-1]
-            
-            try:
-                # Calculate time difference in seconds
-                time_diff = (current['timestamp_ms'] - previous['timestamp_ms']) / 1000.0
-                
-                # Skip if time difference is too small or too large
-                if not (0.1 <= time_diff <= 5.0):
-                    continue
-                
-                # Calculate range difference in meters
-                range_diff = abs(current['range'] - previous['range'])
-                
-                # Calculate speed: distance/time = m/s, then convert to mph
-                speed_ms = range_diff / time_diff
-                speed_mph = speed_ms * 2.237  # 1 m/s = 2.237 mph
-                
-                # Filter realistic vehicle speeds
-                if config.radar.min_speed_mph <= speed_mph <= config.radar.max_speed_mph:
-                    speeds.append({
-                        'timestamp': current['timestamp'],
-                        'speed_mph': round(speed_mph, 2),
-                        'speed_ms': round(speed_ms, 2),
-                        'range_current': current['range'],
-                        'range_previous': previous['range'],
-                        'time_diff': round(time_diff, 2),
-                        'source': 'radar_calculation'
-                    })
-                    
-            except (ValueError, TypeError) as e:
-                logger.debug(f"Speed calculation error: {e}")
-                continue
-        
-        return speeds
     
     def group_radar_detections(self, radar_data: List[Dict[str, Any]], 
                              window_seconds: int = None) -> List[Dict[str, Any]]:
