@@ -12,6 +12,7 @@ import logging
 import redis
 import signal
 import sys
+import os
 from datetime import datetime
 from typing import Callable, Optional, Dict
 
@@ -342,8 +343,19 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     
+    # Read configuration from environment variables
+    uart_port = os.environ.get('RADAR_UART_PORT', '/dev/ttyAMA0')
+    baudrate = int(os.environ.get('RADAR_BAUD_RATE', '19200'))
+    redis_host = os.environ.get('REDIS_HOST', 'localhost')
+    redis_port = int(os.environ.get('REDIS_PORT', '6379'))
+    
     # Create and start service
-    service = RadarService()
+    service = RadarService(
+        uart_port=uart_port,
+        baudrate=baudrate,
+        redis_host=redis_host,
+        redis_port=redis_port
+    )
     
     if service.start():
         logger.info("Radar service running. Press Ctrl+C to stop.")
