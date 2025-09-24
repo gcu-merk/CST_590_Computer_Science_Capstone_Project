@@ -54,7 +54,7 @@ except ImportError:
         )
         logging.info("✅ Imported Redis models from edge_processing.redis_models")
     except ImportError:
-        logging.error("Could not import Redis models from either location")
+        logging.error("Could not import Redis models from any location")
         RedisDataManager = None
 
 # Verify we have the required classes
