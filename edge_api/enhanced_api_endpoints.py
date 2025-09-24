@@ -44,15 +44,6 @@ except ImportError:
     REDIS_AVAILABLE = False
     logging.warning("Redis not available - API will work in demo mode")
 
-# Import data consolidator for API data access
-try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'data-collection', 'data-consolidator'))
-    from enhanced_image_consolidator import EnhancedDataConsolidator
-    CONSOLIDATOR_AVAILABLE = True
-except ImportError:
-    CONSOLIDATOR_AVAILABLE = False
-    logging.warning("Enhanced data consolidator not available")
-
 logger = logging.getLogger(__name__)
 
 class EnhancedAPIEndpoints:
@@ -83,18 +74,7 @@ class EnhancedAPIEndpoints:
                 logger.warning(f"Redis connection failed: {e}. API will work in demo mode.")
                 self.redis_client = None
         
-        # Initialize data consolidator
         self.consolidator = None
-        if CONSOLIDATOR_AVAILABLE:
-            try:
-                self.consolidator = EnhancedDataConsolidator(
-                    redis_host=redis_host,
-                    redis_port=redis_port,
-                    enable_redis=self.redis_client is not None
-                )
-                logger.info("Enhanced data consolidator initialized")
-            except Exception as e:
-                logger.warning(f"Failed to initialize consolidator: {e}")
         
         # Create Flask-RESTX models if available
         self.models = {}

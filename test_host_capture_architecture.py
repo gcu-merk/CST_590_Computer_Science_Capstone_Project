@@ -612,8 +612,9 @@ def main():
     if args.mode in ['camera-interface', 'all']:
         tests.append(('Container Camera Interface', test_container_camera_interface))
     
-    if args.mode in ['sky-analysis', 'all']:
-        tests.append(('Sky Analysis with Shared Volume', test_sky_analysis_with_shared_volume))
+    # Sky analysis test disabled - feature removed
+    # if args.mode in ['sky-analysis', 'all']:
+    #     tests.append(('Sky Analysis with Shared Volume', test_sky_analysis_with_shared_volume))
     
     if args.mode in ['docker-integration', 'all']:
         tests.append(('Docker Integration', test_integration_with_docker))

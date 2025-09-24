@@ -251,7 +251,6 @@ class IMX500AIHostCapture:
                     "primary_vehicle": self._find_primary_vehicle(detections) if detections else None
                 },
                 "redis_keys": {
-                    "image_key": f"sky:analysis:image:{image_id}",
                     "vehicle_keys": [f"vehicle:detection:{det['detection_id']}" for det in detections]
                 }
             }
@@ -389,18 +388,7 @@ class IMX500AIHostCapture:
                     "source": "imx500_host_ai"
                 }
                 self.redis_client.setex(detection_key, 300, json.dumps(detection_data))  # 5 min TTL
-            
-            # Publish image metadata for sky analysis processing
-            image_key = f"sky:analysis:image:{result_package['capture_info']['image_id']}"
-            image_metadata = {
-                "image_path": result_package["capture_info"]["filename"],
-                "timestamp": time.time(),
-                "resolution": result_package["capture_info"]["resolution"],
-                "file_size": result_package["capture_info"]["file_size"],
-                "ai_processing": "imx500_vehicle_detection_complete",
-                "vehicle_count": result_package["ai_results"]["detection_count"]
-            }
-            self.redis_client.setex(image_key, 300, json.dumps(image_metadata))
+
             
             # Publish real-time event
             event_data = {

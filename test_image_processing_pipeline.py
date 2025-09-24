@@ -132,36 +132,37 @@ class TestRedisModels(unittest.TestCase):
         self.assertEqual(stored_detection['vehicle_type'], "car")
         self.assertEqual(stored_detection['confidence'], 0.85)
     
-    def test_sky_analysis_storage(self):
-        """Test storing and retrieving sky analysis"""
-        if not self.redis_available:
-            self.skipTest("Redis not available")
-        
-        from redis_models import SkyCondition, SkyAnalysis
-        
-        # Create test analysis
-        analysis = SkyAnalysis(
-            analysis_id="test_sky_001",
-            condition=SkyCondition.PARTLY_CLOUDY,
-            confidence=0.8,
-            timestamp=time.time(),
-            light_level=0.7,
-            cloud_coverage=0.3
-        )
-        
-        # Store analysis
-        key = self.redis_manager.store_sky_analysis(analysis, "test_image_001")
-        
-        # Verify storage
-        self.assertIsNotNone(key)
-        stored_data = self.redis_client.get(key)
-        self.assertIsNotNone(stored_data)
-        
-        # Verify data integrity
-        stored_analysis = json.loads(stored_data)
-        self.assertEqual(stored_analysis['analysis_id'], "test_sky_001")
-        self.assertEqual(stored_analysis['condition'], "partly_cloudy")
-        self.assertEqual(stored_analysis['confidence'], 0.8)
+    # Sky analysis test disabled - feature removed
+    # def test_sky_analysis_storage(self):
+    #     """Test storing and retrieving sky analysis"""
+    #     if not self.redis_available:
+    #         self.skipTest("Redis not available")
+    #     
+    #     from redis_models import SkyCondition, SkyAnalysis
+    #     
+    #     # Create test analysis
+    #     analysis = SkyAnalysis(
+    #         analysis_id="test_sky_001",
+    #         condition=SkyCondition.PARTLY_CLOUDY,
+    #         confidence=0.8,
+    #         timestamp=time.time(),
+    #         light_level=0.7,
+    #         cloud_coverage=0.3
+    #     )
+    #     
+    #     # Store analysis
+    #     key = self.redis_manager.store_sky_analysis(analysis, "test_image_001")
+    #     
+    #     # Verify storage
+    #     self.assertIsNotNone(key)
+    #     stored_data = self.redis_client.get(key)
+    #     self.assertIsNotNone(stored_data)
+    #     
+    #     # Verify data integrity
+    #     stored_analysis = json.loads(stored_data)
+    #     self.assertEqual(stored_analysis['analysis_id'], "test_sky_001")
+    #     self.assertEqual(stored_analysis['condition'], "partly_cloudy")
+    #     self.assertEqual(stored_analysis['confidence'], 0.8)
 
 # Sky analysis service removed - tests disabled
 # class TestSkyAnalysisService(unittest.TestCase):
@@ -398,61 +399,6 @@ class TestMotionTriggeredService(unittest.TestCase):
         self.assertIn('successful_analyses', status)
         self.assertIn('services', status)
 
-class TestEnhancedDataConsolidator(unittest.TestCase):
-    """Test enhanced data consolidator"""
-    
-    def setUp(self):
-        """Set up test environment"""
-        try:
-            import sys
-            import os
-            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'data-collection', 'data-consolidator'))
-            from enhanced_image_consolidator import EnhancedDataConsolidator
-            
-            # Initialize consolidator without Redis for basic testing
-            self.consolidator = EnhancedDataConsolidator(enable_redis=False)
-            
-        except Exception as e:
-            self.skipTest(f"Enhanced data consolidator not available: {e}")
-    
-    def test_consolidator_initialization(self):
-        """Test consolidator initialization"""
-        self.assertIsNotNone(self.consolidator)
-        self.assertFalse(self.consolidator.redis_enabled)
-        self.assertFalse(self.consolidator.is_running)
-    
-    def test_consolidated_record_creation(self):
-        """Test consolidated record creation"""
-        # Mock data
-        test_data = {
-            "image_analysis": {
-                "image_id": "test_img_001",
-                "timestamp": time.time(),
-                "vehicle_detections": [],
-                "sky_analysis": {
-                    "condition": "clear",
-                    "confidence": 0.9
-                }
-            },
-            "timestamp": time.time()
-        }
-        
-        record = self.consolidator._create_enhanced_record(test_data)
-        
-        self.assertIsNotNone(record)
-        self.assertIsNotNone(record.consolidation_id)
-        self.assertIsNotNone(record.image_analysis)
-        self.assertEqual(record.image_analysis["image_id"], "test_img_001")
-    
-    def test_statistics_generation(self):
-        """Test statistics generation"""
-        stats = self.consolidator.get_statistics()
-        
-        self.assertIsInstance(stats, dict)
-        self.assertIn('total_records', stats)
-        self.assertIn('avg_consolidation_time_ms', stats)
-        self.assertIn('is_running', stats)
-
 class TestAPIEndpoints(unittest.TestCase):
     """Test enhanced API endpoints"""
     
@@ -608,10 +554,8 @@ def create_test_suite():
     # Add test classes
     test_classes = [
         TestRedisModels,
-        # TestSkyAnalysisService,  # Removed - sky analysis disabled
         TestEnhancedVehicleDetection,
         TestMotionTriggeredService,
-        TestEnhancedDataConsolidator,
         TestAPIEndpoints,
         TestIntegrationPipeline
     ]
