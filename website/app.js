@@ -3,7 +3,7 @@
 
 class TrafficDashboard {
     constructor() {
-        this.apiBaseUrl = localStorage.getItem('api-url') || 'http://100.121.231.16:5000/api';
+        this.apiBaseUrl = localStorage.getItem('api-url') || 'https://edge-traffic-monitoring.taild46447.ts.net/api';
         this.isOnline = false;
         this.charts = {};
         this.refreshInterval = null;
@@ -207,7 +207,7 @@ class TrafficDashboard {
     
     async checkApiConnection() {
         if (!this.apiBaseUrl) {
-            this.updateApiStatus(false);
+            this.updateApiStatus(false, 'No API URL configured');
             return;
         }
         
@@ -220,11 +220,17 @@ class TrafficDashboard {
                 this.updateApiStatus(true);
                 this.loadRealData();
             } else {
-                this.updateApiStatus(false);
+                this.updateApiStatus(false, `API returned ${response.status}`);
             }
         } catch (error) {
             console.log('API connection failed:', error);
-            this.updateApiStatus(false);
+            
+            // Check if this is a mixed content error (HTTPS to HTTP)
+            if (error.message.includes('Failed to fetch') && location.protocol === 'https:' && this.apiBaseUrl.startsWith('http:')) {
+                this.updateApiStatus(false, 'Mixed Content Error: Cannot connect to HTTP API from HTTPS site. Please visit the API directly at https://edge-traffic-monitoring.taild46447.ts.net/docs/');
+            } else {
+                this.updateApiStatus(false, `Connection failed: ${error.message}`);
+            }
         }
     }
     
@@ -274,7 +280,7 @@ class TrafficDashboard {
         }
     }
     
-    updateApiStatus(isOnline) {
+    updateApiStatus(isOnline, errorMessage = null) {
         this.isOnline = isOnline;
         const indicator = document.getElementById('api-indicator');
         const connectBtn = document.getElementById('connect-btn');
@@ -285,7 +291,9 @@ class TrafficDashboard {
             connectBtn.textContent = 'Reconfigure';
         } else {
             indicator.className = 'status-indicator offline';
-            indicator.querySelector('.status-text').textContent = 'API Offline';
+            // Show error message if provided, otherwise default message
+            const statusText = errorMessage || 'API Offline';
+            indicator.querySelector('.status-text').textContent = statusText;
             connectBtn.textContent = 'Configure API';
         }
     }
