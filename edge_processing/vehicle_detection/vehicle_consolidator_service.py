@@ -35,19 +35,34 @@ except ImportError:
     logging.error("Redis required for vehicle detection data consolidation")
 
 # Import our Redis data models
+RedisDataManager = None
+VehicleDetection = None
+VehicleType = None
+BoundingBox = None
+RedisKeys = None
+
 try:
     from redis_models import (
         VehicleDetection, VehicleType, BoundingBox, 
         RedisDataManager, RedisKeys
     )
+    logging.info("✅ Imported Redis models from redis_models")
 except ImportError:
     try:
         from edge_processing.redis_models import (
             VehicleDetection, VehicleType, BoundingBox, 
             RedisDataManager, RedisKeys
         )
+        logging.info("✅ Imported Redis models from edge_processing.redis_models")
     except ImportError:
-        logging.error("Could not import Redis models")
+        logging.error("Could not import Redis models from either location")
+        RedisDataManager = None
+
+# Verify we have the required classes
+if RedisDataManager is None:
+    logging.error("❌ RedisDataManager not available - consolidator cannot start")
+    import sys
+    sys.exit(1)
 
 # Setup logging
 logging.basicConfig(
