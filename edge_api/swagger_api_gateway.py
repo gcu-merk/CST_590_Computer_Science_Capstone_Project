@@ -357,64 +357,7 @@ class SwaggerAPIGateway:
         
         # Weather namespace
         weather_ns = Namespace('weather', description='Weather monitoring and analysis endpoints', path='/api')
-        
-        @weather_ns.route('/weather')
-        class CurrentWeather(Resource):
-            @weather_ns.doc('get_current_weather')
-            @weather_ns.marshal_with(self.api.models['WeatherData'])
-            @weather_ns.response(200, 'Success', self.api.models['WeatherData'])
-            @weather_ns.response(500, 'Internal Server Error', self.api.models['ErrorResponse'])
-            def get(self):
-                """Get current weather conditions and sky analysis
-                
-                Returns comprehensive weather data from multiple sources including
-                DHT22 sensor readings, airport weather station data, and sky condition analysis.
-                """
-                try:
-                    weather_data = {
-                        'timestamp': datetime.now().isoformat(),
-                        'current_conditions': {},
-                        'dht22_sensor': {},
-                        'airport_data': {},
-                        'analysis': {}
-                    }
-                    
-                    # Get DHT22 sensor data from Redis
-                    redis_client = current_app.redis_client if hasattr(current_app, 'redis_client') else None
-                    if redis_client:
-                        try:
-                            dht22_data = redis_client.get('weather:dht22:latest')
-                            if dht22_data:
-                                weather_data['dht22_sensor'] = json.loads(dht22_data)
-                        except Exception as e:
-                            logger.warning(f"DHT22 data retrieval error: {e}")
-                        
-                        # Get airport weather data from Redis
-                        try:
-                            airport_data = redis_client.get('weather:airport:latest')
-                            if airport_data:
-                                weather_data['airport_data'] = json.loads(airport_data)
-                        except Exception as e:
-                            logger.warning(f"Airport weather data retrieval error: {e}")
-                    
-                    # Get sky analysis if available
-                    if self.sky_analyzer:
-                        try:
-                            sky_conditions = self.sky_analyzer.get_current_conditions()
-                            weather_data['analysis'] = sky_conditions
-                        except Exception as e:
-                            logger.warning(f"Sky analyzer error: {e}")
-                    
-                    return weather_data
-                    
-                except Exception as e:
-                    logger.error(f"Weather endpoint error: {e}")
-                    return {
-                        'error': str(e),
-                        'status_code': 500,
-                        'timestamp': datetime.now().isoformat()
-                    }, 500
-        
+
         @weather_ns.route('/weather/airport')
         class AirportWeather(Resource):
             @weather_ns.doc('get_airport_weather')
