@@ -38,19 +38,18 @@ except ImportError:
 RedisDataManager = None
 VehicleDetection = None
 VehicleType = None
-BoundingBox = None
 RedisKeys = None
 
 try:
     from redis_models import (
-        VehicleDetection, VehicleType, BoundingBox, 
+        VehicleDetection, VehicleType, 
         RedisDataManager, RedisKeys
     )
     logging.info("✅ Imported Redis models from redis_models")
 except ImportError:
     try:
         from edge_processing.redis_models import (
-            VehicleDetection, VehicleType, BoundingBox, 
+            VehicleDetection, VehicleType, 
             RedisDataManager, RedisKeys
         )
         logging.info("✅ Imported Redis models from edge_processing.redis_models")
@@ -405,13 +404,12 @@ class VehicleDetectionConsolidator:
                 timestamp=detection_data.get('timestamp', time.time()),
                 vehicle_type=VehicleType(detection_data.get('vehicle_type', 'unknown')),
                 confidence=detection_data.get('confidence', 0.0),
-                bounding_box=BoundingBox(
-                    x=detection_data['bounding_box']['x1'],
-                    y=detection_data['bounding_box']['y1'],
-                    width=detection_data['bounding_box']['width'],
-                    height=detection_data['bounding_box']['height'],
-                    confidence=detection_data.get('confidence', 0.0)
-                ),
+                bounding_box={
+                    'x': detection_data['bounding_box']['x1'],
+                    'y': detection_data['bounding_box']['y1'],
+                    'width': detection_data['bounding_box']['width'],
+                    'height': detection_data['bounding_box']['height']
+                },
                 image_id=detection_data.get('image_id', ''),
                 additional_metadata={
                     'inference_source': detection_data.get('inference_source', 'imx500_on_chip'),
