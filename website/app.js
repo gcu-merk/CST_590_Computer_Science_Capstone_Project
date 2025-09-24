@@ -375,7 +375,8 @@ class TrafficDashboard {
                 if (dht22Response.ok) {
                     const dht22Data = await dht22Response.json();
                     if (dht22Data.data) {
-                        combinedWeatherData.temperature = dht22Data.data.temperature_f || dht22Data.data.temperature;
+                        combinedWeatherData.temperature_f = dht22Data.data.temperature_f;
+                        combinedWeatherData.temperature_c = dht22Data.data.temperature_c;
                         combinedWeatherData.humidity = dht22Data.data.humidity;
                         hasValidData = true;
                         console.log('✅ DHT22 weather data loaded successfully');
