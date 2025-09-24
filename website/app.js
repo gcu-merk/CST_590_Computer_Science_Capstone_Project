@@ -361,16 +361,48 @@ class TrafficDashboard {
                 console.error('❌ Analytics API error:', error.message);
             }
             
-            // Load weather data
+            // Load weather data from individual endpoints
             try {
-                const weatherResponse = await fetch(`${this.apiBaseUrl}/weather`);
-                if (weatherResponse.ok) {
-                    const weatherData = await weatherResponse.json();
-                    this.updateWeatherData(weatherData);
-                    console.log('✅ Weather data loaded successfully');
+                const [dht22Response, airportResponse] = await Promise.all([
+                    fetch(`${this.apiBaseUrl}/weather/dht22`),
+                    fetch(`${this.apiBaseUrl}/weather/airport`)
+                ]);
+
+                let combinedWeatherData = {};
+                let hasValidData = false;
+
+                // Process DHT22 sensor data
+                if (dht22Response.ok) {
+                    const dht22Data = await dht22Response.json();
+                    if (dht22Data.success && dht22Data.data) {
+                        combinedWeatherData.temperature = dht22Data.data.temperature;
+                        combinedWeatherData.humidity = dht22Data.data.humidity;
+                        hasValidData = true;
+                        console.log('✅ DHT22 weather data loaded successfully');
+                    }
                 } else {
-                    console.error(`❌ Weather API failed: ${weatherResponse.status}`);
-                    document.getElementById('temperature').textContent = `Error ${weatherResponse.status}`;
+                    console.error(`❌ DHT22 Weather API failed: ${dht22Response.status}`);
+                }
+
+                // Process airport weather data
+                if (airportResponse.ok) {
+                    const airportData = await airportResponse.json();
+                    if (airportData.success && airportData.data) {
+                        combinedWeatherData.weather_description = airportData.data.weather_description;
+                        combinedWeatherData.sky_condition = airportData.data.sky_condition;
+                        hasValidData = true;
+                        console.log('✅ Airport weather data loaded successfully');
+                    }
+                } else {
+                    console.error(`❌ Airport Weather API failed: ${airportResponse.status}`);
+                }
+
+                if (hasValidData) {
+                    this.updateWeatherData(combinedWeatherData);
+                    console.log('✅ Combined weather data processed successfully');
+                } else {
+                    console.error('❌ No valid weather data from either endpoint');
+                    document.getElementById('temperature').textContent = 'No Data';
                 }
             } catch (error) {
                 console.error('❌ Weather API error:', error.message);
@@ -500,25 +532,63 @@ class TrafficDashboard {
             return;
         }
         
-        // Update temperature if available
-        if (weatherData.data && weatherData.data.temperature) {
+        // Update temperature if available - handle multiple API formats
+        let temperature = null;
+        let tempDisplay = 'No Temp Data';
+        
+        if (weatherData.temperature_f) {
+            // New API format - temperature_f directly available
+            temperature = weatherData.temperature_f;
+            tempDisplay = `${Math.round(temperature)}°F`;
+        } else if (weatherData.temperature_c) {
+            // New API format - convert from Celsius
+            const tempF = Math.round(weatherData.temperature_c * 9/5 + 32);
+            tempDisplay = `${tempF}°F`;
+            temperature = tempF;
+        } else if (weatherData.data && weatherData.data.temperature) {
+            // Legacy API format - nested temperature
             const tempF = Math.round(weatherData.data.temperature * 9/5 + 32);
-            document.getElementById('temperature').textContent = `${tempF}°F`;
-            console.log(`📊 Updated temperature: ${tempF}°F`);
+            tempDisplay = `${tempF}°F`;
+            temperature = tempF;
         } else if (weatherData.temperature) {
-            // Handle direct temperature field
+            // Legacy API format - direct temperature field
             const tempF = Math.round(weatherData.temperature * 9/5 + 32);
-            document.getElementById('temperature').textContent = `${tempF}°F`;
-            console.log(`📊 Updated temperature: ${tempF}°F`);
+            tempDisplay = `${tempF}°F`;
+            temperature = tempF;
+        }
+        
+        document.getElementById('temperature').textContent = tempDisplay;
+        
+        if (temperature) {
+            console.log(`📊 Updated temperature: ${tempDisplay}`);
         } else {
-            document.getElementById('temperature').textContent = 'No Temp Data';
             console.log('📊 No temperature data in weather response');
         }
         
         // Update weather condition display if element exists
         const weatherElement = document.getElementById('weather-condition');
-        if (weatherElement && weatherData.sky_condition) {
-            weatherElement.textContent = weatherData.sky_condition.condition || 'Unknown';
+        if (weatherElement) {
+            if (weatherData.weather_description) {
+                weatherElement.textContent = weatherData.weather_description;
+            } else if (weatherData.sky_condition && weatherData.sky_condition.condition) {
+                weatherElement.textContent = weatherData.sky_condition.condition;
+            } else {
+                weatherElement.textContent = 'Unknown';
+            }
+        }
+        
+        // Update additional weather info in the metric trend if available
+        const weatherTrend = document.querySelector('.metric-card.weather .metric-trend');
+        if (weatherTrend) {
+            let trendText = 'Clear conditions';  // default
+            
+            if (weatherData.weather_description) {
+                trendText = weatherData.weather_description;
+            } else if (weatherData.humidity) {
+                trendText = `Humidity: ${Math.round(weatherData.humidity)}%`;
+            }
+            
+            weatherTrend.textContent = trendText;
         }
     }
     
