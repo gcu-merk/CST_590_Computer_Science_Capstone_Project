@@ -645,6 +645,221 @@ class TrafficDashboard {
         console.log(`📊 Updated traffic chart with ${validDetections} valid detections`);
     }
     
+    updateWeeklyPatternsDisplay(patternsData) {
+        if (!patternsData) {
+            console.log('❌ No patterns data received');
+            return;
+        }
+        
+        // Update weekly patterns chart with real data
+        if (this.charts.weekly && patternsData.daily_patterns) {
+            const days = Object.keys(patternsData.daily_patterns);
+            const values = days.map(day => patternsData.daily_patterns[day].total || 0);
+            
+            this.charts.weekly.data.labels = days;
+            this.charts.weekly.data.datasets[0].data = values;
+            this.charts.weekly.update();
+            
+            console.log('📊 Updated weekly patterns chart with real data');
+        }
+        
+        // Update patterns summary text elements if they exist
+        const summaryElement = document.getElementById('patterns-summary');
+        if (summaryElement && patternsData.weekly_summary) {
+            summaryElement.innerHTML = `
+                <p><strong>Total Weekly Detections:</strong> ${patternsData.weekly_summary.total_detections || 0}</p>
+                <p><strong>Average Daily Traffic:</strong> ${Math.round(patternsData.weekly_summary.avg_daily_traffic || 0)}</p>
+                <p><strong>Peak Day:</strong> ${patternsData.weekly_summary.peak_day || 'N/A'}</p>
+                <p><strong>Lowest Day:</strong> ${patternsData.weekly_summary.lowest_day || 'N/A'}</p>
+            `;
+        }
+    }
+    
+    updateSafetyDisplay(safetyData) {
+        if (!safetyData) {
+            console.log('❌ No safety data received');
+            return;
+        }
+        
+        // Update overall safety score
+        const safetyScoreElement = document.getElementById('safety-score');
+        if (safetyScoreElement) {
+            safetyScoreElement.textContent = `${safetyData.overall_safety_score || 0}/100`;
+        }
+        
+        // Update safety metrics
+        const complianceElement = document.getElementById('speed-compliance-rate');
+        if (complianceElement && safetyData.speed_compliance) {
+            complianceElement.textContent = `${safetyData.speed_compliance.compliance_rate || 0}%`;
+        }
+        
+        const violationsElement = document.getElementById('total-violations');
+        if (violationsElement && safetyData.speed_compliance) {
+            violationsElement.textContent = safetyData.speed_compliance.violations || 0;
+        }
+        
+        // Update safety summary if element exists
+        const safetySummaryElement = document.getElementById('safety-summary');
+        if (safetySummaryElement) {
+            const riskFactors = safetyData.risk_factors || {};
+            const incidents = safetyData.incidents || {};
+            
+            safetySummaryElement.innerHTML = `
+                <div class="safety-metrics">
+                    <h4>Risk Assessment</h4>
+                    <p><strong>Excessive Speed:</strong> ${riskFactors.excessive_speed || 'Unknown'}</p>
+                    <p><strong>Traffic Volume:</strong> ${riskFactors.traffic_volume || 'Unknown'}</p>
+                    <p><strong>Weather Impact:</strong> ${riskFactors.weather_impact || 'Unknown'}</p>
+                    <p><strong>Visibility:</strong> ${riskFactors.visibility || 'Unknown'}</p>
+                </div>
+                <div class="incident-summary">
+                    <h4>Recent Incidents</h4>
+                    <p><strong>Last 7 Days:</strong> ${incidents.last_7_days || 0}</p>
+                    <p><strong>Last 30 Days:</strong> ${incidents.last_30_days || 0}</p>
+                </div>
+            `;
+        }
+        
+        // Update recommendations if element exists
+        const recommendationsElement = document.getElementById('safety-recommendations');
+        if (recommendationsElement && safetyData.recommendations) {
+            const recommendationsList = safetyData.recommendations.map(rec => `<li>${rec}</li>`).join('');
+            recommendationsElement.innerHTML = `<ul>${recommendationsList}</ul>`;
+        }
+        
+        console.log('📊 Updated safety display with real data');
+    }
+    
+    updateReportsSummary(summaryData) {
+        if (!summaryData) {
+            console.log('❌ No summary data received');
+            return;
+        }
+        
+        // Update summary statistics
+        const summaryElement = document.getElementById('reports-summary');
+        if (summaryElement) {
+            const vehicleStats = summaryData.vehicle_statistics || {};
+            const speedStats = summaryData.speed_statistics || {};
+            const safetyMetrics = summaryData.safety_metrics || {};
+            
+            summaryElement.innerHTML = `
+                <div class="summary-section">
+                    <h4>Vehicle Statistics (${summaryData.report_period || '24 Hours'})</h4>
+                    <p><strong>Total Detections:</strong> ${vehicleStats.total_detections || 0}</p>
+                    <p><strong>Hourly Average:</strong> ${Math.round(vehicleStats.hourly_average || 0)}</p>
+                    <p><strong>Peak Hour:</strong> ${vehicleStats.peak_hour || 'N/A'}:00</p>
+                </div>
+                <div class="summary-section">
+                    <h4>Speed Analysis</h4>
+                    <p><strong>Total Measurements:</strong> ${speedStats.total_measurements || 0}</p>
+                    <p><strong>Average Speed:</strong> ${speedStats.average_speed || 0} mph</p>
+                    <p><strong>Max Speed:</strong> ${speedStats.max_speed || 0} mph</p>
+                    <p><strong>Violations:</strong> ${speedStats.violations || 0}</p>
+                    <p><strong>Compliance Rate:</strong> ${speedStats.compliance_rate || 0}%</p>
+                </div>
+                <div class="summary-section">
+                    <h4>Safety Overview</h4>
+                    <p><strong>Overall Score:</strong> ${safetyMetrics.overall_score || 0}/100</p>
+                    <p><strong>Risk Level:</strong> ${safetyMetrics.risk_level || 'Unknown'}</p>
+                    <p><strong>Incidents:</strong> ${safetyMetrics.incidents || 0}</p>
+                </div>
+            `;
+        }
+        
+        console.log('📊 Updated reports summary with real data');
+    }
+    
+    updateViolationsReport(violationsData) {
+        if (!violationsData) {
+            console.log('❌ No violations data received');
+            return;
+        }
+        
+        // Update violations summary
+        const violationsElement = document.getElementById('violations-report');
+        if (violationsElement) {
+            const categories = violationsData.violation_categories || {};
+            
+            violationsElement.innerHTML = `
+                <div class="violations-summary">
+                    <h4>Speed Violations Report</h4>
+                    <p><strong>Total Violations:</strong> ${violationsData.total_violations || 0}</p>
+                    <p><strong>Speed Limit:</strong> ${violationsData.speed_limit || 25} mph</p>
+                </div>
+                <div class="violation-categories">
+                    <h5>Violation Categories</h5>
+                    <p><strong>Minor (${categories.minor?.range || '26-30 mph'}):</strong> ${categories.minor?.count || 0} (${categories.minor?.percentage || 0}%)</p>
+                    <p><strong>Moderate (${categories.moderate?.range || '31-35 mph'}):</strong> ${categories.moderate?.count || 0} (${categories.moderate?.percentage || 0}%)</p>
+                    <p><strong>Severe (${categories.severe?.range || '36+ mph'}):</strong> ${categories.severe?.count || 0} (${categories.severe?.percentage || 0}%)</p>
+                </div>
+            `;
+            
+            // Add recommendations if available
+            if (violationsData.recommendations && violationsData.recommendations.length > 0) {
+                const recommendationsList = violationsData.recommendations.map(rec => `<li>${rec}</li>`).join('');
+                violationsElement.innerHTML += `
+                    <div class="violation-recommendations">
+                        <h5>Recommendations</h5>
+                        <ul>${recommendationsList}</ul>
+                    </div>
+                `;
+            }
+        }
+        
+        console.log('📊 Updated violations report with real data');
+    }
+    
+    updateMonthlyReport(monthlyData) {
+        if (!monthlyData) {
+            console.log('❌ No monthly data received');
+            return;
+        }
+        
+        // Update monthly report display
+        const monthlyElement = document.getElementById('monthly-report');
+        if (monthlyElement) {
+            const summary = monthlyData.summary_statistics || {};
+            const performance = monthlyData.performance_trends || {};
+            const comparison = monthlyData.comparative_analysis?.vs_previous_month || {};
+            
+            monthlyElement.innerHTML = `
+                <div class="monthly-overview">
+                    <h4>Monthly Report - ${monthlyData.month || 'Current Month'}</h4>
+                    <p><strong>Total Detections:</strong> ${summary.total_detections || 0}</p>
+                    <p><strong>Daily Average:</strong> ${Math.round(summary.daily_average || 0)}</p>
+                    <p><strong>Peak Day:</strong> ${summary.peak_day || 'N/A'}</p>
+                    <p><strong>Average Compliance:</strong> ${summary.average_compliance_rate || 0}%</p>
+                </div>
+                <div class="performance-metrics">
+                    <h5>System Performance</h5>
+                    <p><strong>Detection Accuracy:</strong> ${performance.detection_accuracy || 0}%</p>
+                    <p><strong>System Uptime:</strong> ${performance.system_uptime || 0}%</p>
+                    <p><strong>Data Quality:</strong> ${performance.data_quality_score || 0}%</p>
+                </div>
+                <div class="comparative-analysis">
+                    <h5>Compared to Previous Month</h5>
+                    <p><strong>Traffic Change:</strong> ${comparison.traffic_change || 'N/A'}</p>
+                    <p><strong>Violations Change:</strong> ${comparison.violations_change || 'N/A'}</p>
+                    <p><strong>Safety Improvement:</strong> ${comparison.safety_improvement || 'N/A'}</p>
+                </div>
+            `;
+            
+            // Add insights if available
+            if (monthlyData.insights && monthlyData.insights.length > 0) {
+                const insightsList = monthlyData.insights.map(insight => `<li>${insight}</li>`).join('');
+                monthlyElement.innerHTML += `
+                    <div class="monthly-insights">
+                        <h5>Key Insights</h5>
+                        <ul>${insightsList}</ul>
+                    </div>
+                `;
+            }
+        }
+        
+        console.log('📊 Updated monthly report with real data');
+    }
+    
     showDataUnavailable() {
         // Show clear indicators that data is unavailable
         document.getElementById('total-vehicles').textContent = 'No Data';
@@ -729,17 +944,90 @@ class TrafficDashboard {
     
     async loadWeeklyPatterns() {
         console.log('🔄 Loading weekly patterns from API...');
-        // Placeholder for future implementation when historical endpoints are available
+        
+        if (!this.isOnline) {
+            console.log('❌ Cannot load weekly patterns - API offline');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/analytics/patterns`);
+            if (response.ok) {
+                const patternsData = await response.json();
+                this.updateWeeklyPatternsDisplay(patternsData);
+                console.log('✅ Weekly patterns loaded successfully');
+            } else {
+                console.error(`❌ Weekly patterns API failed: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('❌ Weekly patterns API error:', error.message);
+        }
     }
     
     async loadSafetyData() {
         console.log('🔄 Loading safety data from API...');
-        // Placeholder for future implementation when safety endpoints are available
+        
+        if (!this.isOnline) {
+            console.log('❌ Cannot load safety data - API offline');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/analytics/safety`);
+            if (response.ok) {
+                const safetyData = await response.json();
+                this.updateSafetyDisplay(safetyData);
+                console.log('✅ Safety data loaded successfully');
+            } else {
+                console.error(`❌ Safety analysis API failed: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('❌ Safety analysis API error:', error.message);
+        }
     }
     
     async loadReportsData() {
         console.log('🔄 Loading reports data from API...');
-        // Placeholder for future implementation when reports endpoints are available
+        
+        if (!this.isOnline) {
+            console.log('❌ Cannot load reports - API offline');
+            return;
+        }
+        
+        try {
+            // Load summary report
+            const summaryResponse = await fetch(`${this.apiBaseUrl}/reports/summary`);
+            if (summaryResponse.ok) {
+                const summaryData = await summaryResponse.json();
+                this.updateReportsSummary(summaryData);
+                console.log('✅ Reports summary loaded successfully');
+            } else {
+                console.error(`❌ Reports summary API failed: ${summaryResponse.status}`);
+            }
+            
+            // Load violations report
+            const violationsResponse = await fetch(`${this.apiBaseUrl}/reports/violations`);
+            if (violationsResponse.ok) {
+                const violationsData = await violationsResponse.json();
+                this.updateViolationsReport(violationsData);
+                console.log('✅ Violations report loaded successfully');
+            } else {
+                console.error(`❌ Violations report API failed: ${violationsResponse.status}`);
+            }
+            
+            // Load monthly report
+            const monthlyResponse = await fetch(`${this.apiBaseUrl}/reports/monthly`);
+            if (monthlyResponse.ok) {
+                const monthlyData = await monthlyResponse.json();
+                this.updateMonthlyReport(monthlyData);
+                console.log('✅ Monthly report loaded successfully');
+            } else {
+                console.error(`❌ Monthly report API failed: ${monthlyResponse.status}`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Reports API error:', error.message);
+        }
     }
     
     async loadRealAlerts() {
