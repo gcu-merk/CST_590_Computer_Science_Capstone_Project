@@ -448,7 +448,7 @@ class SharedVolumeImageProvider:
                     "details": str(e)
                 }
             
-            # Check age of newest image
+            # Check age of newest image (relaxed for maintenance mode)
             newest_file = image_files[0]
             try:
                 image_age = time.time() - newest_file.stat().st_mtime
@@ -461,14 +461,11 @@ class SharedVolumeImageProvider:
                     "details": str(e)
                 }
             
+            # Only warn about old images, don't fail the check
+            # This allows maintenance services to work even when camera is inactive
             if image_age > max_age_seconds:
-                logger.warning(f"Latest image too old: {image_age:.1f}s > {max_age_seconds:.1f}s")
-                return False, None, {
-                    "error": "image_too_old",
-                    "image_age_seconds": image_age,
-                    "max_age_seconds": max_age_seconds,
-                    "filename": newest_file.name
-                }
+                logger.debug(f"Latest image age: {image_age:.1f}s > {max_age_seconds:.1f}s (maintenance mode)")
+                # Continue processing instead of returning error
             
             # Load the image with proper error handling
             try:
