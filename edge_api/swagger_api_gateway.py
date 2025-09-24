@@ -209,23 +209,45 @@ class SwaggerAPIGateway:
                     
                     detections = []
                     
-                    if self.vehicle_detection_service:
-                        try:
-                            vehicle_detections = self.vehicle_detection_service.get_recent_detections(seconds)
-                            detections.extend([
-                                {
-                                    'id': d.detection_id,
-                                    'timestamp': d.timestamp.isoformat() if hasattr(d.timestamp, 'isoformat') else str(d.timestamp),
-                                    'confidence': d.confidence,
-                                    'bbox': d.bbox,
-                                    'vehicle_type': getattr(d, 'vehicle_type', 'unknown'),
-                                    'direction': getattr(d, 'direction', None),
-                                    'lane': getattr(d, 'lane', None)
-                                }
-                                for d in vehicle_detections
-                            ])
-                        except AttributeError as e:
-                            logger.warning(f"Vehicle detection service method missing: {e}")
+                    # Get data from Redis persistence layer
+                    try:
+                        import redis
+                        import json
+                        from datetime import datetime, timedelta
+                        
+                        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                        
+                        # Calculate time range
+                        end_time = datetime.now()
+                        start_time = end_time - timedelta(seconds=seconds)
+                        
+                        # Get detection keys from Redis
+                        detection_keys = r.keys('detection:*')
+                        
+                        for key in detection_keys:
+                            try:
+                                detection_data = r.hgetall(key)
+                                if detection_data and 'timestamp' in detection_data:
+                                    detection_time = datetime.fromisoformat(detection_data['timestamp'])
+                                    
+                                    if start_time <= detection_time <= end_time:
+                                        detections.append({
+                                            'id': detection_data.get('detection_id', key.split(':')[1]),
+                                            'timestamp': detection_data['timestamp'],
+                                            'confidence': float(detection_data.get('confidence', 0.0)),
+                                            'bbox': json.loads(detection_data.get('bbox', '[]')) if detection_data.get('bbox') else [],
+                                            'vehicle_type': detection_data.get('vehicle_type', 'unknown'),
+                                            'direction': detection_data.get('direction'),
+                                            'lane': detection_data.get('lane')
+                                        })
+                            except (ValueError, json.JSONDecodeError) as e:
+                                logger.warning(f"Invalid detection data in key {key}: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.warning(f"Could not access Redis for detections: {e}")
+                        # Return empty data instead of error to maintain API compatibility
+                        pass
                     
                     return {
                         'detections': detections,
@@ -322,24 +344,49 @@ class SwaggerAPIGateway:
                     
                     speeds = []
                     
-                    if self.speed_analysis_service:
-                        try:
-                            speed_detections = self.speed_analysis_service.get_recent_detections(seconds)
-                            speeds.extend([
-                                {
-                                    'id': s.detection_id,
-                                    'start_time': s.start_time.isoformat() if hasattr(s.start_time, 'isoformat') else str(s.start_time),
-                                    'end_time': s.end_time.isoformat() if hasattr(s.end_time, 'isoformat') else str(s.end_time),
-                                    'avg_speed_mps': s.avg_speed_mps,
-                                    'avg_speed_mph': s.avg_speed_mps * 2.237 if s.avg_speed_mps else None,
-                                    'max_speed_mps': s.max_speed_mps,
-                                    'direction': s.direction,
-                                    'confidence': s.confidence
-                                }
-                                for s in speed_detections
-                            ])
-                        except AttributeError as e:
-                            logger.warning(f"Speed service method missing: {e}")
+                    # Get data from Redis persistence layer
+                    try:
+                        import redis
+                        import json
+                        from datetime import datetime, timedelta
+                        
+                        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                        
+                        # Calculate time range
+                        end_time = datetime.now()
+                        start_time = end_time - timedelta(seconds=seconds)
+                        
+                        # Get speed measurement keys from Redis
+                        speed_keys = r.keys('speed:*')
+                        
+                        for key in speed_keys:
+                            try:
+                                speed_data = r.hgetall(key)
+                                if speed_data and 'timestamp' in speed_data:
+                                    speed_time = datetime.fromisoformat(speed_data['timestamp'])
+                                    
+                                    if start_time <= speed_time <= end_time:
+                                        avg_speed_mps = float(speed_data.get('avg_speed_mps', 0))
+                                        avg_speed_mph = avg_speed_mps * 2.237 if avg_speed_mps else 0
+                                        
+                                        speeds.append({
+                                            'id': speed_data.get('detection_id', key.split(':')[1]),
+                                            'start_time': speed_data.get('start_time', speed_data['timestamp']),
+                                            'end_time': speed_data.get('end_time', speed_data['timestamp']),
+                                            'avg_speed_mps': avg_speed_mps,
+                                            'avg_speed_mph': avg_speed_mph,
+                                            'max_speed_mps': float(speed_data.get('max_speed_mps', avg_speed_mps)),
+                                            'direction': speed_data.get('direction'),
+                                            'confidence': float(speed_data.get('confidence', 0.0))
+                                        })
+                            except (ValueError, json.JSONDecodeError) as e:
+                                logger.warning(f"Invalid speed data in key {key}: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.warning(f"Could not access Redis for speeds: {e}")
+                        # Return empty data instead of error to maintain API compatibility
+                        pass
                     
                     return {
                         'speeds': speeds,
@@ -513,14 +560,78 @@ class SwaggerAPIGateway:
                         'speed_distribution': {}
                     }
                     
-                    # Calculate analytics from recent data
-                    if self.data_fusion_engine:
-                        try:
-                            fusion_stats = self.data_fusion_engine.get_track_statistics()
-                            if isinstance(fusion_stats, dict):
-                                analytics.update(fusion_stats)
-                        except AttributeError as e:
-                            logger.warning(f"Data fusion statistics method missing: {e}")
+                    # Calculate analytics from Redis data
+                    try:
+                        import redis
+                        import json
+                        from datetime import datetime, timedelta
+                        from collections import defaultdict
+                        
+                        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                        
+                        # Calculate time range based on period
+                        end_time = datetime.now()
+                        if period == 'hour':
+                            start_time = end_time - timedelta(hours=1)
+                        elif period == 'day':
+                            start_time = end_time - timedelta(days=1)
+                        else:  # week
+                            start_time = end_time - timedelta(weeks=1)
+                        
+                        # Get detection data
+                        detection_keys = r.keys('detection:*')
+                        vehicle_count = 0
+                        hourly_counts = defaultdict(int)
+                        
+                        for key in detection_keys:
+                            try:
+                                detection_data = r.hgetall(key)
+                                if detection_data and 'timestamp' in detection_data:
+                                    detection_time = datetime.fromisoformat(detection_data['timestamp'])
+                                    if start_time <= detection_time <= end_time:
+                                        vehicle_count += 1
+                                        hour = detection_time.hour
+                                        hourly_counts[str(hour)] += 1
+                            except (ValueError, json.JSONDecodeError):
+                                continue
+                        
+                        # Get speed data
+                        speed_keys = r.keys('speed:*')
+                        speeds = []
+                        speed_violations = 0
+                        speed_bins = defaultdict(int)
+                        
+                        for key in speed_keys:
+                            try:
+                                speed_data = r.hgetall(key)
+                                if speed_data and 'timestamp' in speed_data:
+                                    speed_time = datetime.fromisoformat(speed_data['timestamp'])
+                                    if start_time <= speed_time <= end_time:
+                                        speed_val = float(speed_data.get('avg_speed_mps', 0)) * 2.237  # Convert to MPH
+                                        speeds.append(speed_val)
+                                        if speed_val > 25:  # Speed limit violation
+                                            speed_violations += 1
+                                        
+                                        # Speed distribution binning
+                                        speed_bin = f"{int(speed_val//5)*5}-{int(speed_val//5)*5+5}"
+                                        speed_bins[speed_bin] += 1
+                            except (ValueError, json.JSONDecodeError):
+                                continue
+                        
+                        # Update analytics
+                        analytics.update({
+                            'vehicle_count': vehicle_count,
+                            'avg_speed': sum(speeds) / len(speeds) if speeds else 0.0,
+                            'speed_violations': speed_violations,
+                            'detection_rate': vehicle_count / max(1, (end_time - start_time).total_seconds() / 3600),  # vehicles per hour
+                            'hourly_distribution': dict(hourly_counts),
+                            'speed_distribution': dict(speed_bins)
+                        })
+                        
+                    except Exception as e:
+                        logger.warning(f"Could not access Redis for analytics: {e}")
+                        # Return default analytics instead of error
+                        pass
                     
                     return analytics
                     
