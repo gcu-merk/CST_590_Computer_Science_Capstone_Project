@@ -94,8 +94,8 @@ jobs:
           fi
           
           # Validate network configuration
-          if ! docker compose -f docker-compose.yml config | grep -q "traffic-monitoring-network"; then
-            echo "Traffic monitoring network not found in docker-compose.yml"
+          if ! docker compose -f docker-compose.yml config | grep -q "app-network"; then
+            echo "App network not found in docker-compose.yml"
             exit 1
           fi
           
