@@ -117,6 +117,33 @@ jobs:
         run: |
           echo "Setting up deployment staging and ensuring persistent directories exist..."
           
+          # ===== SSD MOUNT VALIDATION =====
+          echo "Validating SSD mount at /mnt/storage..."
+          
+          # Check if /mnt/storage is mounted and accessible
+          if ! mountpoint -q /mnt/storage; then
+            echo "ERROR: /mnt/storage is not a mount point"
+            echo "Available mounts:"
+            mount | grep -E "(mnt|storage|ssd)" || true
+            echo "Checking /mnt directory:"
+            ls -la /mnt/ || true
+            echo "The SSD needs to be mounted at /mnt/storage before deployment"
+            exit 1
+          fi
+          
+          # Test write access to SSD
+          if ! echo "test" > /mnt/storage/.write_test 2>/dev/null; then
+            echo "ERROR: Cannot write to /mnt/storage (SSD mount)"
+            echo "Mount info:"
+            mount | grep /mnt/storage || true
+            echo "Permissions:"
+            ls -la /mnt/storage || true
+            rm -f /mnt/storage/.write_test 2>/dev/null || true
+            exit 1
+          fi
+          rm -f /mnt/storage/.write_test
+          echo "✓ SSD mount at /mnt/storage is ready and writable"
+          
           # ===== DEPLOYMENT STAGING SETUP =====
           echo "Ensuring clean staging environment..."
           
