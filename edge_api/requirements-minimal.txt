@@ -1,0 +1,41 @@
+# Minimal Edge API Requirements - Optimized for Fast Builds
+# Only essential dependencies for the API service (no ML libraries)
+
+# Core Flask and API frameworks
+flask==3.0.3
+flask-cors==4.0.1  
+flask-restx==1.3.0
+flask-socketio==5.3.6
+
+# Data storage and caching
+redis==5.0.1
+
+# Configuration and environment management
+python-decouple==3.8
+dataclasses-json==0.6.7
+
+# Data validation and processing (lightweight)
+pydantic==2.5.3
+marshmallow==3.21.3
+
+# Date and time handling
+python-dateutil==2.9.0
+
+# Template rendering
+Jinja2==3.1.4
+
+# HTTP client
+requests==2.32.3
+
+# Security (ARM64 compatible)
+cryptography==42.0.8
+
+# Development and testing (optional - can be excluded in prod)
+pytest==8.2.2
+pytest-flask==1.3.0
+
+# Logging
+structlog==24.2.0
+
+# Basic utilities only (no heavy scientific computing)
+pytz==2024.1

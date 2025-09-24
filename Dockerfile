@@ -86,8 +86,8 @@ COPY edge_processing/requirements-cloud.txt /app/edge_processing/
 COPY edge_processing/requirements-pi.txt /app/edge_processing/
 COPY edge_api/requirements.txt /app/edge_api/
 
-# Install Python dependencies (cloud-compatible only)
-RUN pip install --no-cache-dir -r edge_processing/requirements-cloud.txt
+# Install Python dependencies (API-focused for faster builds)
+# Use minimal requirements to avoid heavy ML libraries (TensorFlow, PyTorch)
 RUN pip install --no-cache-dir -r edge_api/requirements.txt
 
 # Try to install Pi-specific dependencies (may fail in non-Pi environments)
