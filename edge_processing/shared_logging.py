@@ -96,6 +96,55 @@ class ServiceLogger:
         """Get configured logger instance"""
         return self.logger
     
+    # Delegation methods for standard logging interface
+    def info(self, message: str, *args, **kwargs):
+        """Log info message"""
+        self.logger.info(message, *args, **kwargs)
+    
+    def error(self, message: str, *args, **kwargs):
+        """Log error message"""
+        self.logger.error(message, *args, **kwargs)
+    
+    def warning(self, message: str, *args, **kwargs):
+        """Log warning message"""
+        self.logger.warning(message, *args, **kwargs)
+    
+    def debug(self, message: str, *args, **kwargs):
+        """Log debug message"""
+        self.logger.debug(message, *args, **kwargs)
+    
+    def monitor_performance(self, operation_name: str):
+        """Decorator for performance monitoring"""
+        import functools
+        import time
+        
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                start_time = time.time()
+                try:
+                    result = func(*args, **kwargs)
+                    duration = (time.time() - start_time) * 1000  # Convert to milliseconds
+                    self.logger.info(f"Performance monitoring: {operation_name} completed", extra={
+                        "operation": operation_name,
+                        "duration_ms": round(duration, 2),
+                        "business_event": "performance_monitoring",
+                        "status": "success"
+                    })
+                    return result
+                except Exception as e:
+                    duration = (time.time() - start_time) * 1000
+                    self.logger.error(f"Performance monitoring: {operation_name} failed", extra={
+                        "operation": operation_name,
+                        "duration_ms": round(duration, 2),
+                        "business_event": "performance_monitoring",
+                        "status": "error",
+                        "error": str(e)
+                    })
+                    raise
+            return wrapper
+        return decorator
+    
     def log_service_start(self, config: Dict[str, Any] = None):
         """Log service startup with configuration"""
         self.logger.info("🚀 Service starting", extra={
@@ -181,8 +230,14 @@ class StructuredFormatter(logging.Formatter):
         return console_format
 
 
+import threading
+from typing import Optional
+
 class CorrelationContext:
     """Context manager for correlation ID tracking"""
+    
+    # Thread-local storage for correlation IDs
+    _local = threading.local()
     
     def __init__(self, logger: ServiceLogger, correlation_id: str = None):
         self.logger = logger
@@ -192,15 +247,51 @@ class CorrelationContext:
     def __enter__(self):
         self.previous_id = self.logger.correlation_id
         self.logger.set_correlation_id(self.correlation_id)
+        # Store in thread-local storage for static access
+        CorrelationContext._local.correlation_id = self.correlation_id
         return self.correlation_id
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.logger.set_correlation_id(self.previous_id)
+        # Restore previous ID in thread-local storage
+        CorrelationContext._local.correlation_id = self.previous_id
     
     def _generate_correlation_id(self) -> str:
         """Generate unique correlation ID"""
         import uuid
         return str(uuid.uuid4())[:8]
+    
+    @staticmethod
+    def set_correlation_id(correlation_id: str):
+        """Static method to set correlation ID and return context manager"""
+        # Store in thread-local storage
+        CorrelationContext._local.correlation_id = correlation_id
+        # Return context manager for 'with' statement compatibility
+        return CorrelationContextManager(correlation_id)
+    
+    @staticmethod  
+    def get_correlation_id() -> Optional[str]:
+        """Static method to get current correlation ID"""
+        return getattr(CorrelationContext._local, 'correlation_id', None)
+
+
+class CorrelationContextManager:
+    """Simple context manager for static correlation ID usage"""
+    
+    def __init__(self, correlation_id: str):
+        self.correlation_id = correlation_id
+        self.previous_id = None
+    
+    def __enter__(self):
+        self.previous_id = CorrelationContext.get_correlation_id()
+        CorrelationContext._local.correlation_id = self.correlation_id
+        return self.correlation_id
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.previous_id is not None:
+            CorrelationContext._local.correlation_id = self.previous_id
+        elif hasattr(CorrelationContext._local, 'correlation_id'):
+            delattr(CorrelationContext._local, 'correlation_id')
 
 
 # Global logger instances for each service

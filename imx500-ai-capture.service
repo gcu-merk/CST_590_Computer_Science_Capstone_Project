@@ -9,7 +9,7 @@ Type=simple
 User=merk
 Group=merk
 WorkingDirectory=/mnt/storage/traffic-monitor-deploy
-ExecStart=/usr/bin/python3 /mnt/storage/traffic-monitor-deploy/scripts/imx500_ai_host_capture.py
+ExecStart=/usr/bin/python3 /mnt/storage/traffic-monitor-deploy/scripts/imx500_ai_host_capture_enhanced.py
 Restart=always
 RestartSec=10
 
@@ -20,6 +20,11 @@ Environment=CAPTURE_INTERVAL=1.0
 Environment=AI_CONFIDENCE_THRESHOLD=0.5
 Environment=REDIS_HOST=localhost
 Environment=REDIS_PORT=6379
+
+# Centralized logging configuration
+Environment=LOG_LEVEL=INFO
+Environment=LOG_DIR=/mnt/storage/logs
+Environment=SERVICE_NAME=imx500_camera
 
 # Street ROI configuration (filters out parked cars in driveways and cross street)
 Environment=STREET_ROI_X_START=0.15

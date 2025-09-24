@@ -1,0 +1,611 @@
+#!/usr/bin/env python3
+"""
+Enhanced Swagger-Enabled Edge API Gateway - WITH CENTRALIZED LOGGING
+Flask-RESTX server providing documented REST API endpoints for the traffic monitoring system
+NOW WITH CENTRALIZED LOGGING AND CORRELATION TRACKING
+
+This enhanced API gateway provides:
+- Comprehensive REST API endpoints with Swagger documentation
+- Request/response correlation tracking across all endpoints
+- Performance monitoring for API calls and database queries
+- Centralized logging with business event tracking
+- Real-time WebSocket communication with correlation
+- System health monitoring and diagnostics
+- Error tracking and API analytics
+
+Architecture:
+HTTP Requests -> Enhanced API Gateway -> ServiceLogger -> Redis/Database -> Centralized Logging
+"""
+
+from flask import Flask, jsonify, request, send_file, g
+from flask_restx import Api, Resource, Namespace, reqparse
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
+import time
+import threading
+import json
+import os
+import subprocess
+import socket
+import platform
+import sys
+import uuid
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+from pathlib import Path
+import functools
+
+# Add edge_processing to path for shared_logging
+current_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(current_dir / "edge_processing"))
+from shared_logging import ServiceLogger, CorrelationContext
+
+# Import our Swagger configuration and models
+from swagger_config import API_CONFIG, create_api_models, QUERY_PARAMS, RESPONSE_EXAMPLES
+from api_models import (
+    get_model_registry, system_health_schema, vehicle_detections_response_schema,
+    speed_detections_response_schema, weather_response_schema, traffic_analytics_schema,
+    tracks_response_schema, error_response_schema, time_range_query_schema,
+    analytics_query_schema, weather_history_query_schema
+)
+
+# Initialize centralized logging
+logger = ServiceLogger("api_gateway_service")
+
+# Request correlation decorator
+def with_correlation_tracking(f):
+    """Decorator to add correlation tracking to API endpoints"""
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Generate or use existing correlation ID
+        correlation_id = request.headers.get('X-Correlation-ID') or str(uuid.uuid4())[:8]
+        
+        with CorrelationContext.set_correlation_id(correlation_id):
+            # Log request start
+            logger.info("API request started", extra={
+                "business_event": "api_request_start",
+                "correlation_id": correlation_id,
+                "endpoint": request.endpoint,
+                "method": request.method,
+                "path": request.path,
+                "query_params": dict(request.args),
+                "user_agent": request.headers.get('User-Agent'),
+                "client_ip": request.remote_addr
+            })
+            
+            start_time = time.time()
+            try:
+                # Execute the endpoint
+                result = f(*args, **kwargs)
+                
+                # Log successful response
+                duration_ms = (time.time() - start_time) * 1000
+                logger.info("API request completed successfully", extra={
+                    "business_event": "api_request_success",
+                    "correlation_id": correlation_id,
+                    "endpoint": request.endpoint,
+                    "method": request.method,
+                    "duration_ms": round(duration_ms, 2),
+                    "response_type": type(result).__name__
+                })
+                
+                # Add correlation ID to response headers
+                if hasattr(result, 'headers'):
+                    result.headers['X-Correlation-ID'] = correlation_id
+                elif isinstance(result, tuple):
+                    # Handle Flask tuple responses (data, status_code, headers)
+                    if len(result) == 3:
+                        data, status, headers = result
+                        headers = headers or {}
+                        headers['X-Correlation-ID'] = correlation_id
+                        result = (data, status, headers)
+                    elif len(result) == 2:
+                        data, status = result
+                        headers = {'X-Correlation-ID': correlation_id}
+                        result = (data, status, headers)
+                
+                return result
+                
+            except Exception as e:
+                # Log error response
+                duration_ms = (time.time() - start_time) * 1000
+                logger.error("API request failed", extra={
+                    "business_event": "api_request_failure",
+                    "correlation_id": correlation_id,
+                    "endpoint": request.endpoint,
+                    "method": request.method,
+                    "duration_ms": round(duration_ms, 2),
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                })
+                raise
+                
+    return decorated_function
+
+
+class EnhancedSwaggerAPIGateway:
+    """
+    Enhanced Swagger-enabled API gateway with centralized logging and correlation tracking
+    Provides documented REST endpoints and WebSocket communication with full observability
+    """
+    
+    def __init__(self, host='0.0.0.0', port=5000):
+        self.host = host
+        self.port = port
+        
+        # Statistics tracking
+        self.stats = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "avg_response_time_ms": 0.0,
+            "active_connections": 0,
+            "start_time": datetime.now().isoformat()
+        }
+        
+        # Initialize Flask app
+        self.app = Flask(__name__)
+        self.app.config['SECRET_KEY'] = 'traffic_monitoring_edge_api_enhanced'
+        self.app.config['RESTX_MASK_SWAGGER'] = False
+        
+        # Enable CORS for cross-origin requests
+        CORS(self.app)
+        
+        # Initialize Flask-RESTX API with Swagger configuration
+        self.api = Api(
+            self.app,
+            version=API_CONFIG['version'],
+            title=API_CONFIG['title'] + " - Enhanced",
+            description=API_CONFIG['description'] + " (with centralized logging)",
+            doc=API_CONFIG['doc'],
+            contact=API_CONFIG['contact'],
+            license=API_CONFIG['license'],
+            tags=API_CONFIG['tags'],
+            validate=True
+        )
+        
+        # Register models with API
+        self._register_models()
+        
+        # Initialize SocketIO with correlation tracking
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        self._setup_socketio_correlation()
+        
+        # Service references
+        self.vehicle_detection_service = None
+        self.speed_analysis_service = None
+        self.data_fusion_engine = None
+        self.system_health_monitor = None
+        self.sky_analyzer = None
+        self.system_status = None
+        self.weather_storage = None
+        
+        # Runtime state
+        self.is_running = False
+        self.client_count = 0
+        
+        # Initialize Redis client with enhanced logging
+        self.redis_client = None
+        self._setup_redis_connection()
+        
+        # Setup route handlers with correlation tracking
+        self._setup_enhanced_routes()
+        
+        # Setup request/response middleware
+        self._setup_middleware()
+        
+        logger.info("Enhanced API gateway initialized", extra={
+            "business_event": "api_gateway_initialization",
+            "host": self.host,
+            "port": self.port,
+            "redis_available": self.redis_client is not None
+        })
+    
+    def _setup_redis_connection(self):
+        """Setup Redis connection with enhanced logging"""
+        try:
+            import redis
+            redis_host = os.environ.get('REDIS_HOST', 'redis')
+            redis_port = int(os.environ.get('REDIS_PORT', 6379))
+            
+            self.redis_client = redis.Redis(
+                host=redis_host, 
+                port=redis_port, 
+                db=0, 
+                decode_responses=True
+            )
+            
+            # Test connection
+            self.redis_client.ping()
+            
+            logger.info("Redis connection established", extra={
+                "business_event": "redis_connection_established",
+                "redis_host": redis_host,
+                "redis_port": redis_port
+            })
+            
+        except ImportError:
+            logger.warning("Redis library not available", extra={
+                "business_event": "redis_unavailable",
+                "reason": "import_error"
+            })
+        except Exception as e:
+            logger.error("Redis connection failed", extra={
+                "business_event": "redis_connection_failure",
+                "error": str(e),
+                "redis_host": os.environ.get('REDIS_HOST', 'redis')
+            })
+    
+    def _setup_socketio_correlation(self):
+        """Setup WebSocket event handlers with correlation tracking"""
+        
+        @self.socketio.on('connect')
+        def handle_connect():
+            correlation_id = str(uuid.uuid4())[:8]
+            
+            with CorrelationContext.set_correlation_id(correlation_id):
+                self.client_count += 1
+                self.stats["active_connections"] = self.client_count
+                
+                logger.info("WebSocket client connected", extra={
+                    "business_event": "websocket_connection",
+                    "correlation_id": correlation_id,
+                    "client_id": request.sid,
+                    "active_connections": self.client_count
+                })
+                
+                # Send connection confirmation with correlation ID
+                emit('connected', {
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now().isoformat()
+                })
+        
+        @self.socketio.on('disconnect')
+        def handle_disconnect():
+            correlation_id = str(uuid.uuid4())[:8]
+            
+            with CorrelationContext.set_correlation_id(correlation_id):
+                self.client_count = max(0, self.client_count - 1)
+                self.stats["active_connections"] = self.client_count
+                
+                logger.info("WebSocket client disconnected", extra={
+                    "business_event": "websocket_disconnection",
+                    "correlation_id": correlation_id,
+                    "client_id": request.sid,
+                    "active_connections": self.client_count
+                })
+    
+    def _setup_middleware(self):
+        """Setup request/response middleware for logging and stats"""
+        
+        @self.app.before_request
+        def before_request():
+            g.start_time = time.time()
+            self.stats["total_requests"] += 1
+        
+        @self.app.after_request
+        def after_request(response):
+            # Update response time statistics
+            if hasattr(g, 'start_time'):
+                duration_ms = (time.time() - g.start_time) * 1000
+                
+                # Update average response time
+                if self.stats["successful_requests"] > 0:
+                    current_avg = self.stats["avg_response_time_ms"]
+                    new_avg = ((current_avg * (self.stats["successful_requests"] - 1)) + duration_ms) / self.stats["successful_requests"]
+                    self.stats["avg_response_time_ms"] = round(new_avg, 2)
+                else:
+                    self.stats["avg_response_time_ms"] = round(duration_ms, 2)
+            
+            if response.status_code < 400:
+                self.stats["successful_requests"] += 1
+            else:
+                self.stats["failed_requests"] += 1
+            
+            # Add server headers
+            response.headers['X-API-Gateway'] = 'Enhanced-Traffic-Monitor'
+            response.headers['X-API-Version'] = API_CONFIG['version']
+            
+            return response
+    
+    def _register_models(self):
+        """Register Swagger models with enhanced logging"""
+        try:
+            model_registry = get_model_registry()
+            
+            for model_name, model_schema in model_registry.items():
+                self.api.models[model_name] = self.api.model(model_name, model_schema)
+            
+            logger.info("API models registered successfully", extra={
+                "business_event": "api_models_registered",
+                "model_count": len(model_registry)
+            })
+            
+        except Exception as e:
+            logger.error("Failed to register API models", extra={
+                "business_event": "api_models_registration_failure",
+                "error": str(e)
+            })
+    
+    def _setup_enhanced_routes(self):
+        """Setup API routes with enhanced logging and correlation tracking"""
+        
+        # Create namespaces
+        health_ns = self.api.namespace('health', description='System health and monitoring')
+        vehicle_ns = self.api.namespace('vehicles', description='Vehicle detection and tracking')
+        weather_ns = self.api.namespace('weather', description='Weather data and monitoring')
+        analytics_ns = self.api.namespace('analytics', description='Traffic analytics and insights')
+        
+        # Health endpoints
+        @health_ns.route('/system')
+        class SystemHealth(Resource):
+            @with_correlation_tracking
+            @health_ns.marshal_with(system_health_schema)
+            def get(self):
+                """Get comprehensive system health status"""
+                try:
+                    health_data = self._get_system_health()
+                    
+                    logger.debug("System health check completed", extra={
+                        "business_event": "system_health_check",
+                        "cpu_usage": health_data.get("cpu_usage"),
+                        "memory_usage": health_data.get("memory_usage"),
+                        "disk_usage": health_data.get("disk_usage")
+                    })
+                    
+                    return health_data
+                    
+                except Exception as e:
+                    logger.error("System health check failed", extra={
+                        "business_event": "system_health_check_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
+        @health_ns.route('/stats')
+        class APIStats(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get API gateway statistics"""
+                try:
+                    stats_data = {
+                        **self.stats,
+                        "uptime_seconds": (datetime.now() - datetime.fromisoformat(self.stats["start_time"])).total_seconds(),
+                        "success_rate": (self.stats["successful_requests"] / max(1, self.stats["total_requests"])) * 100
+                    }
+                    
+                    logger.debug("API statistics retrieved", extra={
+                        "business_event": "api_stats_retrieved",
+                        "total_requests": stats_data["total_requests"],
+                        "success_rate": stats_data["success_rate"]
+                    })
+                    
+                    return stats_data
+                    
+                except Exception as e:
+                    logger.error("Failed to retrieve API statistics", extra={
+                        "business_event": "api_stats_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
+        # Vehicle detection endpoints
+        @vehicle_ns.route('/detections')
+        class VehicleDetections(Resource):
+            @with_correlation_tracking
+            @vehicle_ns.marshal_with(vehicle_detections_response_schema)
+            def get(self):
+                """Get recent vehicle detections"""
+                try:
+                    detections = self._get_vehicle_detections()
+                    
+                    logger.debug("Vehicle detections retrieved", extra={
+                        "business_event": "vehicle_detections_retrieved",
+                        "detection_count": len(detections.get("detections", []))
+                    })
+                    
+                    return detections
+                    
+                except Exception as e:
+                    logger.error("Failed to retrieve vehicle detections", extra={
+                        "business_event": "vehicle_detections_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
+        # Weather endpoints
+        @weather_ns.route('/current')
+        class CurrentWeather(Resource):
+            @with_correlation_tracking
+            @weather_ns.marshal_with(weather_response_schema)
+            def get(self):
+                """Get current weather conditions"""
+                try:
+                    weather_data = self._get_current_weather()
+                    
+                    logger.debug("Current weather retrieved", extra={
+                        "business_event": "weather_data_retrieved",
+                        "temperature": weather_data.get("temperature"),
+                        "humidity": weather_data.get("humidity"),
+                        "data_sources": len(weather_data.get("sources", []))
+                    })
+                    
+                    return weather_data
+                    
+                except Exception as e:
+                    logger.error("Failed to retrieve weather data", extra={
+                        "business_event": "weather_data_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
+        # Store reference to self for route methods
+        self._bind_route_methods(health_ns, vehicle_ns, weather_ns, analytics_ns)
+    
+    def _bind_route_methods(self, *namespaces):
+        """Bind route handler methods to self"""
+        # This allows the route handlers to access self methods
+        for resource_class in [cls for ns in namespaces for cls in ns.resources]:
+            for method_name in dir(resource_class):
+                method = getattr(resource_class, method_name)
+                if callable(method) and not method_name.startswith('_'):
+                    # Bind self to method if it needs gateway access
+                    if hasattr(method, '__self__') is False:
+                        setattr(resource_class, '_gateway', self)
+    
+    @logger.monitor_performance("system_health_check")
+    def _get_system_health(self) -> Dict[str, Any]:
+        """Get comprehensive system health status with monitoring"""
+        import psutil
+        
+        # Get system metrics
+        cpu_usage = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Check service health
+        redis_healthy = self.redis_client is not None
+        if redis_healthy:
+            try:
+                self.redis_client.ping()
+            except:
+                redis_healthy = False
+        
+        return {
+            "status": "healthy" if cpu_usage < 80 and memory.percent < 85 else "warning",
+            "timestamp": datetime.now().isoformat(),
+            "cpu_usage": cpu_usage,
+            "memory_usage": memory.percent,
+            "disk_usage": disk.percent,
+            "redis_healthy": redis_healthy,
+            "api_stats": self.stats,
+            "system_info": {
+                "platform": platform.platform(),
+                "python_version": sys.version,
+                "hostname": socket.gethostname()
+            }
+        }
+    
+    @logger.monitor_performance("vehicle_detections_query")
+    def _get_vehicle_detections(self) -> Dict[str, Any]:
+        """Get recent vehicle detections with monitoring"""
+        detections = []
+        
+        if self.redis_client:
+            try:
+                # Get recent vehicle detections from Redis
+                detection_keys = self.redis_client.keys("vehicle:detection:*")
+                
+                for key in detection_keys[-10:]:  # Get last 10 detections
+                    detection_data = self.redis_client.hgetall(key)
+                    if detection_data:
+                        detections.append(detection_data)
+                
+            except Exception as e:
+                logger.warning("Failed to retrieve detections from Redis", extra={
+                    "error": str(e)
+                })
+        
+        return {
+            "detections": detections,
+            "total_count": len(detections),
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    @logger.monitor_performance("weather_data_query") 
+    def _get_current_weather(self) -> Dict[str, Any]:
+        """Get current weather data from multiple sources with monitoring"""
+        weather_sources = {}
+        
+        if self.redis_client:
+            try:
+                # Get DHT22 sensor data
+                dht22_data = self.redis_client.hgetall("weather:dht22")
+                if dht22_data:
+                    weather_sources["dht22"] = dht22_data
+                
+                # Get airport weather data
+                airport_data = self.redis_client.get("weather:airport:latest")
+                if airport_data:
+                    weather_sources["airport"] = json.loads(airport_data)
+                
+                # Get weather correlation
+                correlation_data = self.redis_client.get("weather:correlation:airport_dht22")
+                if correlation_data:
+                    weather_sources["correlation"] = json.loads(correlation_data)
+                
+            except Exception as e:
+                logger.warning("Failed to retrieve weather data from Redis", extra={
+                    "error": str(e)
+                })
+        
+        return {
+            "sources": weather_sources,
+            "primary_temperature": weather_sources.get("dht22", {}).get("temperature"),
+            "primary_humidity": weather_sources.get("dht22", {}).get("humidity"),
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    def run(self, debug=False):
+        """Run the enhanced API gateway with logging"""
+        try:
+            logger.info("Starting enhanced API gateway server", extra={
+                "business_event": "api_gateway_start",
+                "host": self.host,
+                "port": self.port,
+                "debug_mode": debug
+            })
+            
+            self.is_running = True
+            
+            # Run the SocketIO server
+            self.socketio.run(
+                self.app,
+                host=self.host,
+                port=self.port,
+                debug=debug,
+                use_reloader=False  # Disable reloader to prevent double initialization
+            )
+            
+        except Exception as e:
+            logger.error("API gateway server failed to start", extra={
+                "business_event": "api_gateway_start_failure",
+                "error": str(e),
+                "host": self.host,
+                "port": self.port
+            })
+            raise
+        finally:
+            self.is_running = False
+            logger.info("API gateway server stopped", extra={
+                "business_event": "api_gateway_stop",
+                "final_stats": self.stats
+            })
+
+
+def main():
+    """Main entry point for enhanced API gateway"""
+    try:
+        # Configuration from environment
+        host = os.environ.get('API_HOST', '0.0.0.0')
+        port = int(os.environ.get('API_PORT', 5000))
+        debug = os.environ.get('API_DEBUG', 'false').lower() == 'true'
+        
+        # Create and run enhanced gateway
+        gateway = EnhancedSwaggerAPIGateway(host=host, port=port)
+        gateway.run(debug=debug)
+        
+    except KeyboardInterrupt:
+        logger.info("API gateway shutdown requested by user", extra={
+            "business_event": "api_gateway_manual_shutdown"
+        })
+    except Exception as e:
+        logger.error("API gateway failed to start", extra={
+            "business_event": "api_gateway_startup_failure",
+            "error": str(e)
+        })
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,175 @@
+# Cloud-Native Logging Best Practices - Docker Compose
+# Demonstrates industry-standard logging architecture
+
+version: '3.8'
+
+services:
+  # ===== APPLICATION SERVICES =====
+  # Each service logs ONLY to stdout/stderr (no file mounts)
+  
+  radar-service:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: radar-service
+    command: ["python", "radar_service.py"]
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    # NO LOG VOLUME MOUNTS - stdout/stderr only
+    devices:
+      - /dev/ttyAMA0:/dev/ttyAMA0
+    depends_on:
+      - redis
+      - fluentd  # Log aggregator
+    restart: unless-stopped
+    networks:
+      - app-network
+    # Route logs to Fluentd (best practice)
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: radar-service
+        labels: service,environment
+        
+  vehicle-consolidator:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: vehicle-consolidator
+    command: ["python", "vehicle_consolidator_service.py"]
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+      - fluentd
+    restart: unless-stopped
+    networks:
+      - app-network
+    # Cloud-native logging
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: vehicle-consolidator
+        
+  # ===== INFRASTRUCTURE SERVICES =====
+  
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - app-network
+    # Infrastructure logs can still use default Docker logging
+    
+  # ===== LOG AGGREGATION STACK (Best Practice) =====
+  
+  # Fluentd - Log collection and processing
+  fluentd:
+    image: fluent/fluentd:v1.16-1
+    container_name: fluentd
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes:
+      # Configuration only - no log files
+      - ./config/fluentd.conf:/fluentd/etc/fluent.conf:ro
+      # Output to persistent storage if needed
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/var/log/output
+    environment:
+      - FLUENTD_CONF=fluent.conf
+    networks:
+      - app-network
+      - logging-network
+    restart: unless-stopped
+    
+  # Elasticsearch - Log storage and indexing
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - logging-network
+    restart: unless-stopped
+    
+  # Kibana - Log visualization and dashboards
+  kibana:
+    image: kibana:8.11.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=traffic-monitoring-logs
+    depends_on:
+      - elasticsearch
+    networks:
+      - logging-network
+    restart: unless-stopped
+    
+  # Grafana - Metrics and alerting (optional)
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana:/etc/grafana/provisioning
+    networks:
+      - logging-network
+    restart: unless-stopped
+
+# ===== VOLUMES =====
+volumes:
+  elasticsearch_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ===== NETWORKS =====
+networks:
+  app-network:
+    driver: bridge
+  logging-network:
+    driver: bridge
+
+# ===== BEST PRACTICES DEMONSTRATED =====
+#
+# ✅ Application Separation:
+#   - Apps log to stdout/stderr only
+#   - No file system coupling
+#   - Clean container boundaries
+#
+# ✅ Log Aggregation:
+#   - Fluentd collects from all services
+#   - Centralized processing and routing
+#   - Structured log parsing
+#
+# ✅ Storage & Search:
+#   - Elasticsearch for log indexing
+#   - Kibana for visualization
+#   - Grafana for metrics/alerting
+#
+# ✅ Scalability:
+#   - Services can scale independently
+#   - Log infrastructure scales separately
+#   - No shared file system bottlenecks
+#
+# ✅ Cloud Ready:
+#   - Works in Kubernetes
+#   - Compatible with cloud log services
+#   - Follows 12-factor app principles

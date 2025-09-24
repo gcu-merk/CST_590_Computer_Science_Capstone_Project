@@ -16,29 +16,10 @@ services:
       timeout: 3s
       retries: 3
 
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    environment:
-      - POSTGRES_DB=traffic_monitoring
-      - POSTGRES_USER=traffic_user
-      - POSTGRES_PASSWORD=traffic_password
-    ports:
-      - "5433:5432"  # Use external port 5433 to avoid conflict with system PostgreSQL
-    volumes:
-      - ${POSTGRES_DATA_PATH:-/mnt/storage/postgres_data}:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U traffic_user -d traffic_monitoring"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   traffic-monitor:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: traffic-monitor
+    command: ["python", "edge_api/edge_api_gateway_enhanced.py"]
     ports:
       - "5000:5000"
     environment:
@@ -46,10 +27,15 @@ services:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - POSTGRES_HOST=postgres
-      - POSTGRES_DB=traffic_monitoring
-      - POSTGRES_USER=traffic_user
-      - POSTGRES_PASSWORD=traffic_password
+      # Enhanced API Gateway Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=5000
+      - API_DEBUG=false
+      # Centralized Logging Configuration
+      - SERVICE_NAME=api_gateway_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/camera_capture:/app/camera_capture
       - ${STORAGE_ROOT:-/mnt/storage}/processed_data:/app/processed_data
@@ -57,8 +43,6 @@ services:
       - ${STORAGE_ROOT:-/mnt/storage}/ai_camera_images:/app/ai_camera_images
     depends_on:
       redis:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -74,10 +58,6 @@ services:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - POSTGRES_HOST=postgres
-      - POSTGRES_DB=traffic_monitoring
-      - POSTGRES_USER=traffic_user
-      - POSTGRES_PASSWORD=traffic_password
       - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
       - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
       - MAINTENANCE_LOG_MAX_AGE_DAYS=30
@@ -88,8 +68,6 @@ services:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
     depends_on:
       redis:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -105,12 +83,16 @@ services:
   airport-weather:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: airport-weather
-    command: ["python", "-m", "edge_processing.airport_weather_service"]
+    command: ["python", "-m", "edge_processing.airport_weather_service_enhanced"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # Centralized logging configuration
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - SERVICE_NAME=airport_weather
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
     depends_on:
@@ -132,13 +114,17 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dht22-weather
-    command: ["python", "-m", "edge_processing.dht_22_weather_service"]
+    command: ["python", "-m", "edge_processing.dht_22_weather_service_enhanced"]
     environment:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DHT22_GPIO_PIN=4
       - DHT22_UPDATE_INTERVAL=600
+      # Centralized logging configuration
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - SERVICE_NAME=dht22_weather
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - /sys:/sys:ro
@@ -181,8 +167,12 @@ services:
       - REDIS_PORT=6379
       - RADAR_UART_PORT=/dev/ttyAMA0
       - RADAR_BAUD_RATE=19200
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/radar-service:/app/logs/radar-service
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/correlation:/app/logs/correlation
       - /dev:/dev
     devices:
       - /dev/ttyAMA0:/dev/ttyAMA0  # UART for OPS243-C radar
@@ -224,8 +214,12 @@ services:
       - REDIS_PORT=6379
       - DATA_RETENTION_HOURS=24
       - STATS_UPDATE_INTERVAL=60
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/vehicle-consolidator:/app/logs/vehicle-consolidator
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/correlation:/app/logs/correlation
     depends_on:
       redis:
         condition: service_healthy
@@ -264,36 +258,70 @@ services:
   database-persistence:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: database-persistence
-    command: ["python", "-m", "edge_processing.data_persistence.database_persistence_service"]
+    command: ["python", "-m", "edge_processing.data_persistence.database_persistence_service_simplified"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - POSTGRES_HOST=postgres
-      - POSTGRES_DB=traffic_monitoring
-      - POSTGRES_USER=traffic_user
-      - POSTGRES_PASSWORD=traffic_password
       - DATABASE_PATH=/app/data/traffic_data.db
+      # SQLite Database Configuration
+      - BATCH_SIZE=100
+      - COMMIT_INTERVAL_SEC=30
+      - RETENTION_DAYS=90
+      # Centralized Logging Configuration
+      - SERVICE_NAME=database_persistence_service
       - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - ${STORAGE_ROOT:-/mnt/storage}/data:/app/data
     depends_on:
       redis:
         condition: service_healthy
-      postgres:
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f database_persistence_service_simplified > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  redis-optimization:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: redis-optimization
+    command: ["python", "-m", "edge_processing.data_persistence.redis_optimization_service_enhanced"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Redis Optimization Configuration
+      - OPTIMIZATION_INTERVAL=3600
+      - MEMORY_THRESHOLD_MB=1000
+      # Centralized Logging Configuration
+      - SERVICE_NAME=redis_optimization_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    depends_on:
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f database_persistence_service > /dev/null"]
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f redis_optimization_service > /dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
 
 networks:
   app-network:
