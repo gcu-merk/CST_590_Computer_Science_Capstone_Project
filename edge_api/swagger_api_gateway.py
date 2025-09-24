@@ -20,7 +20,17 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional
 
-# Import our Swagger configuration and models
+# Import our best practices modules
+from .config import config, setup_logging
+from .error_handling import (
+    ValidationError, DataSourceError, NotFoundError,
+    api_error_handler, safe_operation, register_error_handlers
+)
+from .services import (
+    get_detection_service, get_speed_service, get_analytics_service
+)
+
+# Import our Swagger configuration and models  
 from swagger_config import API_CONFIG, create_api_models, QUERY_PARAMS, RESPONSE_EXAMPLES
 from api_models import (
     get_model_registry, system_health_schema, vehicle_detections_response_schema,
@@ -29,9 +39,24 @@ from api_models import (
     analytics_query_schema, weather_history_query_schema
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Setup logging from config
+setup_logging()
 logger = logging.getLogger(__name__)
+
+# Optional imports with graceful fallback
+try:
+    from flask_socketio import SocketIO, emit
+    WEBSOCKET_SUPPORT = True
+except ImportError:
+    WEBSOCKET_SUPPORT = False
+    logger.warning("Flask-SocketIO not available, WebSocket features disabled")
+
+try:
+    from flask_cors import CORS
+    CORS_SUPPORT = True
+except ImportError:
+    CORS_SUPPORT = False
+    logger.warning("Flask-CORS not available, CORS features disabled")
 
 class SwaggerAPIGateway:
     """
@@ -40,17 +65,26 @@ class SwaggerAPIGateway:
     """
     
     def __init__(self, host='0.0.0.0', port=5000):
-        self.host = host
-        self.port = port
+        self.host = host or config.api.host
+        self.port = port or config.api.port
         
-        # Initialize Flask app
+        # Initialize Flask app with configuration
         self.app = Flask(__name__)
-        self.app.config['SECRET_KEY'] = 'traffic_monitoring_edge_api'
-        self.app.config['RESTX_MASK_SWAGGER'] = False
-        self.app.config['gateway_instance'] = self  # Store reference for health checks
+        self.app.config.update({
+            'SECRET_KEY': config.security.secret_key,
+            'RESTX_MASK_SWAGGER': False,
+            'TESTING': config.api.debug_mode,
+            'DEBUG': config.api.debug_mode
+        })
         
-        # Enable CORS for cross-origin requests
-        CORS(self.app)
+        # Store reference for health checks
+        self.app.config['gateway_instance'] = self
+        
+        # Enable CORS for cross-origin requests if available
+        if CORS_SUPPORT:
+            CORS(self.app, origins=config.api.cors_origins)
+        else:
+            logger.warning("CORS support not available - cross-origin requests may fail")
         
         # Initialize Flask-RESTX API with Swagger configuration
         self.api = Api(
@@ -65,13 +99,21 @@ class SwaggerAPIGateway:
             validate=True
         )
         
+        # Register error handlers
+        register_error_handlers(self.app, self.api)
+        
         # Register models with API
         self._register_models()
         
-        # Initialize SocketIO
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        # Initialize SocketIO if available
+        self.socketio = None
+        if WEBSOCKET_SUPPORT:
+            self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+            logger.info("WebSocket support enabled")
+        else:
+            logger.warning("WebSocket support not available")
         
-        # Service references
+        # Service references (legacy compatibility)
         self.vehicle_detection_service = None
         self.speed_analysis_service = None
         self.data_fusion_engine = None
@@ -84,22 +126,18 @@ class SwaggerAPIGateway:
         self.is_running = False
         self.client_count = 0
         
-        # Initialize Redis client with error handling
+        # Initialize Redis client through data access layer
         self.redis_client = None
         try:
-            import redis
-            # Use Docker hostname for Redis if available
-            redis_host = os.environ.get('REDIS_HOST', 'redis')
-            self.redis_client = redis.Redis(host=redis_host, port=6379, db=0, decode_responses=True)
-            # Test connection
-            self.redis_client.ping()
-            logger.info(f"Redis connection established to host: {redis_host}")
-            # Attach to Flask app for access in endpoints
+            from .data_access import get_redis_client
+            self.redis_client = get_redis_client()
+            # Store in app context for backward compatibility
             self.app.redis_client = self.redis_client
+            logger.info(f"Redis connection established successfully to {config.database.redis_host}:{config.database.redis_port}")
         except ImportError:
-            logger.warning("Redis not available - weather:latest endpoint will not work")
+            logger.warning("Redis not available - some endpoints may not work properly")
         except Exception as e:
-            logger.warning(f"Redis connection failed: {e} - weather:latest endpoint will not work")
+            logger.warning(f"Redis connection failed: {e} - some endpoints may not work properly")
         
         # Setup namespaces and routes
         self._setup_namespaces()
@@ -189,131 +227,27 @@ class SwaggerAPIGateway:
             @detection_ns.response(200, 'Success', self.api.models['VehicleDetectionsResponse'])
             @detection_ns.response(400, 'Bad Request', self.api.models['ErrorResponse'])
             @detection_ns.response(500, 'Internal Server Error', self.api.models['ErrorResponse'])
+            @safe_operation
             def get(self):
                 """Get recent vehicle detections
                 
-                Retrieves vehicle detection data from the specified time period.
-                Includes bounding boxes, confidence scores, vehicle classifications,
-                and movement directions.
+                Retrieves vehicle detection data from radar stream with improved processing.
+                Includes confidence scores, vehicle classifications, and detection metadata.
                 """
-                try:
-                    args = detection_parser.parse_args()
-                    seconds = args['seconds']
-                    
-                    if not (1 <= seconds <= 86400):
-                        return {
-                            'error': 'Invalid seconds parameter. Must be between 1 and 86400.',
-                            'status_code': 400,
-                            'timestamp': datetime.now().isoformat()
-                        }, 400
-                    
-                    detections = []
-                    
-                    # Get data from Redis persistence layer (radar stream for vehicle detections)
-                    try:
-                        import redis
-                        import json
-                        from datetime import datetime, timedelta
-                        
-                        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-                        
-                        # Calculate time range
-                        end_time = datetime.now()
-                        start_time = end_time - timedelta(seconds=seconds)
-                        start_ts_ms = int(start_time.timestamp() * 1000)
-                        end_ts_ms = int(end_time.timestamp() * 1000)
-                        
-                        # Get vehicle detections from radar stream
-                        try:
-                            # Read from radar_data stream within time range
-                            stream_data = r.xrange('radar_data', min=start_ts_ms, max=end_ts_ms, count=1000)
-                            
-                            # Group radar data by time windows to identify distinct vehicle detections
-                            detection_windows = {}
-                            
-                            for entry_id, fields in stream_data:
-                                try:
-                                    current_range = float(fields.get('range', 0))
-                                    timestamp_ms = int(entry_id.split('-')[0])
-                                    detection_time = datetime.fromtimestamp(timestamp_ms / 1000)
-                                    
-                                    # Group detections by 5-second windows to avoid counting same vehicle multiple times
-                                    window_key = int(timestamp_ms / 1000) // 5  # 5-second windows
-                                    
-                                    if window_key not in detection_windows:
-                                        detection_windows[window_key] = {
-                                            'timestamp': detection_time,
-                                            'range': current_range,
-                                            'entry_count': 1
-                                        }
-                                    else:
-                                        detection_windows[window_key]['entry_count'] += 1
-                                        
-                                except (ValueError, TypeError) as e:
-                                    logger.warning(f"Invalid radar stream entry {entry_id}: {e}")
-                                    continue
-                            
-                            # Convert detection windows to detection objects
-                            for window_key, window_data in detection_windows.items():
-                                # Only count windows with significant radar activity (likely vehicle presence)
-                                if window_data['entry_count'] >= 3:  # At least 3 radar pings in 5 seconds
-                                    detections.append({
-                                        'id': f"radar_detection_{window_key}",
-                                        'timestamp': window_data['timestamp'].isoformat(),
-                                        'confidence': min(0.95, 0.5 + (window_data['entry_count'] / 20)),  # More pings = higher confidence
-                                        'bbox': [],  # Radar doesn't provide bounding boxes
-                                        'vehicle_type': 'vehicle',  # Radar detects vehicles generically
-                                        'direction': 'unknown',
-                                        'lane': 'unknown',
-                                        'source': 'radar',
-                                        'range': window_data['range'],
-                                        'ping_count': window_data['entry_count']
-                                    })
-                                    
-                        except Exception as e:
-                            logger.warning(f"Could not read radar stream: {e}")
-                            
-                            # Fallback: Use radar stats for basic detection count
-                            try:
-                                radar_stats = r.hgetall('radar_stats')
-                                detection_count = int(radar_stats.get('detection_count', 0))
-                                last_detection = radar_stats.get('last_detection')
-                                
-                                if last_detection and detection_count > 0:
-                                    last_detection_time = datetime.fromtimestamp(float(last_detection))
-                                    if start_time <= last_detection_time <= end_time:
-                                        detections.append({
-                                            'id': f"radar_summary_{int(last_detection_time.timestamp())}",
-                                            'timestamp': last_detection_time.isoformat(),
-                                            'confidence': 0.9,
-                                            'bbox': [],
-                                            'vehicle_type': 'vehicle',
-                                            'direction': 'unknown',
-                                            'lane': 'unknown',
-                                            'source': 'radar_stats',
-                                            'total_count': detection_count
-                                        })
-                            except (ValueError, TypeError) as e:
-                                logger.warning(f"Could not parse radar stats: {e}")
-                                
-                    except Exception as e:
-                        logger.warning(f"Could not access Redis for detections: {e}")
-                        # Return empty data instead of error to maintain API compatibility
-                        pass
-                    
-                    return {
-                        'detections': detections,
-                        'count': len(detections),
-                        'timespan_seconds': seconds
-                    }
-                    
-                except Exception as e:
-                    logger.error(f"Detections endpoint error: {e}")
-                    return {
-                        'error': str(e),
-                        'status_code': 500,
-                        'timestamp': datetime.now().isoformat()
-                    }, 500
+                args = detection_parser.parse_args()
+                seconds = args.get('seconds', 3600)
+                
+                # Get detections from service layer
+                detection_service = get_detection_service()
+                result = detection_service.get_detections(
+                    period_seconds=seconds,
+                    limit=1000
+                )
+                
+                # Add backward compatibility fields
+                result['timespan_seconds'] = seconds
+                
+                return result
         
         @detection_ns.route('/tracks')
         class VehicleTracks(Resource):
@@ -377,132 +311,35 @@ class SwaggerAPIGateway:
             @speed_ns.response(200, 'Success')
             @speed_ns.response(400, 'Bad Request', self.api.models['ErrorResponse'])
             @speed_ns.response(500, 'Internal Server Error', self.api.models['ErrorResponse'])
+            @safe_operation
             def get(self):
                 """Get recent speed measurements
                 
-                Retrieves speed detection data including average and maximum speeds,
-                movement directions, and confidence scores for the specified time period.
+                Retrieves speed measurements calculated from radar range data with 
+                comprehensive statistics and filtering options.
                 """
-                try:
-                    args = speed_parser.parse_args()
-                    seconds = args['seconds']
-                    
-                    if not (1 <= seconds <= 86400):
-                        return {
-                            'error': 'Invalid seconds parameter. Must be between 1 and 86400.',
-                            'status_code': 400,
-                            'timestamp': datetime.now().isoformat()
-                        }, 400
-                    
-                    speeds = []
-                    
-                    # Get data from Redis persistence layer (radar stream data)
-                    try:
-                        import redis
-                        import json
-                        from datetime import datetime, timedelta
-                        
-                        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-                        
-                        # Calculate time range
-                        end_time = datetime.now()
-                        start_time = end_time - timedelta(seconds=seconds)
-                        start_ts_ms = int(start_time.timestamp() * 1000)
-                        end_ts_ms = int(end_time.timestamp() * 1000)
-                        
-                        # Get speed data from radar stream (range measurements)
-                        try:
-                            # Read from radar_data stream within time range
-                            stream_data = r.xrange('radar_data', min=start_ts_ms, max=end_ts_ms, count=1000)
-                            
-                            # Process radar range data to calculate speeds
-                            prev_range = None
-                            prev_timestamp = None
-                            
-                            for entry_id, fields in stream_data:
-                                try:
-                                    # Parse radar data fields
-                                    current_range = float(fields.get('range', 0))
-                                    timestamp_ms = int(entry_id.split('-')[0])
-                                    current_timestamp = timestamp_ms / 1000.0
-                                    detection_time = datetime.fromtimestamp(current_timestamp)
-                                    
-                                    # Calculate speed from range change if we have previous data
-                                    if prev_range is not None and prev_timestamp is not None:
-                                        time_diff = current_timestamp - prev_timestamp
-                                        range_diff = abs(current_range - prev_range)
-                                        
-                                        if time_diff > 0 and range_diff > 0.1:  # Minimum movement threshold
-                                            speed_mps = range_diff / time_diff
-                                            speed_mph = speed_mps * 2.237  # Convert m/s to MPH
-                                            
-                                            # Only include realistic vehicle speeds (1-100 MPH)
-                                            if 1 <= speed_mph <= 100:
-                                                speeds.append({
-                                                    'id': f"radar_speed_{timestamp_ms}",
-                                                    'start_time': datetime.fromtimestamp(prev_timestamp).isoformat(),
-                                                    'end_time': detection_time.isoformat(),
-                                                    'avg_speed_mps': speed_mps,
-                                                    'avg_speed_mph': speed_mph,
-                                                    'max_speed_mps': speed_mps,
-                                                    'direction': 'approaching' if current_range < prev_range else 'receding',
-                                                    'confidence': 0.85,  # Range-based calculation has good confidence
-                                                    'range_start': prev_range,
-                                                    'range_end': current_range
-                                                })
-                                    
-                                    prev_range = current_range
-                                    prev_timestamp = current_timestamp
-                                    
-                                except (ValueError, TypeError) as e:
-                                    logger.warning(f"Invalid radar stream entry {entry_id}: {e}")
-                                    continue
-                                    
-                        except Exception as e:
-                            logger.warning(f"Could not read radar stream: {e}")
-                            
-                            # Fallback: Get recent radar stats if stream unavailable
-                            try:
-                                radar_stats = r.hgetall('radar_stats')
-                                last_detection = radar_stats.get('last_detection')
-                                detection_count = int(radar_stats.get('detection_count', 0))
-                                
-                                if last_detection and detection_count > 0:
-                                    last_detection_time = datetime.fromtimestamp(float(last_detection))
-                                    if start_time <= last_detection_time <= end_time:
-                                        # Create a placeholder speed entry based on stats
-                                        speeds.append({
-                                            'id': f"radar_summary_{int(last_detection_time.timestamp())}",
-                                            'start_time': last_detection_time.isoformat(),
-                                            'end_time': last_detection_time.isoformat(),
-                                            'avg_speed_mps': 11.176,  # ~25 MPH default
-                                            'avg_speed_mph': 25.0,
-                                            'max_speed_mps': 11.176,
-                                            'direction': 'unknown',
-                                            'confidence': 0.8,
-                                            'source': 'radar_stats'
-                                        })
-                            except (ValueError, TypeError) as e:
-                                logger.warning(f"Could not parse radar stats: {e}")
-                                
-                    except Exception as e:
-                        logger.warning(f"Could not access Redis for speeds: {e}")
-                        # Return empty data instead of error to maintain API compatibility
-                        pass
-                    
-                    return {
-                        'speeds': speeds,
-                        'count': len(speeds),
-                        'timespan_seconds': seconds
-                    }
-                    
-                except Exception as e:
-                    logger.error(f"Speeds endpoint error: {e}")
-                    return {
-                        'error': str(e),
-                        'status_code': 500,
-                        'timestamp': datetime.now().isoformat()
-                    }, 500
+                args = speed_parser.parse_args()
+                seconds = args.get('seconds', 3600)
+                
+                # Get speeds from service layer
+                speed_service = get_speed_service()
+                result = speed_service.get_speeds(period_seconds=seconds, limit=1000)
+                
+                # Transform for backward compatibility - extract speeds array for old API format
+                speeds_list = []
+                for speed in result.get('speeds', []):
+                    speeds_list.append({
+                        'id': f"speed_{int(datetime.fromisoformat(speed['timestamp']).timestamp())}",
+                        'start_time': speed['timestamp'],
+                        'end_time': speed['timestamp'],
+                        'avg_speed_mps': speed['speed_ms'],
+                        'avg_speed_mph': speed['speed_mph'],
+                        'max_speed_mps': speed['speed_ms'],
+                        'direction': 'radar_detected',
+                        'confidence': 0.85
+                    })
+                
+                return speeds_list  # Return list format for backward compatibility
         
         # Weather namespace
         weather_ns = Namespace('weather', description='Weather monitoring and analysis endpoints', path='/api')
@@ -641,175 +478,36 @@ class SwaggerAPIGateway:
             @analytics_ns.marshal_with(self.api.models['TrafficAnalytics'])
             @analytics_ns.response(200, 'Success', self.api.models['TrafficAnalytics'])
             @analytics_ns.response(500, 'Internal Server Error', self.api.models['ErrorResponse'])
+            @safe_operation
             def get(self):
-                """Get traffic analytics and performance insights
+                """Get comprehensive traffic analytics and insights
                 
-                Provides comprehensive traffic analysis including vehicle counts,
-                average speeds, violation statistics, and detection rates for the specified period.
+                Provides traffic analysis including vehicle counts, speed statistics,
+                violation rates, and temporal patterns using enhanced data processing.
                 """
-                try:
-                    args = analytics_parser.parse_args()
-                    period = args['period']
-                    
-                    analytics = {
-                        'period': period,
-                        'timestamp': datetime.now().isoformat(),
-                        'vehicle_count': 0,
-                        'avg_speed': 0.0,
-                        'speed_violations': 0,
-                        'detection_rate': 0.0,
-                        'hourly_distribution': {},
-                        'speed_distribution': {}
-                    }
-                    
-                    # Calculate analytics from Redis data
-                    try:
-                        import redis
-                        import json
-                        from datetime import datetime, timedelta
-                        from collections import defaultdict
-                        
-                        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-                        
-                        # Calculate time range based on period
-                        end_time = datetime.now()
-                        if period == 'hour':
-                            start_time = end_time - timedelta(hours=1)
-                        elif period == 'day':
-                            start_time = end_time - timedelta(days=1)
-                        else:  # week
-                            start_time = end_time - timedelta(weeks=1)
-                        
-                        # Get detection data from sky analysis and radar stats
-                        vehicle_count = 0
-                        hourly_counts = defaultdict(int)
-                        
-                        # Count vehicles from radar stream data (group by time windows)
-                        start_ts_ms = int(start_time.timestamp() * 1000)
-                        end_ts_ms = int(end_time.timestamp() * 1000)
-                        
-                        try:
-                            stream_data = r.xrange('radar_data', min=start_ts_ms, max=end_ts_ms, count=3000)
-                            
-                            # Group radar pings by 5-second windows to count distinct vehicles
-                            detection_windows = {}
-                            
-                            for entry_id, fields in stream_data:
-                                try:
-                                    timestamp_ms = int(entry_id.split('-')[0])
-                                    detection_time = datetime.fromtimestamp(timestamp_ms / 1000)
-                                    
-                                    # Group by 5-second windows
-                                    window_key = timestamp_ms // 5000  # 5-second intervals
-                                    
-                                    if window_key not in detection_windows:
-                                        detection_windows[window_key] = {
-                                            'count': 1,
-                                            'hour': detection_time.hour
-                                        }
-                                    else:
-                                        detection_windows[window_key]['count'] += 1
-                                except (ValueError, TypeError):
-                                    continue
-                            
-                            # Count vehicles (windows with sufficient radar activity)
-                            for window_data in detection_windows.values():
-                                if window_data['count'] >= 3:  # At least 3 pings = likely vehicle
-                                    vehicle_count += 1
-                                    hour_key = str(window_data['hour'])
-                                    hourly_counts[hour_key] += 1
-                                    
-                        except Exception as e:
-                            # Fallback to radar stats if stream processing fails
-                            try:
-                                radar_stats = r.hgetall('radar_stats')
-                                radar_detection_count = int(radar_stats.get('detection_count', 0))
-                                last_detection = radar_stats.get('last_detection')
-                                
-                                if last_detection:
-                                    last_detection_time = datetime.fromtimestamp(float(last_detection))
-                                    if start_time <= last_detection_time <= end_time:
-                                        vehicle_count += min(radar_detection_count, 50)  # Cap to reasonable number
-                                        hour = last_detection_time.hour
-                                        hourly_counts[str(hour)] += vehicle_count
-                            except (ValueError, TypeError):
-                                pass
-                        
-                        # Get speed data from radar stream (calculate from range measurements)
-                        speeds = []
-                        speed_violations = 0
-                        speed_bins = defaultdict(int)
-                        
-                        try:
-                            start_ts_ms = int(start_time.timestamp() * 1000)
-                            end_ts_ms = int(end_time.timestamp() * 1000)
-                            
-                            stream_data = r.xrange('radar_data', min=start_ts_ms, max=end_ts_ms, count=2000)
-                            
-                            # Calculate speeds from range changes
-                            previous_entry = None
-                            
-                            for entry_id, fields in stream_data:
-                                try:
-                                    current_range = float(fields.get('range', 0))
-                                    timestamp_ms = int(entry_id.split('-')[0])
-                                    
-                                    # Calculate speed if we have a previous measurement
-                                    if previous_entry:
-                                        prev_range = previous_entry['range']
-                                        prev_time = previous_entry['time']
-                                        time_diff = (timestamp_ms - prev_time) / 1000.0  # Convert to seconds
-                                        
-                                        if 0.1 < time_diff < 5.0:  # Valid time window
-                                            range_diff = abs(current_range - prev_range)
-                                            speed_ms = range_diff / time_diff  # meters per second
-                                            speed_mph = speed_ms * 2.237  # Convert to mph
-                                            
-                                            # Filter realistic vehicle speeds (3-80 mph)
-                                            if 3 <= speed_mph <= 80:
-                                                speeds.append(speed_mph)
-                                                
-                                                # Check for speed violations (assuming 25 mph limit)
-                                                if speed_mph > 25:
-                                                    speed_violations += 1
-                                                
-                                                # Speed distribution binning
-                                                speed_bin = f"{int(speed_mph//10)*10}-{int(speed_mph//10)*10+10}"
-                                                speed_bins[speed_bin] += 1
-                                    
-                                    previous_entry = {'range': current_range, 'time': timestamp_ms}
-                                    
-                                except (ValueError, TypeError):
-                                    continue
-                                    
-                        except Exception:
-                            # Fallback to estimated data if stream processing fails
-                            speeds = [20.0, 25.0, 30.0] * min(vehicle_count // 3 + 1, 5)  # Realistic speed estimates
-                        
-                        # Update analytics
-                        analytics.update({
-                            'vehicle_count': vehicle_count,
-                            'avg_speed': sum(speeds) / len(speeds) if speeds else 0.0,
-                            'speed_violations': speed_violations,
-                            'detection_rate': vehicle_count / max(1, (end_time - start_time).total_seconds() / 3600),  # vehicles per hour
-                            'hourly_distribution': dict(hourly_counts),
-                            'speed_distribution': dict(speed_bins)
-                        })
-                        
-                    except Exception as e:
-                        logger.warning(f"Could not access Redis for analytics: {e}")
-                        # Return default analytics instead of error
-                        pass
-                    
-                    return analytics
-                    
-                except Exception as e:
-                    logger.error(f"Analytics endpoint error: {e}")
-                    return {
-                        'error': str(e),
-                        'status_code': 500,
-                        'timestamp': datetime.now().isoformat()
-                    }, 500
+                args = analytics_parser.parse_args()
+                period = args.get('period', 'hour')
+                
+                # Get analytics from service layer
+                analytics_service = get_analytics_service()
+                result = analytics_service.get_analytics(period=period)
+                
+                # Transform to backward compatible format
+                analytics = {
+                    'period': result['period'],
+                    'timestamp': result['metadata']['generated_at'],
+                    'vehicle_count': result['total_vehicles'],
+                    'avg_speed': result['speed_statistics'].get('average_mph', 0.0),
+                    'speed_violations': result['speed_statistics'].get('violations', 0),
+                    'detection_rate': result['total_vehicles'] / max(1, result['time_range']['period_seconds'] / 3600),
+                    'hourly_distribution': {
+                        item['hour_label']: item['count'] 
+                        for item in result['hourly_distribution']
+                    },
+                    'speed_distribution': result['speed_statistics'].get('distribution', {})
+                }
+                
+                return analytics
         
         # Enhanced Analytics namespace (patterns, safety, etc.)
         enhanced_analytics_ns = self._setup_enhanced_analytics_namespace()
