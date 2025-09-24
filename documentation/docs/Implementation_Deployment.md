@@ -139,7 +139,115 @@ services:
 
 ---
 
-### 6. Remote Access via Tailscale
+### 6. Recent Docker Container Fixes (September 2024)
+
+This section documents critical fixes implemented to resolve deployment issues with the radar service and Docker build process.
+
+#### 6.1 Docker Build SSL Certificate Fix
+
+**Issue:** Docker builds were failing with SSL certificate verification errors when accessing piwheels repository:
+
+```text
+Certificate verify failed: self signed certificate in certificate chain
+```
+
+**Solution:** Added trusted-host flags to all pip install commands in Dockerfile:
+
+```dockerfile
+RUN pip install --trusted-host pypi.org \
+                --trusted-host files.pythonhosted.org \
+                --trusted-host www.piwheels.org \
+                --trusted-host archive1.piwheels.org \
+                -r requirements.txt
+```
+
+#### 6.2 Radar Service Environment Variables Fix
+
+**Issue:** Radar service was restarting in a loop, failing to connect to Redis:
+
+```text
+Error 99 connecting to localhost:6379. Cannot assign requested address
+```
+
+**Root Cause:** `radar_service.py` was hardcoded to use `localhost` instead of reading the `REDIS_HOST` environment variable set to `redis` for Docker container networking.
+
+**Solution:** Updated radar service main function to read environment variables:
+
+```python
+def main():
+    # Read configuration from environment variables
+    uart_port = os.environ.get('RADAR_UART_PORT', '/dev/ttyAMA0')
+    baudrate = int(os.environ.get('RADAR_BAUD_RATE', '19200'))
+    redis_host = os.environ.get('REDIS_HOST', 'localhost')
+    redis_port = int(os.environ.get('REDIS_PORT', '6379'))
+    
+    # Create and start service with environment config
+    service = RadarService(
+        uart_port=uart_port,
+        baudrate=baudrate,
+        redis_host=redis_host,
+        redis_port=redis_port
+    )
+```
+
+#### 6.3 Complete docker-compose.yml Radar Service Configuration
+
+**Issue:** Radar service was missing from docker-compose.yml, preventing deployment.
+
+**Solution:** Added complete radar service definition:
+```yaml
+radar-service:
+  image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+  container_name: radar-service
+  command: ["python", "radar_service.py"]
+  environment:
+    - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+    - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+    - REDIS_HOST=redis
+    - REDIS_PORT=6379
+    - RADAR_UART_PORT=/dev/ttyAMA0
+    - RADAR_BAUD_RATE=19200
+  volumes:
+    - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    - /dev:/dev
+  devices:
+    - /dev/ttyAMA0:/dev/ttyAMA0  # UART for OPS243-C radar
+    - /dev/gpiochip0:/dev/gpiochip0
+    - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access
+    - /dev/gpiomem0:/dev/gpiomem0
+    - /dev/gpiomem1:/dev/gpiomem1
+    - /dev/gpiomem2:/dev/gpiomem2
+    - /dev/gpiomem3:/dev/gpiomem3
+    - /dev/gpiomem4:/dev/gpiomem4
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+  networks:
+    - app-network
+```
+
+#### 6.4 Verification Commands
+
+After deployment, verify the fixes with these commands:
+
+```bash
+# Check radar service is running and healthy
+docker ps | grep radar-service
+
+# Verify radar service can connect to Redis
+docker logs radar-service --tail 10
+
+# Check for recent radar detections
+docker exec redis redis-cli XRANGE radar_data - + COUNT 5
+
+# Monitor radar detection logs in real-time
+docker logs radar-service -f
+```
+
+---
+
+### 7. Remote Access via Tailscale
 
 - Find your Pi's Tailscale IP: `tailscale ip`
 - Access the dashboard from any device on your Tailscale network:

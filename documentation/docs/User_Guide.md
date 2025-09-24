@@ -298,7 +298,180 @@ A: Software updates should be performed by following the procedures in the Imple
 **Q: Can I customize the detection sensitivity?**
 A: Yes, detection thresholds can be adjusted in the configuration files. See the Technical Design Document for parameter details or contact support for assistance.
 
-## 6. Support
+## 6. Radar System Monitoring and Verification
+
+This section explains how to monitor the radar system operation and verify that vehicle detections are working correctly.
+
+### 6.1 Real-Time Radar Monitoring
+
+#### Checking Radar Service Status
+
+To verify the radar service is running properly:
+
+```bash
+# Connect to your Pi via SSH
+ssh user@your-pi-ip
+
+# Check if radar service container is running
+docker ps | grep radar-service
+
+# Expected output: radar-service container with "healthy" status
+```
+
+#### Monitoring Live Radar Detections
+
+View real-time vehicle detections as they happen:
+
+```bash
+# Follow radar service logs in real-time
+docker logs radar-service -f
+
+# Example output when a vehicle passes:
+# 🚗 Vehicle detected: 23.9 mph (magnitude: unknown)
+# ⚠️  LOW SPEED ALERT: 23.9 mph
+```
+
+#### Checking Recent Detections in Redis
+
+View the last few vehicle detections stored in Redis:
+
+```bash
+# Check last 5 radar detections
+docker exec redis redis-cli XREVRANGE radar_data + - COUNT 5
+
+# Check latest consolidated record
+docker exec redis redis-cli GET consolidation:latest
+```
+
+### 6.2 System Health Dashboard
+
+#### Accessing the Web Dashboard
+
+1. **Find your Pi's IP address:**
+   - Local network: `http://192.168.1.75:5000` (replace with your Pi's IP)
+   - Tailscale VPN: `http://100.x.x.x:5000` (use `tailscale ip` to find IP)
+
+2. **Dashboard sections to check:**
+   - **System Status**: Shows if all services are running
+   - **Recent Detections**: Displays latest vehicle detections with timestamps
+   - **Radar Health**: Indicates radar sensor connectivity and data quality
+
+#### Health Check Endpoint
+
+Test system health programmatically:
+
+```bash
+# Check system health (returns JSON status)
+curl http://your-pi-ip:5000/api/health
+
+# Expected response for healthy system:
+{
+  "status": "healthy",
+  "services": {
+    "radar": "running",
+    "consolidator": "running", 
+    "database": "running"
+  }
+}
+```
+
+### 6.3 Troubleshooting Common Issues
+
+#### Radar Service Not Detecting Vehicles
+
+1. **Check UART connection:**
+   ```bash
+   # Verify radar device is accessible
+   ls -la /dev/ttyAMA0
+   
+   # Should show device with proper permissions
+   ```
+
+2. **Verify radar service logs for errors:**
+   ```bash
+   docker logs radar-service --tail 20
+   
+   # Look for Redis connection errors or UART issues
+   ```
+
+3. **Test radar manually (if safe):**
+   - Walk or drive past the radar sensor
+   - Check logs immediately: `docker logs radar-service -f`
+
+#### No Data Appearing in Dashboard
+
+1. **Check consolidator service:**
+   ```bash
+   docker ps | grep consolidator
+   docker logs vehicle-consolidator --tail 10
+   ```
+
+2. **Verify Redis data flow:**
+   ```bash
+   # Check if radar data is being stored
+   docker exec redis redis-cli XLEN radar_data
+   
+   # Check consolidation records
+   docker exec redis redis-cli KEYS "consolidation:*"
+   ```
+
+#### Database Connection Issues
+
+1. **Check database persistence service:**
+   ```bash
+   docker ps | grep database-persistence
+   docker logs database-persistence --tail 15
+   ```
+
+2. **Common fixes:**
+   - Verify storage volume is mounted: `df -h /mnt/storage`
+   - Check database file permissions
+   - Restart persistence service: `docker compose restart database-persistence`
+
+### 6.4 Performance Monitoring
+
+#### Key Metrics to Monitor
+
+- **Detection Rate**: Number of vehicles detected per hour
+- **Response Time**: Time from radar detection to dashboard update
+- **Storage Usage**: Disk space used by logs and database
+- **Service Uptime**: How long services have been running without restart
+
+#### Monitoring Commands
+
+```bash
+# Check service uptime
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Monitor storage usage
+du -h /mnt/storage/logs/
+df -h /mnt/storage
+
+# Check Redis memory usage
+docker exec redis redis-cli INFO memory
+```
+
+### 6.5 Maintenance Tasks
+
+#### Daily Checks
+
+- Verify dashboard is accessible
+- Check recent detections show reasonable vehicle counts
+- Monitor system disk space usage
+
+#### Weekly Maintenance
+
+- Review radar service logs for errors
+- Check consolidation data is being properly stored
+- Verify backup systems (if configured)
+
+#### Monthly Tasks
+
+- Update system software: `sudo apt update && sudo apt upgrade`
+- Review and archive old log files
+- Test emergency procedures and failover systems
+
+## 7. Support
 
 If you have questions, encounter issues, or need assistance with the Raspberry Pi 5 Edge ML Traffic Monitoring System, please use the following support channels:
 

@@ -670,3 +670,168 @@ This diagram illustrates how SSH and HTML (web dashboard) connections are secure
 |   Wait / Next Cycle         |
 +-----------------------------+
 ```
+
+## 11. Radar System Data Flow Architecture
+
+This section documents the complete data flow from OPS243-C radar detection through consolidation to database persistence, including the Redis-based microservices architecture.
+
+### 11.1 Radar Detection Pipeline
+
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   OPS243-C      │    │  radar_service  │    │   Redis Pub/Sub │
+│   FMCW Radar    │───▶│     .py         │───▶│   & Streams     │
+│                 │    │                 │    │                 │
+│ UART 19200 baud │    │ Parses JSON     │    │ traffic_events  │
+│ JSON: speed,    │    │ Converts m/s    │    │ radar_data      │
+│ unit, magnitude │    │ to mph          │    │ stream          │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 11.2 Data Processing Services
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Redis Message Broker                          │
+├─────────────────┬─────────────────────┬─────────────────────────────────┤
+│ Channels:       │ Streams:            │ Keys:                           │
+│ • traffic_events│ • radar_data        │ • consolidation:latest          │
+│ • radar_detections│ • consolidated_   │ • consolidation:history:*       │
+│ • database_events│   traffic_data    │ • weather:airport:latest        │
+│                 │                     │ • weather:dht22:latest          │
+└─────────────────┴─────────────────────┴─────────────────────────────────┘
+         │                      │                       │
+         ▼                      ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Consolidator    │    │ Edge API        │    │ Database        │
+│ Service         │    │ Services        │    │ Persistence     │
+│                 │    │                 │    │ Service         │
+│ Listens to      │    │ Reads streams   │    │ Listens to      │
+│ traffic_events  │    │ & keys for      │    │ database_events │
+│                 │    │ real-time data  │    │                 │
+│ Triggers on     │    │                 │    │ Stores in       │
+│ radar motion    │    │                 │    │ SQLite DB       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 11.3 Radar Event Flow Sequence
+
+```text
+1. Radar Detection
+   OPS243-C → UART → radar_service.py
+   • Raw JSON: {"unit": "mps", "speed": "-10.7"}
+   • Speed threshold filter: >= 2.0 mph
+   • Convert m/s to mph: -10.7 m/s = 23.9 mph
+
+2. Redis Data Publishing (radar_service.py)
+   • PUBLISH 'radar_detections' (raw data)
+   • XADD 'radar_data' (stream storage)
+   • IF speed >= 2mph: PUBLISH 'traffic_events' (consolidator trigger)
+
+3. Consolidation Trigger (vehicle_consolidator_service.py)
+   • SUBSCRIBE 'traffic_events'
+   • ON radar_motion_detected:
+     - Collect radar data (from event)
+     - Fetch weather data (airport + DHT22)
+     - Get recent camera/IMX500 detections
+     - Create consolidated_record with unique ID
+
+4. Consolidated Data Storage
+   • SET 'consolidation:latest' (current record)
+   • SET 'consolidation:history:{id}' (time-series)
+   • PUBLISH 'database_events' (persistence trigger)
+
+5. Database Persistence (database_persistence_service.py)
+   • SUBSCRIBE 'database_events'
+   • ON new_consolidated_data:
+     - GET consolidated data from Redis
+     - Parse into TrafficRecord structure
+     - Store in SQLite database
+```
+
+### 11.4 Environment Variables Configuration
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Docker Environment Variables                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Service: radar-service                                                  │
+│ • REDIS_HOST=redis (container networking)                              │
+│ • REDIS_PORT=6379                                                      │
+│ • RADAR_UART_PORT=/dev/ttyAMA0                                         │
+│ • RADAR_BAUD_RATE=19200                                                │
+│                                                                         │
+│ Service: vehicle-consolidator                                           │
+│ • REDIS_HOST=redis                                                     │
+│ • REDIS_PORT=6379                                                      │
+│                                                                         │
+│ Service: database-persistence                                           │
+│ • REDIS_HOST=redis                                                     │
+│ • DATABASE_PATH=/app/data/traffic.db                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.5 Redis Stream Cleanup Architecture
+
+To prevent memory bloat, the system implements automatic Redis stream cleanup:
+
+```text
+database_persistence_service.py:
+├── _cleanup_redis_streams()
+│   ├── XTRIM radar_data MAXLEN ~ 1000      # Keep last 1000 entries
+│   └── XTRIM consolidated_traffic_data MAXLEN ~ 100  # Keep last 100 entries
+│
+└── Called during _cleanup_old_data() every cleanup cycle
+```
+
+### 11.6 Data Structure Examples
+
+**Radar Detection Event:**
+
+```json
+{
+  "event_type": "radar_motion_detected",
+  "speed": 23.9359,
+  "magnitude": "unknown", 
+  "direction": "unknown",
+  "timestamp": 1758746262.250759,
+  "trigger_source": "radar_speed_detection"
+}
+```
+
+**Consolidated Record:**
+
+```json
+{
+  "consolidation_id": "consolidation_1758746262",
+  "timestamp": 1758746262.250759,
+  "trigger_source": "radar_motion",
+  "radar_data": { "speed": 23.9359, "magnitude": "unknown" },
+  "weather_data": {
+    "airport": { "temperature": 26, "windSpeed": 20.376 },
+    "dht22": { "temperature_c": 21.56, "humidity": 96.4 }
+  },
+  "camera_data": {},
+  "processing_notes": "Triggered by radar detection at 23.9359 mph"
+}
+```
+
+### 11.7 Troubleshooting Common Issues
+
+**Radar Service Restart Loop:**
+
+- Check REDIS_HOST environment variable (should be 'redis', not 'localhost')
+- Verify Redis container is running and healthy
+- Check UART device permissions: /dev/ttyAMA0
+
+**Database Persistence Failure:**
+
+- Check SQLite database file permissions
+- Verify storage volume mount: /app/data/
+- Ensure database directory is writable by container user
+
+**Missing Consolidation Data:**
+
+- Verify consolidator service is running and subscribing to 'traffic_events'
+- Check Redis pub/sub channels: `redis-cli PUBSUB CHANNELS`
+- Monitor consolidation keys: `redis-cli KEYS "consolidation:*"`
