@@ -1,0 +1,11 @@
+{
+  "overall_status": "FAILED",
+  "test_categories": {},
+  "total_tests": 0,
+  "passed_tests": 0,
+  "failed_tests": 0,
+  "test_duration_seconds": 0,
+  "timestamp": "2025-09-24T18:01:26.625080",
+  "architecture": "sqlite_only",
+  "error": "Error 11001 connecting to redis:6379. getaddrinfo failed."
+}

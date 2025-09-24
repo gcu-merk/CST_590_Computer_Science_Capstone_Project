@@ -31,7 +31,8 @@ import tempfile
 
 # Add edge_processing to path
 current_dir = Path(__file__).parent
-sys.path.insert(0, str(current_dir))
+edge_processing_dir = current_dir / "edge_processing"
+sys.path.insert(0, str(edge_processing_dir))
 from shared_logging import ServiceLogger, CorrelationContext
 
 # Initialize logging
@@ -47,12 +48,12 @@ class ComprehensiveSystemValidator:
         # Validation configuration
         self.services_to_test = [
             "radar_service_enhanced.py",
-            "vehicle_consolidator_enhanced.py", 
+            "vehicle_consolidator_service_enhanced.py", 
             "imx500_ai_host_capture_enhanced.py",
-            "test_dht22_api.py",  # Weather service proxy
-            "api_only_standalone.py",
-            "database_persistence_service_simplified.py",
-            "redis_optimization_service_enhanced.py"
+            "edge_processing/dht_22_weather_service_enhanced.py",
+            "edge_api/edge_api_gateway_enhanced.py",
+            "edge_processing/data_persistence/database_persistence_service_simplified.py",
+            "edge_processing/data_persistence/redis_optimization_service_enhanced.py"
         ]
         
         # Test categories and their weights
@@ -349,7 +350,7 @@ class ComprehensiveSystemValidator:
         
         try:
             # Test simplified database service
-            db_service_path = current_dir / "database_persistence_service_simplified.py"
+            db_service_path = current_dir / "edge_processing" / "data_persistence" / "database_persistence_service_simplified.py"
             
             if db_service_path.exists():
                 category_results["tests"].append({
@@ -440,7 +441,7 @@ class ComprehensiveSystemValidator:
         
         try:
             # Test Redis optimization service
-            redis_service_path = current_dir / "redis_optimization_service_enhanced.py"
+            redis_service_path = current_dir / "edge_processing" / "data_persistence" / "redis_optimization_service_enhanced.py"
             
             if redis_service_path.exists():
                 category_results["tests"].append({
@@ -531,7 +532,7 @@ class ComprehensiveSystemValidator:
         
         try:
             # Check shared logging module exists
-            shared_logging_path = current_dir / "shared_logging.py"
+            shared_logging_path = current_dir / "edge_processing" / "shared_logging.py"
             
             if shared_logging_path.exists():
                 category_results["tests"].append({

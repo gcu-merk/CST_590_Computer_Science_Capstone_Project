@@ -33,7 +33,8 @@ import random
 
 # Add edge_processing to path
 current_dir = Path(__file__).parent
-sys.path.insert(0, str(current_dir))
+edge_processing_dir = current_dir / "edge_processing"
+sys.path.insert(0, str(edge_processing_dir))
 from shared_logging import ServiceLogger, CorrelationContext
 
 # Import test dependencies
