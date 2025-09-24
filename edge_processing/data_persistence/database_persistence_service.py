@@ -457,7 +457,7 @@ class DatabasePersistenceService:
         try:
             cutoff_date = datetime.now() - timedelta(days=self.retention_days)
             
-            # Remove old traffic records
+            # Remove old traffic records from database
             result = self.db_connection.execute("""
                 DELETE FROM traffic_records 
                 WHERE timestamp < ?
@@ -466,8 +466,30 @@ class DatabasePersistenceService:
             if result.rowcount > 0:
                 logger.info(f"🧹 Cleaned up {result.rowcount} old traffic records")
             
+            # Clean up Redis streams to prevent memory bloat
+            self._cleanup_redis_streams()
+            
         except Exception as e:
             logger.error(f"Error during data cleanup: {e}")
+    
+    def _cleanup_redis_streams(self):
+        """Trim Redis streams to keep only recent data"""
+        try:
+            # Keep only last 1000 entries in radar stream (roughly last hour at 20Hz)
+            radar_len = self.redis_client.xlen('radar_data')
+            if radar_len > 1000:
+                # Trim to keep only last 1000 entries
+                self.redis_client.xtrim('radar_data', maxlen=1000, approximate=True)
+                logger.info(f"🧹 Trimmed radar_data stream from {radar_len} to ~1000 entries")
+            
+            # Clean up old consolidated data stream entries (keep last 100)
+            consolidated_len = self.redis_client.xlen('consolidated_traffic_data')
+            if consolidated_len > 100:
+                self.redis_client.xtrim('consolidated_traffic_data', maxlen=100, approximate=True)
+                logger.info(f"🧹 Trimmed consolidated_traffic_data stream from {consolidated_len} to ~100 entries")
+                
+        except Exception as e:
+            logger.error(f"Error cleaning Redis streams: {e}")
     
     def get_recent_records(self, hours: int = 24) -> List[Dict[str, Any]]:
         """Get recent traffic records for API consumption"""
