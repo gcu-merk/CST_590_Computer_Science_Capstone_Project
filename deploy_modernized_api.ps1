@@ -3,21 +3,22 @@
 # This script copies the updated best practices API architecture to the Pi
 
 param(
-    [string]$PiHost = "192.168.1.102",
+    [string]$PiHost = "100.121.231.16",
     [string]$PiUser = "pi",
     [switch]$Test = $false
 )
 
 Write-Host "🚀 Deploying Modernized API to Pi..." -ForegroundColor Green
-Write-Host "Target: $PiUser@$PiHost" -ForegroundColor Cyan
+Write-Host "Target: $PiUser@$PiHost (Tailscale)" -ForegroundColor Cyan
 
-# Check if we can reach the Pi
-Write-Host "`n📡 Testing Pi connectivity..." -ForegroundColor Yellow
+# Check if we can reach the Pi via Tailscale
+Write-Host "`n📡 Testing Pi connectivity via Tailscale..." -ForegroundColor Yellow
 $pingResult = Test-NetConnection -ComputerName $PiHost -Port 22 -WarningAction SilentlyContinue
 
 if (-not $pingResult.TcpTestSucceeded) {
     Write-Host "❌ Cannot reach Pi at $PiHost on port 22" -ForegroundColor Red
-    Write-Host "   Make sure Pi is powered on and SSH is enabled" -ForegroundColor Yellow
+    Write-Host "   Make sure Pi is powered on and Tailscale is running" -ForegroundColor Yellow
+    Write-Host "   Check Tailscale status: tailscale status" -ForegroundColor Yellow
     exit 1
 }
 
@@ -134,7 +135,7 @@ Write-Host "📋 Next steps:" -ForegroundColor Yellow
 Write-Host "   1. SSH to Pi: ssh $PiUser@$PiHost" -ForegroundColor White
 Write-Host "   2. Test API: python3 camera_free_api.py" -ForegroundColor White
 Write-Host "   3. View in browser: http://$PiHost:5000/api/docs" -ForegroundColor White
-Write-Host "   4. Test endpoints:" -ForegroundColor White
+Write-Host "   4. Test endpoints via Tailscale:" -ForegroundColor White
 Write-Host "      • http://$PiHost:5000/api/detections" -ForegroundColor Gray
 Write-Host "      • http://$PiHost:5000/api/speeds" -ForegroundColor Gray  
 Write-Host "      • http://$PiHost:5000/api/analytics" -ForegroundColor Gray

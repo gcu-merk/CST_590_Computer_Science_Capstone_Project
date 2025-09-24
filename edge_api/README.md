@@ -133,7 +133,7 @@ python test_modernized_api.py
 
 # Or test individual endpoints
 import requests
-response = requests.get('http://192.168.1.102:5000/api/detections?seconds=3600')
+response = requests.get('http://100.121.231.16:5000/api/detections?seconds=3600')
 print(response.json())
 ```
 

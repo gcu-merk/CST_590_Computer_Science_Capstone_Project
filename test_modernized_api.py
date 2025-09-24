@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def test_api_endpoints(base_url="http://192.168.1.102:5000"):
+def test_api_endpoints(base_url="http://100.121.231.16:5000"):
     """Test the main API endpoints with the new service layer"""
     
     logger.info(f"Testing API endpoints at {base_url}")
@@ -150,7 +150,7 @@ def test_radar_data_access():
     
     try:
         import redis
-        r = redis.Redis(host='192.168.1.102', port=6379, db=0, decode_responses=True)
+        r = redis.Redis(host='100.121.231.16', port=6379, db=0, decode_responses=True)
         
         # Test Redis connection
         r.ping()
