@@ -218,6 +218,40 @@ services:
       timeout: 5s
       retries: 3
 
+  database-persistence:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: database-persistence
+    command: ["python", "-m", "edge_processing.data_persistence.database_persistence_service"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=traffic_monitoring
+      - POSTGRES_USER=traffic_user
+      - POSTGRES_PASSWORD=traffic_password
+      - DATABASE_PATH=${STORAGE_ROOT:-/mnt/storage}/traffic_data.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f database_persistence_service > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 networks:
   app-network:
     driver: bridge
