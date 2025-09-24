@@ -8,13 +8,14 @@ from flask_restx import fields, Model
 from marshmallow import Schema, fields as ma_fields, validate, post_load
 from datetime import datetime
 from typing import Dict, List, Optional
+from marshmallow import EXCLUDE
 
 class BaseSchema(Schema):
     """Base schema with common functionality"""
     
     class Meta:
         ordered = True
-        unknown = 'EXCLUDE'  # Exclude unknown fields
+        unknown = EXCLUDE  # Exclude unknown fields
     
     def handle_error(self, error, data, **kwargs):
         """Custom error handling"""

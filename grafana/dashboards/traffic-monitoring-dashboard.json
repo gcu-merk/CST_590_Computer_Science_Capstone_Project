@@ -1,0 +1,108 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Traffic Monitoring System - Service Health",
+    "description": "Comprehensive monitoring of radar, camera, weather, and consolidation services",
+    "tags": ["traffic-monitoring", "raspberry-pi", "iot"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Status Overview",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "up{service=~\"radar|camera|weather|consolidator\"}",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2, 
+        "title": "Vehicle Detections per Hour",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(vehicle_detections_total[1h])",
+            "legendFormat": "Detections/hour"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "System Error Rate",
+        "type": "graph", 
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(service_errors_total[5m])",
+            "legendFormat": "{{service}} errors/min"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Redis Performance",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "Connected Clients"
+          },
+          {
+            "expr": "redis_used_memory_bytes / 1024 / 1024",
+            "legendFormat": "Memory Usage (MB)"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Storage Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}, 
+        "targets": [
+          {
+            "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/mnt/storage\"} / node_filesystem_size_bytes{mountpoint=\"/mnt/storage\"} * 100)",
+            "legendFormat": "SSD Usage %"
+          },
+          {
+            "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} * 100)", 
+            "legendFormat": "SD Card Usage %"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Recent Log Messages",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "{service=~\"radar|camera|weather|consolidator\"} |= \"ERROR\" or \"WARNING\"",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}

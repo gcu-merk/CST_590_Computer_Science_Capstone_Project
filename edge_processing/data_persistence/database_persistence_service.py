@@ -564,7 +564,7 @@ def main():
     config = {
         'redis_host': os.getenv('REDIS_HOST', 'localhost'),
         'redis_port': int(os.getenv('REDIS_PORT', '6379')),
-        'db_path': os.getenv('DB_PATH', '/mnt/storage/traffic_monitoring.db'),
+        'db_path': os.getenv('DATABASE_PATH', os.getenv('DB_PATH', '/app/data/traffic_monitoring.db')),
         'retention_days': int(os.getenv('RETENTION_DAYS', '90')),
         'batch_size': int(os.getenv('BATCH_SIZE', '100'))
     }
