@@ -50,7 +50,7 @@ def test_integrated_radar():
         if success:
             log_msg('✅ Radar service started successfully')
             log_msg('🎯 Monitoring for vehicle detections...')
-            log_msg('   Speed alerts configured: 15mph (low), 45mph (high)')
+            log_msg('   Speed alerts configured: 2mph (low), 26mph (high)')
             log_msg('   Press Ctrl+C to stop')
             
             try:

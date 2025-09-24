@@ -13,8 +13,8 @@ from datetime import datetime
 # Radar configuration constants
 RADAR_PORT = '/dev/ttyACM0'  # Default radar serial port
 RADAR_BAUDRATE = 9600
-LOW_SPEED_ALERT = 15   # mph - triggers GPIO5 (Blue wire)
-HIGH_SPEED_ALERT = 45  # mph - triggers GPIO6 (Purple wire)
+LOW_SPEED_ALERT = 2    # mph - triggers GPIO5 (Blue wire)
+HIGH_SPEED_ALERT = 26  # mph - triggers GPIO6 (Purple wire)
 
 def log_with_timestamp(message):
     """Log message with timestamp"""

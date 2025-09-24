@@ -39,7 +39,7 @@ def test_radar_alerts():
             print(f"  {readable_time}: Unknown data - {data}")
     
     print(f"\n✅ Radar system is operational")
-    print("🎯 Speed thresholds: 2-25 mph = LOW ALERT, 26+ mph = HIGH ALERT")
+    print("🎯 Speed thresholds: 2+ mph = LOW ALERT, 26+ mph = HIGH ALERT")
     print("📈 Monitoring active - vehicle speeds will be logged when detected")
 
 if __name__ == '__main__':

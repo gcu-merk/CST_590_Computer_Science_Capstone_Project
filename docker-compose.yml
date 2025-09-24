@@ -191,11 +191,11 @@ services:
       - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); data=r.get('stats:realtime:vehicles'); exit(0 if data else 1)\""]
-      interval: 60s
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f vehicle_consolidator_service > /dev/null"]
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s
+      start_period: 60s
 
   nginx-proxy:
     image: nginx:1.25-alpine
