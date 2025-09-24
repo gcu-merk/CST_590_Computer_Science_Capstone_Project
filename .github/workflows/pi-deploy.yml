@@ -113,47 +113,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
+      - name: Wait for Docker image to be available
+        run: |
+          echo "Verifying Docker image is available and up-to-date..."
+          
+          # Get the current commit SHA
+          COMMIT_SHA="${{ github.sha }}"
+          IMAGE_NAME="${{ env.DOCKER_IMAGE }}"
+          
+          echo "Waiting for Docker image: $IMAGE_NAME"
+          echo "Expected commit SHA: $COMMIT_SHA"
+          
+          # Wait up to 10 minutes for the image to be available
+          max_attempts=60  # 60 attempts * 10 seconds = 10 minutes
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Checking Docker image..."
+            
+            # Try to pull the latest image
+            if docker pull "$IMAGE_NAME" >/dev/null 2>&1; then
+              echo "✅ Docker image pulled successfully"
+              
+              # Check if image has the expected commit (optional verification)
+              if docker inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+                echo "✅ Docker image verified and ready for deployment"
+                break
+              fi
+            fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Timeout: Docker image not available after 10 minutes"
+              echo "This likely means the Docker build failed or is still in progress"
+              exit 1
+            fi
+            
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+            ((attempt++))
+          done
+        
       - name: Prepare deployment staging and persistent directories
         run: |
           echo "Setting up deployment staging and ensuring persistent directories exist..."
-          
-          # ===== STORAGE MOUNT VALIDATION =====
-          echo "Validating /mnt/storage availability..."
-          
-          # Ensure /mnt directory exists
-          sudo mkdir -p /mnt
-          
-          # Check if /mnt/storage exists or needs to be created
-          if [ ! -d "/mnt/storage" ]; then
-            echo "Creating /mnt/storage directory..."
-            sudo mkdir -p /mnt/storage
-            sudo chmod 755 /mnt/storage
-            sudo chown merk:merk /mnt/storage
-          fi
-          
-          # Verify /mnt/storage is writable
-          if [ ! -w "/mnt/storage" ]; then
-            echo "Making /mnt/storage writable..."
-            sudo chmod 775 /mnt/storage
-            sudo chown merk:merk /mnt/storage
-          fi
-          
-          # Test write access to /mnt/storage
-          echo "Testing write access to /mnt/storage..."
-          if ! echo "test" > /mnt/storage/.write_test 2>/dev/null; then
-            echo "Cannot write to /mnt/storage, fixing permissions..."
-            sudo chmod 777 /mnt/storage
-            sudo chown $(whoami):$(id -gn) /mnt/storage
-            if ! echo "test" > /mnt/storage/.write_test 2>/dev/null; then
-              echo "Failed to establish write access to /mnt/storage"
-              echo "Current user: $(whoami)"
-              echo "Storage directory info:"
-              ls -la /mnt/storage || ls -la /mnt
-              exit 1
-            fi
-          fi
-          rm -f /mnt/storage/.write_test
-          echo "✓ /mnt/storage is ready and writable"
           
           # ===== DEPLOYMENT STAGING SETUP =====
           echo "Ensuring clean staging environment..."
