@@ -68,7 +68,7 @@ RUN apt-get update && ( \
     ) ; rm -rf /var/lib/apt/lists/*
 
 # Install Python camera packages via pip as fallback
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host www.piwheels.org --trusted-host archive1.piwheels.org \
     picamera2 \
     opencv-python \
     numpy \
@@ -77,7 +77,7 @@ RUN pip install --no-cache-dir \
     || echo "Some Python packages may not be available"
 
 # Try to install IMX500 Python package specifically
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host www.piwheels.org --trusted-host archive1.piwheels.org \
     imx500 \
     || echo "IMX500 Python package not available"
 
@@ -88,10 +88,11 @@ COPY edge_api/requirements.txt /app/edge_api/
 
 # Install Python dependencies (API-focused for faster builds)
 # Use minimal requirements to avoid heavy ML libraries (TensorFlow, PyTorch)
-RUN pip install --no-cache-dir -r edge_api/requirements.txt
+# Add trusted hosts to handle SSL certificate issues with piwheels
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host www.piwheels.org --trusted-host archive1.piwheels.org -r edge_api/requirements.txt
 
 # Try to install Pi-specific dependencies (may fail in non-Pi environments)
-RUN pip install --no-cache-dir -r edge_processing/requirements-pi.txt || echo "Pi-specific packages not available"
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host www.piwheels.org --trusted-host archive1.piwheels.org -r edge_processing/requirements-pi.txt || echo "Pi-specific packages not available"
 
 # Copy application code
 COPY . /app/

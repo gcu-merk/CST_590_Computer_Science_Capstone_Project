@@ -170,6 +170,49 @@ services:
       retries: 3
       start_period: 120s
 
+  radar-service:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: radar-service
+    command: ["python", "radar_service.py"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RADAR_UART_PORT=/dev/ttyAMA0
+      - RADAR_BAUD_RATE=19200
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - /dev:/dev
+    devices:
+      - /dev/ttyAMA0:/dev/ttyAMA0  # UART for OPS243-C radar
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access
+      - /dev/gpiomem0:/dev/gpiomem0
+      - /dev/gpiomem1:/dev/gpiomem1
+      - /dev/gpiomem2:/dev/gpiomem2
+      - /dev/gpiomem3:/dev/gpiomem3
+      - /dev/gpiomem4:/dev/gpiomem4
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    privileged: true  # Required for UART and GPIO access
+    group_add:
+      - dialout  # UART access
+      - gpio
+    cap_add:
+      - SYS_RAWIO
+      - SYS_ADMIN
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); length=r.xlen('radar_data'); exit(0 if length >= 0 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   vehicle-consolidator:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: vehicle-consolidator
