@@ -3,6 +3,12 @@
 
 class TrafficDashboard {
     constructor() {
+        // Check for old HTTP URL and update to HTTPS
+        const storedUrl = localStorage.getItem('api-url');
+        if (storedUrl && storedUrl.includes('http://100.121.231.16:5000')) {
+            localStorage.setItem('api-url', 'https://edge-traffic-monitoring.taild46447.ts.net/api');
+        }
+        
         this.apiBaseUrl = localStorage.getItem('api-url') || 'https://edge-traffic-monitoring.taild46447.ts.net/api';
         this.isOnline = false;
         this.charts = {};
