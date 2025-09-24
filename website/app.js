@@ -374,8 +374,8 @@ class TrafficDashboard {
                 // Process DHT22 sensor data
                 if (dht22Response.ok) {
                     const dht22Data = await dht22Response.json();
-                    if (dht22Data.success && dht22Data.data) {
-                        combinedWeatherData.temperature = dht22Data.data.temperature;
+                    if (dht22Data.data) {
+                        combinedWeatherData.temperature = dht22Data.data.temperature_f || dht22Data.data.temperature;
                         combinedWeatherData.humidity = dht22Data.data.humidity;
                         hasValidData = true;
                         console.log('✅ DHT22 weather data loaded successfully');
@@ -387,9 +387,9 @@ class TrafficDashboard {
                 // Process airport weather data
                 if (airportResponse.ok) {
                     const airportData = await airportResponse.json();
-                    if (airportData.success && airportData.data) {
-                        combinedWeatherData.weather_description = airportData.data.weather_description;
-                        combinedWeatherData.sky_condition = airportData.data.sky_condition;
+                    if (airportData.data) {
+                        combinedWeatherData.weather_description = airportData.data.textDescription;
+                        combinedWeatherData.sky_condition = airportData.data.cloudLayers;
                         hasValidData = true;
                         console.log('✅ Airport weather data loaded successfully');
                     }
