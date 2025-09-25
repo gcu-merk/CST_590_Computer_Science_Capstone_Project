@@ -734,7 +734,8 @@ class EnhancedSwaggerAPIGateway:
                 host=self.host,
                 port=self.port,
                 debug=debug,
-                use_reloader=False  # Disable reloader to prevent double initialization
+                use_reloader=False,  # Disable reloader to prevent double initialization
+                allow_unsafe_werkzeug=True  # Allow Werkzeug in container environment
             )
             
         except Exception as e:
