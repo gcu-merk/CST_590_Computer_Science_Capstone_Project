@@ -213,12 +213,20 @@ class ServiceLogger:
             'timestamp': datetime.now().isoformat()
         })
     
-    def log_service_event(self, event_name: str, event_data: Dict = None):
+    def log_service_event(self, event_type: str = None, event_name: str = None, message: str = None, 
+                         details: Dict = None, event_data: Dict = None, **kwargs):
         """Log general service events"""
-        self.logger.info(f"🔔 Service Event: {event_name}", extra={
-            'event_type': 'service_event',
-            'event_name': event_name,
-            'event_data': event_data or {},
+        # Handle different calling patterns
+        display_name = event_name or event_type or message or "Service Event"
+        log_message = message or display_name
+        
+        event_details = details or event_data or {}
+        event_details.update(kwargs)  # Include any additional keyword arguments
+        
+        self.logger.info(f"🔔 Service Event: {log_message}", extra={
+            'event_type': event_type or 'service_event',
+            'event_name': display_name,
+            'event_data': event_details,
             'timestamp': datetime.now().isoformat()
         })
 
