@@ -33,9 +33,23 @@ COPY edge_api/requirements.txt /tmp/requirements-api.txt
 COPY edge_processing/requirements-pi.txt /tmp/requirements-pi.txt
 
 # Install Python packages in virtual environment
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /tmp/requirements-api.txt && \
-    (pip install --no-cache-dir -r /tmp/requirements-pi.txt || echo "Some Pi packages not available")
+# Install core API requirements first
+RUN pip install --no-cache-dir --upgrade pip
+
+# Install API requirements (should work on any platform)
+RUN pip install --no-cache-dir --timeout=60 -r /tmp/requirements-api.txt
+
+# Install Pi packages that can work in Docker build environment
+RUN pip install --no-cache-dir --timeout=60 \
+    redis>=4.6.0 \
+    numpy>=1.21.0 \
+    pyserial>=3.5 \
+    || echo "Some packages failed - will retry on Pi"
+
+# Skip hardware-specific packages during build (install at runtime on Pi)
+# These will be installed when container runs on actual Pi hardware:
+# - picamera2, RPi.GPIO, gpiozero, lgpio (require Pi hardware)
+# - opencv-python (large package, install at runtime)
 
 # Runtime stage - minimal runtime image
 FROM arm64v8/python:3.11-slim-bookworm AS runtime

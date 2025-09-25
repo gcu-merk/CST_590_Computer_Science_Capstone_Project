@@ -69,6 +69,50 @@ class ContainerOrchestrator:
             Path(directory).mkdir(parents=True, exist_ok=True)
             logger.info(f"Ensured directory: {directory}")
     
+    def _install_runtime_packages(self):
+        """Install hardware-specific packages at runtime on Pi"""
+        logger.info("Installing runtime-specific packages...")
+        
+        # Packages that need to be installed on actual Pi hardware
+        pi_packages = [
+            "opencv-python>=4.5.0",
+            "scikit-image>=0.19.0"
+        ]
+        
+        # Only install Pi-specific GPIO packages if we're on Pi hardware
+        try:
+            # Check if we're on a Raspberry Pi
+            with open('/proc/cpuinfo', 'r') as f:
+                cpuinfo = f.read()
+            if 'Raspberry Pi' in cpuinfo or 'BCM' in cpuinfo:
+                logger.info("Detected Raspberry Pi hardware, installing GPIO packages...")
+                pi_packages.extend([
+                    "picamera2>=0.3.12",
+                    "gpiozero>=1.6.2", 
+                    "RPi.GPIO>=0.7.1",
+                    "lgpio>=0.2.2.0",
+                    "gpustat>=1.1.1"
+                ])
+        except FileNotFoundError:
+            logger.info("Not running on Pi hardware, skipping GPIO packages")
+        
+        # Install packages with error handling
+        for package in pi_packages:
+            try:
+                logger.info(f"Installing {package}...")
+                result = subprocess.run([
+                    sys.executable, "-m", "pip", "install", "--no-cache-dir", package
+                ], capture_output=True, text=True, timeout=300)
+                
+                if result.returncode == 0:
+                    logger.info(f"Successfully installed {package}")
+                else:
+                    logger.warning(f"Failed to install {package}: {result.stderr}")
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Timeout installing {package}")
+            except Exception as e:
+                logger.warning(f"Error installing {package}: {e}")
+    
     def _wait_for_dependencies(self):
         """Wait for required services to be available"""
         logger.info("Waiting for system initialization...")
@@ -165,6 +209,7 @@ class ContainerOrchestrator:
             
             # Initialize environment
             self._ensure_directories()
+            self._install_runtime_packages()
             self._wait_for_dependencies()
             
             # Start maintenance daemon if enabled
