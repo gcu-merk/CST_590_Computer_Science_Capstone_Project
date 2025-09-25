@@ -139,7 +139,7 @@ EXPOSE 5000
 
 # Health check using Python with proper error handling
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import sys,urllib.request; urllib.request.urlopen('http://localhost:5000/api/health'); sys.exit(0)" || exit 1
+    CMD python -c "import sys,urllib.request; urllib.request.urlopen('http://localhost:5000/health'); sys.exit(0)" || exit 1
 
 # Switch to merk user (matches Pi host user)
 USER merk
