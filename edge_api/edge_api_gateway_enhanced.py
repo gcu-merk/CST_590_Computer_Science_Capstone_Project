@@ -535,19 +535,7 @@ class EnhancedSwaggerAPIGateway:
                     })
                     return {"error": str(e)}, 500
         
-        # Store reference to self for route methods
-        self._bind_route_methods(health_ns, vehicle_ns, weather_ns, analytics_ns, events_ns)
-    
-    def _bind_route_methods(self, *namespaces):
-        """Bind route handler methods to self"""
-        # This allows the route handlers to access self methods
-        for resource_class in [cls for ns in namespaces for cls in ns.resources]:
-            for method_name in dir(resource_class):
-                method = getattr(resource_class, method_name)
-                if callable(method) and not method_name.startswith('_'):
-                    # Bind self to method if it needs gateway access
-                    if hasattr(method, '__self__') is False:
-                        setattr(resource_class, '_gateway', self)
+        # Routes registered successfully - no dynamic binding needed
     
     @logger.monitor_performance("system_health_check")
     def _get_system_health(self) -> Dict[str, Any]:
