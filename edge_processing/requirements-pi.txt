@@ -1,6 +1,6 @@
-# Raspberry Pi specific packages
-# These should be installed on the Pi or in the running container
-picamera2>=0.3.12        # Native Pi camera interface (replaces deprecated picamera)
+# Raspberry Pi specific packages  
+# Note: picamera2 excluded - system uses host-capture/container-process architecture
+# Camera capture handled by host Pi, containers process shared volume images
 gpiozero>=1.6.2          # Simplified GPIO control
 RPi.GPIO>=0.7.1         # Low-level GPIO access
 gpustat>=1.1.1          # GPU monitoring for Pi 5

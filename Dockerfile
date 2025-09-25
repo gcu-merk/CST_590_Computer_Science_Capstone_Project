@@ -101,6 +101,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Create application user matching Pi host user (merk:merk = 1000:1000)
 RUN groupadd -g 1000 merk && \
     useradd -u 1000 -g 1000 -d /app -s /bin/bash merk && \
+    # Create user home directory with proper permissions
+    mkdir -p /app/.local /app/.cache && \
+    chown -R merk:merk /app && \
     # Create hardware access groups with proper error handling
     for group in gpio i2c spi; do \
         getent group $group || groupadd $group; \
@@ -114,16 +117,22 @@ WORKDIR /app
 COPY --chown=merk:merk . /app/
 
 # Create data directories with proper permissions
-RUN mkdir -p /mnt/storage/{logs,data,config,scripts} && \
+RUN mkdir -p /mnt/storage/{logs,data,config,scripts,python-user,tmp,database} && \
     chown -R merk:merk /mnt/storage
 
 # Make entrypoint executable
 RUN chmod +x /app/docker_entrypoint.py
 
-# Set environment variables
+# Set environment variables - all data goes to SSD (/mnt/storage)
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUSERBASE=/mnt/storage/python-user \
+    PIP_USER=1 \
+    PATH="/mnt/storage/python-user/bin:$PATH" \
+    TMPDIR=/mnt/storage/tmp \
+    DATABASE_PATH=/mnt/storage/database/traffic_data.db \
+    LOG_DIR=/mnt/storage/logs
 
 # Expose port
 EXPOSE 5000

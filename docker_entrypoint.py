@@ -62,7 +62,10 @@ class ContainerOrchestrator:
             "/mnt/storage/logs/maintenance", 
             "/mnt/storage/scripts",
             "/mnt/storage/data",
-            "/mnt/storage/config"
+            "/mnt/storage/config",
+            "/mnt/storage/python-user",
+            "/mnt/storage/tmp",
+            "/mnt/storage/database"
         ]
         
         for directory in directories:
@@ -90,11 +93,8 @@ class ContainerOrchestrator:
             if 'Raspberry Pi' in cpuinfo or 'BCM' in cpuinfo:
                 logger.info("Detected Raspberry Pi hardware, installing GPIO packages...")
                 
-                # Install picamera2 if not available from build time
-                if not (flags_dir / "picamera2-available").exists():
-                    pi_packages.append("picamera2>=0.3.12")
-                else:
-                    logger.info("picamera2 already installed during build")
+                # Note: picamera2 intentionally excluded - containers use shared volume images
+                logger.info("Using host-capture/container-process architecture - no direct camera access needed")
                 
                 # Add other Pi-specific packages
                 pi_packages.extend([
@@ -111,7 +111,7 @@ class ContainerOrchestrator:
             try:
                 logger.info(f"Installing {package}...")
                 result = subprocess.run([
-                    sys.executable, "-m", "pip", "install", "--no-cache-dir", package
+                    sys.executable, "-m", "pip", "install", "--user", "--no-cache-dir", package
                 ], capture_output=True, text=True, timeout=300)
                 
                 if result.returncode == 0:
