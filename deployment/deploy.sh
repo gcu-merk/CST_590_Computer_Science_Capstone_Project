@@ -45,6 +45,21 @@ check_docker() {
         echo -e "${GREEN}✓ Docker found${NC}"
     fi
     
+    # Check if Docker daemon is running
+    if ! docker info >/dev/null 2>&1; then
+        echo -e "${YELLOW}Docker daemon not responding, attempting to start...${NC}"
+        sudo systemctl start docker
+        sleep 5
+        
+        if ! docker info >/dev/null 2>&1; then
+            echo -e "${RED}Docker daemon failed to start${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ Docker daemon started${NC}"
+    else
+        echo -e "${GREEN}✓ Docker daemon running${NC}"
+    fi
+    
     # Verify Docker Compose
     if ! docker compose version &> /dev/null; then
         echo -e "${RED}Docker Compose not available${NC}"
@@ -137,30 +152,80 @@ stop_existing_services() {
     
     # Force remove any stuck containers by name (handles conflicts)
     echo "Ensuring all traffic monitoring containers are removed..."
-    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather vehicle-consolidator 2>/dev/null || true
+    
+    # Comprehensive list of containers that might exist
+    CLEANUP_CONTAINERS=(
+        "traffic-monitor"
+        "redis"
+        "postgres" 
+        "data-maintenance"
+        "airport-weather"
+        "dht22-weather"
+        "vehicle-consolidator"
+        "redis-optimization"
+        "database-persistence"
+        "realtime-events-broadcaster"
+        "nginx-proxy"
+    )
+    
+    for container in "${CLEANUP_CONTAINERS[@]}"; do
+        if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+            echo "Removing container: $container"
+            docker stop "$container" 2>/dev/null || true
+            docker rm -f "$container" 2>/dev/null || true
+        fi
+    done
+    
+    # Additional safety cleanup - remove any containers with partial name matches
+    echo "Additional cleanup of containers with matching patterns..."
+    docker ps -a --format "{{.ID}} {{.Names}}" | grep -E "(traffic|redis|database|data-|airport|dht22|vehicle|nginx)" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
     
     # More aggressive network cleanup - disconnect all endpoints first
     echo "Cleaning up Docker networks..."
     
-    # List and disconnect all endpoints from our networks
-    for network in "traffic_monitoring_traffic-monitoring-network" "traffic-monitoring-network" "traffic_monitoring_default"; do
+    # Comprehensive list of networks that might exist
+    CLEANUP_NETWORKS=(
+        "traffic_monitoring_app-network"
+        "traffic_monitoring_default"
+        "traffic-monitoring-network"
+        "traffic_monitoring_traffic-monitoring-network"
+    )
+    
+    for network in "${CLEANUP_NETWORKS[@]}"; do
         if docker network inspect "$network" >/dev/null 2>&1; then
             echo "Cleaning endpoints from network: $network"
-            # Get all connected containers and disconnect them
-            docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -r -n1 docker network disconnect "$network" 2>/dev/null || true
+            # Get all connected containers and disconnect them with force
+            docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -r -n1 docker network disconnect "$network" --force 2>/dev/null || true
             # Force remove the network
             docker network rm "$network" 2>/dev/null || true
         fi
     done
     
-    # Additional cleanup for any orphaned containers
-    docker system prune -f --volumes 2>/dev/null || true
+    # Prune any unused networks
+    echo "Pruning unused Docker networks..."
+    docker network prune -f 2>/dev/null || true
+    
+    # Final comprehensive cleanup
+    echo "Performing final Docker cleanup..."
+    
+    # Remove any dangling containers and images
+    docker system prune -f 2>/dev/null || true
     
     # Stop any legacy systemd services
     sudo systemctl stop traffic-monitor.service 2>/dev/null || true
     sudo systemctl disable traffic-monitor.service 2>/dev/null || true
     
-    echo -e "${GREEN}✓ Existing services stopped${NC}"
+    # Verify clean state
+    echo "Verifying clean state..."
+    remaining_containers=$(docker ps -a --format "{{.Names}}" | grep -E "(traffic|redis|database|data-|airport|dht22|vehicle|nginx)" | wc -l)
+    if [ "$remaining_containers" -gt 0 ]; then
+        echo "Warning: Found $remaining_containers potentially conflicting containers still present"
+        docker ps -a --format "{{.Names}}" | grep -E "(traffic|redis|database|data-|airport|dht22|vehicle|nginx)" | head -5
+    else
+        echo "✓ Clean container state verified"
+    fi
+    
+    echo -e "${GREEN}✓ Existing services stopped and cleaned up${NC}"
 }
 
 # Deploy application files
@@ -231,39 +296,99 @@ start_services() {
     
     # Stop any existing containers first (with force cleanup)
     echo "Stopping any existing containers..."
-    docker compose $COMPOSE_FILES down || true
+    docker compose $COMPOSE_FILES down --remove-orphans || true
     
     # Additional cleanup to handle stubborn containers and networks
     echo "Ensuring clean container state..."
-    docker rm -f traffic-monitor redis postgres data-maintenance airport-weather dht22-weather vehicle-consolidator 2>/dev/null || true
+    
+    # Stop and remove ALL containers that might conflict (comprehensive list)
+    CONTAINERS_TO_REMOVE=(
+        "traffic-monitor"
+        "redis" 
+        "postgres"
+        "data-maintenance"
+        "airport-weather"
+        "dht22-weather"
+        "vehicle-consolidator"
+        "redis-optimization"
+        "database-persistence"
+        "realtime-events-broadcaster"
+        "nginx-proxy"
+    )
+    
+    echo "Removing potentially conflicting containers..."
+    for container in "${CONTAINERS_TO_REMOVE[@]}"; do
+        # Find container by name (exact match or partial match)
+        container_ids=$(docker ps -aq --filter "name=${container}" 2>/dev/null || true)
+        if [ ! -z "$container_ids" ]; then
+            echo "Removing container(s) matching '${container}': $container_ids"
+            echo "$container_ids" | xargs -r docker stop 2>/dev/null || true
+            echo "$container_ids" | xargs -r docker rm -f 2>/dev/null || true
+        fi
+    done
+    
+    # Force remove any remaining containers with conflicting names
+    echo "Force cleanup any remaining containers..."
+    docker ps -a --format "{{.ID}} {{.Names}}" | grep -E "(traffic|redis|database|data-|airport|dht22|vehicle|nginx)" | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
     
     # Force cleanup any remaining network endpoints
-    for network in "traffic_monitoring_traffic-monitoring-network" "traffic-monitoring-network" "traffic_monitoring_default"; do
+    NETWORKS_TO_REMOVE=(
+        "traffic_monitoring_app-network"
+        "traffic_monitoring_default"
+        "traffic-monitoring-network"
+        "traffic_monitoring_traffic-monitoring-network"
+    )
+    
+    for network in "${NETWORKS_TO_REMOVE[@]}"; do
         if docker network inspect "$network" >/dev/null 2>&1; then
             echo "Force cleaning network: $network"
-            docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -r -n1 docker network disconnect "$network" 2>/dev/null || true
+            # Disconnect all containers from network
+            docker network inspect "$network" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -r -n1 docker network disconnect "$network" --force 2>/dev/null || true
+            # Remove network
             docker network rm "$network" 2>/dev/null || true
         fi
     done
     
-    # Start services
+    # Prune unused networks
+    echo "Pruning unused networks..."
+    docker network prune -f 2>/dev/null || true
+    
+    # Start services with retry logic
     echo "Starting containers..."
+    
+    # First attempt: normal startup
     if docker compose $COMPOSE_FILES up -d; then
-        echo -e "${GREEN}✓ Docker services started${NC}"
-        
-        # Give containers time to start
-        echo "Waiting for containers to initialize..."
-        sleep 10
-        
-        # Show container status
-        echo "Container status after startup:"
-        docker compose $COMPOSE_FILES ps
+        echo -e "${GREEN}✓ Docker services started successfully${NC}"
     else
-        echo -e "${RED}✗ Failed to start Docker services${NC}"
-        echo "Checking for errors..."
-        docker compose $COMPOSE_FILES logs
-        exit 1
+        echo -e "${YELLOW}First startup attempt failed, trying with force recreate...${NC}"
+        
+        # Second attempt: force recreate
+        if docker compose $COMPOSE_FILES up -d --force-recreate --remove-orphans; then
+            echo -e "${GREEN}✓ Docker services started with force recreate${NC}"
+        else
+            echo -e "${RED}✗ Failed to start Docker services${NC}"
+            echo "Checking for errors..."
+            docker compose $COMPOSE_FILES logs --tail=20
+            
+            # Show what containers exist
+            echo "Current container state:"
+            docker ps -a
+            
+            # Show network state
+            echo "Current network state:"
+            docker network ls
+            
+            exit 1
+        fi
     fi
+    
+    # Give containers time to start
+    echo "Waiting for containers to initialize..."
+    sleep 15
+    
+    # Show container status
+    echo "Container status after startup:"
+    docker compose $COMPOSE_FILES ps
 }
 
 # Verify deployment
