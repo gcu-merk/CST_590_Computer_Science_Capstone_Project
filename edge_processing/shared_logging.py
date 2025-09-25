@@ -178,6 +178,35 @@ class ServiceLogger:
             'context': context or {},
             'traceback': traceback.format_exc()
         })
+    
+    def log_business_event(self, event_name: str, event_data: Dict = None):
+        """Log business event with structured data"""
+        self.logger.info(f"📊 Business Event: {event_name}", extra={
+            'business_event': event_name,
+            'event_type': 'business',
+            'event_data': event_data or {},
+            'timestamp': datetime.now().isoformat()
+        })
+    
+    def log_error(self, message: str, error: str = None, **kwargs):
+        """Log error message with optional error details"""
+        extra_data = {
+            'event_type': 'error',
+            **kwargs
+        }
+        if error:
+            extra_data['error'] = error
+        
+        self.logger.error(f"❌ {message}", extra=extra_data)
+    
+    def log_performance_metric(self, metric_name: str, metrics: Dict):
+        """Log performance metrics"""
+        self.logger.info(f"📈 Performance Metric: {metric_name}", extra={
+            'event_type': 'performance_metric',
+            'metric_name': metric_name,
+            'metrics': metrics,
+            'timestamp': datetime.now().isoformat()
+        })
 
 
 class StructuredFormatter(logging.Formatter):
