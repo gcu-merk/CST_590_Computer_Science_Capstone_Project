@@ -88,44 +88,34 @@ RUN apt-get update && apt-get install -y \
     i2c-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Raspberry Pi specific packages with proper error handling
-RUN apt-get update && \
-    # Try to install Pi-specific packages and create availability flags
-    mkdir -p /tmp/package-flags && \
-    (apt-get install -y python3-picamera2 && touch /tmp/package-flags/picamera2-available || \
-     echo "python3-picamera2 not available - will install at runtime") && \
-    (apt-get install -y libcamera-apps && touch /tmp/package-flags/libcamera-available || \
-     echo "libcamera-apps not available - will install at runtime") && \
-    (apt-get install -y rpicam-apps && touch /tmp/package-flags/rpicam-available || \
-     echo "rpicam-apps not available - will install at runtime") && \
-    (apt-get install -y imx500-all && touch /tmp/package-flags/imx500-available || \
-     echo "imx500-all not available - will install at runtime") && \
-    (apt-get install -y python3-imx500 && touch /tmp/package-flags/python3-imx500-available || \
-     echo "python3-imx500 not available - will install at runtime") && \
-    rm -rf /var/lib/apt/lists/*
+# Note: Camera packages intentionally excluded from Docker
+# This system uses host-capture/container-process architecture where:
+# - Host Pi runs rpicam-still for camera capture (full hardware access)  
+# - Container processes images from shared volume (no camera hardware needed)
+# This avoids OpenCV 4.12.0 compatibility issues with IMX500 V4L2 backend
 
 # Copy Python packages from builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Create application user (security best practice)
-RUN groupadd -r appuser && \
-    useradd -r -g appuser -d /app -s /bin/bash appuser && \
+# Create application user matching Pi host user (merk:merk = 1000:1000)
+RUN groupadd -g 1000 merk && \
+    useradd -u 1000 -g 1000 -d /app -s /bin/bash merk && \
     # Create hardware access groups with proper error handling
     for group in gpio i2c spi; do \
         getent group $group || groupadd $group; \
     done && \
-    usermod -a -G gpio,i2c,spi appuser
+    usermod -a -G gpio,i2c,spi merk
 
 # Set working directory
 WORKDIR /app
 
 # Copy application code with proper ownership
-COPY --chown=appuser:appuser . /app/
+COPY --chown=merk:merk . /app/
 
 # Create data directories with proper permissions
 RUN mkdir -p /mnt/storage/{logs,data,config,scripts} && \
-    chown -R appuser:appuser /mnt/storage
+    chown -R merk:merk /mnt/storage
 
 # Make entrypoint executable
 RUN chmod +x /app/docker_entrypoint.py
@@ -142,8 +132,8 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import sys,urllib.request; urllib.request.urlopen('http://localhost:5000/api/health'); sys.exit(0)" || exit 1
 
-# Switch to non-root user
-USER appuser
+# Switch to merk user (matches Pi host user)
+USER merk
 
 # Use Python entry point instead of shell script
 ENTRYPOINT ["python", "/app/docker_entrypoint.py"]
