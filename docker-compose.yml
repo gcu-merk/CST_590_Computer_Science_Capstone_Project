@@ -55,6 +55,7 @@ services:
   data-maintenance:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: data-maintenance
+    command: ["python", "-m", "edge_processing.data_maintenance_service_enhanced"]
     environment:
       - SERVICE_TYPE=maintenance
       - ENABLE_MAINTENANCE=true
@@ -66,6 +67,11 @@ services:
       - MAINTENANCE_LOG_MAX_AGE_DAYS=30
       - MAINTENANCE_EMERGENCY_THRESHOLD=90
       - MAINTENANCE_WARNING_THRESHOLD=80
+      # Centralized Logging Configuration
+      - SERVICE_NAME=data_maintenance_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}:/mnt/storage
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
@@ -171,6 +177,10 @@ services:
       - RADAR_BAUD_RATE=19200
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
+      # Centralized Logging Configuration
+      - SERVICE_NAME=radar_service
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - ${STORAGE_ROOT:-/mnt/storage}/logs/radar-service:/app/logs/radar-service
@@ -218,6 +228,10 @@ services:
       - STATS_UPDATE_INTERVAL=60
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
+      # Centralized Logging Configuration
+      - SERVICE_NAME=vehicle_consolidator_service
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - ${STORAGE_ROOT:-/mnt/storage}/logs/vehicle-consolidator:/app/logs/vehicle-consolidator
