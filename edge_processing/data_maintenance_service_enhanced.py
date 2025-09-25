@@ -363,12 +363,15 @@ class EnhancedDataMaintenanceService:
                 
         except Exception as e:
             import traceback
+            print(f"MAINTENANCE CYCLE ERROR: {str(e)}")
+            print(f"ERROR TYPE: {type(e).__name__}")
+            print(f"TRACEBACK: {traceback.format_exc()}")
+            print(f"SSD PATH: {str(self.ssd_path) if hasattr(self, 'ssd_path') else 'Not set'}")
+            
             self.logger.log_error(
-                "Maintenance cycle failed", 
+                f"Maintenance cycle failed: {str(e)} (Type: {type(e).__name__})",
                 error=str(e),
-                error_type=type(e).__name__,
-                traceback=traceback.format_exc(),
-                ssd_path=str(self.ssd_path) if hasattr(self, 'ssd_path') else 'Not set'
+                error_type=type(e).__name__
             )
 
     def run(self):
