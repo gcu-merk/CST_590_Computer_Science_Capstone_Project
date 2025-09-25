@@ -40,5 +40,8 @@ structlog==24.2.0
 # Date/time utilities
 pytz==2024.1
 
+# System monitoring and diagnostics
+psutil>=5.9.0
+
 # Note: Removed FastAPI/Uvicorn (not used), heavy ML libs (TensorFlow/PyTorch)
 # This reduces Docker build time from 18+ minutes back to ~2-3 minutes
