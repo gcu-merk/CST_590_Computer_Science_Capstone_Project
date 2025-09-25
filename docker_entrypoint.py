@@ -73,6 +73,9 @@ class ContainerOrchestrator:
         """Install hardware-specific packages at runtime on Pi"""
         logger.info("Installing runtime-specific packages...")
         
+        # Check package availability flags from build time
+        flags_dir = Path("/tmp/package-flags")
+        
         # Packages that need to be installed on actual Pi hardware
         pi_packages = [
             "opencv-python>=4.5.0",
@@ -86,8 +89,15 @@ class ContainerOrchestrator:
                 cpuinfo = f.read()
             if 'Raspberry Pi' in cpuinfo or 'BCM' in cpuinfo:
                 logger.info("Detected Raspberry Pi hardware, installing GPIO packages...")
+                
+                # Install picamera2 if not available from build time
+                if not (flags_dir / "picamera2-available").exists():
+                    pi_packages.append("picamera2>=0.3.12")
+                else:
+                    logger.info("picamera2 already installed during build")
+                
+                # Add other Pi-specific packages
                 pi_packages.extend([
-                    "picamera2>=0.3.12",
                     "gpiozero>=1.6.2", 
                     "RPi.GPIO>=0.7.1",
                     "lgpio>=0.2.2.0",

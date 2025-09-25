@@ -69,7 +69,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     openssl \
     && mkdir -p /usr/share/keyrings && \
-    wget -qO - http://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor > /usr/share/keyrings/raspberrypi-archive-keyring.gpg && \
+    wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor > /usr/share/keyrings/raspberrypi-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
@@ -86,15 +86,23 @@ RUN apt-get update && apt-get install -y \
     # Hardware interface libraries  
     libgpiod2 \
     i2c-tools \
-    # Raspberry Pi specific packages (optional)
-    && (apt-get install -y \
-        python3-picamera2 \
-        libcamera-apps \
-        rpicam-apps \
-        imx500-all \
-        python3-imx500 \
-    || echo "Pi packages not available") \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Raspberry Pi specific packages with proper error handling
+RUN apt-get update && \
+    # Try to install Pi-specific packages and create availability flags
+    mkdir -p /tmp/package-flags && \
+    (apt-get install -y python3-picamera2 && touch /tmp/package-flags/picamera2-available || \
+     echo "python3-picamera2 not available - will install at runtime") && \
+    (apt-get install -y libcamera-apps && touch /tmp/package-flags/libcamera-available || \
+     echo "libcamera-apps not available - will install at runtime") && \
+    (apt-get install -y rpicam-apps && touch /tmp/package-flags/rpicam-available || \
+     echo "rpicam-apps not available - will install at runtime") && \
+    (apt-get install -y imx500-all && touch /tmp/package-flags/imx500-available || \
+     echo "imx500-all not available - will install at runtime") && \
+    (apt-get install -y python3-imx500 && touch /tmp/package-flags/python3-imx500-available || \
+     echo "python3-imx500 not available - will install at runtime") && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -103,10 +111,10 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Create application user (security best practice)
 RUN groupadd -r appuser && \
     useradd -r -g appuser -d /app -s /bin/bash appuser && \
-    # Add to GPIO groups for Pi hardware access
-    groupadd -f gpio && \
-    groupadd -f i2c && \
-    groupadd -f spi && \
+    # Create hardware access groups with proper error handling
+    for group in gpio i2c spi; do \
+        getent group $group || groupadd $group; \
+    done && \
     usermod -a -G gpio,i2c,spi appuser
 
 # Set working directory
@@ -130,9 +138,9 @@ ENV PYTHONPATH=/app \
 # Expose port
 EXPOSE 5000
 
-# Health check using Python instead of curl
+# Health check using Python with proper error handling
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')" || exit 1
+    CMD python -c "import sys,urllib.request; urllib.request.urlopen('http://localhost:5000/api/health'); sys.exit(0)" || exit 1
 
 # Switch to non-root user
 USER appuser
