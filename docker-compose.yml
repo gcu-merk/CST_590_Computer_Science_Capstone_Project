@@ -52,9 +52,9 @@ services:
   data-maintenance:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: data-maintenance
-    command: ["bash", "/app/scripts/start-with-maintenance.sh"]
     environment:
-      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - SERVICE_TYPE=maintenance
+      - ENABLE_MAINTENANCE=true
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -72,9 +72,8 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     healthcheck:
-      test: ["CMD", "python3", "/app/scripts/container-maintenance.py", "--status"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 5m
       timeout: 30s
       retries: 3

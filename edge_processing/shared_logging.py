@@ -297,6 +297,39 @@ class CorrelationContextManager:
 # Global logger instances for each service
 _loggers = {}
 
+def performance_monitor(operation_name: str):
+    """Context manager for performance monitoring"""
+    import time
+    from contextlib import contextmanager
+    
+    @contextmanager
+    def monitor():
+        start_time = time.time()
+        try:
+            yield
+            duration = (time.time() - start_time) * 1000  # Convert to milliseconds
+            # Use default logger if available
+            logger = logging.getLogger("performance")
+            logger.info(f"Performance: {operation_name} completed in {duration:.2f}ms", extra={
+                "operation": operation_name,
+                "duration_ms": round(duration, 2),
+                "business_event": "performance_monitoring",
+                "status": "success"
+            })
+        except Exception as e:
+            duration = (time.time() - start_time) * 1000
+            logger = logging.getLogger("performance")
+            logger.error(f"Performance: {operation_name} failed after {duration:.2f}ms", extra={
+                "operation": operation_name,
+                "duration_ms": round(duration, 2),
+                "business_event": "performance_monitoring",
+                "status": "error",
+                "error": str(e)
+            })
+            raise
+    return monitor()
+
+
 def get_service_logger(service_name: str, **kwargs) -> ServiceLogger:
     """Get or create service logger instance"""
     if service_name not in _loggers:

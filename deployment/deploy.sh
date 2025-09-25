@@ -263,6 +263,29 @@ deploy_application() {
     echo -e "${GREEN}✓ Application deployed${NC}"
 }
 
+# Setup required directories and permissions
+setup_storage_directories() {
+    echo -e "${YELLOW}Setting up storage directories...${NC}"
+    
+    # Create all required directories
+    sudo mkdir -p "$STORAGE_ROOT/logs/applications"
+    sudo mkdir -p "$STORAGE_ROOT/logs/docker" 
+    sudo mkdir -p "$STORAGE_ROOT/data"
+    sudo mkdir -p "$STORAGE_ROOT/config"
+    
+    # Set proper ownership for the service user
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$STORAGE_ROOT/logs"
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$STORAGE_ROOT/data"
+    sudo chown -R $SERVICE_USER:$SERVICE_USER "$STORAGE_ROOT/config"
+    
+    # Set permissions to allow Docker containers to write
+    sudo chmod -R 775 "$STORAGE_ROOT/logs"
+    sudo chmod -R 775 "$STORAGE_ROOT/data"
+    sudo chmod -R 775 "$STORAGE_ROOT/config"
+    
+    echo -e "${GREEN}✓ Storage directories configured${NC}"
+}
+
 # Start Docker services
 start_services() {
     echo -e "${YELLOW}Starting Docker services...${NC}"
@@ -491,6 +514,7 @@ main() {
     verify_deployment_files
     stop_existing_services
     deploy_application
+    setup_storage_directories
     start_services
     verify_deployment
     setup_monitoring

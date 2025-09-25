@@ -15,7 +15,6 @@ RUN apt-get update && apt-get install -y \
     libtiff5-dev \
     libpng-dev \
     git \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
@@ -29,12 +28,12 @@ COPY edge_processing/requirements-pi.txt /tmp/requirements-pi.txt
 # Install Python packages in virtual environment
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /tmp/requirements-api.txt && \
-    (pip install --no-cache-dir -r /tmp/requirements-pi.txt || echo "Some Pi packages not available")
+    pip install --no-cache-dir -r /tmp/requirements-pi.txt || echo "Some Pi packages not available"
 
 # Runtime stage - minimal runtime image
 FROM arm64v8/python:3.11-slim-bookworm AS runtime
 
-# Add Raspberry Pi OS repositories for camera packages
+# Add Raspberry Pi repositories
 RUN apt-get update && apt-get install -y wget gnupg && \
     mkdir -p /usr/share/keyrings && \
     wget -qO - http://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor > /usr/share/keyrings/raspberrypi-archive-keyring.gpg && \
@@ -57,7 +56,6 @@ RUN apt-get update && apt-get install -y \
     && (apt-get install -y \
         python3-picamera2 \
         libcamera-apps \
-        rpicam-apps \
         imx500-all \
         python3-imx500 \
     || echo "Pi packages not available") \
