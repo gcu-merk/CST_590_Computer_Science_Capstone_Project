@@ -201,7 +201,8 @@ class ContainerOrchestrator:
                 # Start DHT22 weather service
                 process = subprocess.Popen([
                     sys.executable, 
-                    "/app/edge_processing/dht_22_weather_service_enhanced.py"
+                    "-m", 
+                    "edge_processing.dht_22_weather_service_enhanced"
                 ])
             else:
                 # Start main edge application
