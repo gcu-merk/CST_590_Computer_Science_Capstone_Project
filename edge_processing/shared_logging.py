@@ -22,13 +22,18 @@ class ServiceLogger:
                  service_name: str,
                  log_level: str = "INFO",
                  log_dir: str = "/mnt/storage/logs/applications",
-                 enable_correlation: bool = True):
+                 enable_correlation: bool = True,
+                 service_version: str = None,
+                 environment: str = None,
+                 **kwargs):
         
         self.service_name = service_name
         self.log_level = log_level.upper()
         self.log_dir = Path(log_dir)
         self.enable_correlation = enable_correlation
         self.correlation_id = None
+        self.service_version = service_version or "1.0.0"
+        self.environment = environment or "production"
         
         # Create log directory
         self.log_dir.mkdir(parents=True, exist_ok=True)
