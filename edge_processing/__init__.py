@@ -7,7 +7,10 @@ __version__ = "1.0.0"
 __author__ = "Traffic Monitoring Team"
 
 # Import main services with conditional imports to handle missing dependencies
-from .vehicle_detection.vehicle_detection_service import VehicleDetectionService
+try:
+    from .vehicle_detection.vehicle_detection_service import VehicleDetectionService
+except ImportError:
+    VehicleDetectionService = None
 
 # Optional imports - fail gracefully if dependencies missing
 try:
