@@ -197,6 +197,12 @@ class ContainerOrchestrator:
                     sys.executable, 
                     "/app/radar_service.py"
                 ])
+            elif service_type == 'dht22':
+                # Start DHT22 weather service
+                process = subprocess.Popen([
+                    sys.executable, 
+                    "/app/edge_processing/dht_22_weather_service_enhanced.py"
+                ])
             else:
                 # Start main edge application
                 process = subprocess.Popen([
