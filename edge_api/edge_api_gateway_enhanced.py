@@ -19,8 +19,22 @@ HTTP Requests -> Enhanced API Gateway -> ServiceLogger -> Redis/Database -> Cent
 
 from flask import Flask, jsonify, request, send_file, g
 from flask_restx import Api, Resource, Namespace, reqparse
-from flask_socketio import SocketIO, emit
-from flask_cors import CORS
+
+# Optional enhanced features - graceful fallback if not available
+try:
+    from flask_socketio import SocketIO, emit
+    SOCKETIO_AVAILABLE = True
+except ImportError:
+    SocketIO = None
+    emit = None
+    SOCKETIO_AVAILABLE = False
+
+try:
+    from flask_cors import CORS
+    CORS_AVAILABLE = True
+except ImportError:
+    CORS = None
+    CORS_AVAILABLE = False
 import time
 import threading
 import json
@@ -148,8 +162,11 @@ class EnhancedSwaggerAPIGateway:
         self.app.config['SECRET_KEY'] = 'traffic_monitoring_edge_api_enhanced'
         self.app.config['RESTX_MASK_SWAGGER'] = False
         
-        # Enable CORS for cross-origin requests
-        CORS(self.app)
+        # Enable CORS for cross-origin requests (if available)
+        if CORS_AVAILABLE and CORS:
+            CORS(self.app)
+        else:
+            logger.warning("CORS not available - cross-origin requests may be blocked")
         
         # Initialize Flask-RESTX API with Swagger configuration
         self.api = Api(
@@ -167,9 +184,13 @@ class EnhancedSwaggerAPIGateway:
         # Register models with API
         self._register_models()
         
-        # Initialize SocketIO with correlation tracking
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
-        self._setup_socketio_correlation()
+        # Initialize SocketIO with correlation tracking (if available)
+        if SOCKETIO_AVAILABLE and SocketIO:
+            self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+            self._setup_socketio_correlation()
+        else:
+            self.socketio = None
+            logger.warning("SocketIO not available - real-time features disabled")
         
         # Service references
         self.vehicle_detection_service = None
@@ -238,6 +259,9 @@ class EnhancedSwaggerAPIGateway:
     
     def _setup_socketio_correlation(self):
         """Setup WebSocket event handlers with correlation tracking"""
+        
+        if not self.socketio:
+            return
         
         @self.socketio.on('connect')
         def handle_connect():
@@ -351,6 +375,12 @@ class EnhancedSwaggerAPIGateway:
     
     def _setup_enhanced_routes(self):
         """Setup API routes with enhanced logging and correlation tracking"""
+        
+        # Simple health check endpoint for Docker healthcheck
+        @self.app.route('/health')
+        def simple_health_check():
+            """Simple health check endpoint for container monitoring"""
+            return {"status": "healthy", "timestamp": datetime.now().isoformat()}, 200
         
         # Create namespaces
         health_ns = self.api.namespace('health', description='System health and monitoring')
@@ -544,12 +574,19 @@ class EnhancedSwaggerAPIGateway:
     @logger.monitor_performance("system_health_check")
     def _get_system_health(self) -> Dict[str, Any]:
         """Get comprehensive system health status with monitoring"""
-        import psutil
-        
-        # Get system metrics
-        cpu_usage = psutil.cpu_percent(interval=1)
-        memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
+        try:
+            import psutil
+            # Get system metrics
+            cpu_usage = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            system_metrics_available = True
+        except ImportError:
+            # Fallback when psutil is not available
+            cpu_usage = 0
+            memory = type('obj', (object,), {'percent': 0, 'available': 0, 'total': 0})()
+            disk = type('obj', (object,), {'percent': 0, 'free': 0, 'total': 0})()
+            system_metrics_available = False
         
         # Check service health
         redis_healthy = self.redis_client is not None
@@ -559,7 +596,7 @@ class EnhancedSwaggerAPIGateway:
             except:
                 redis_healthy = False
         
-        return {
+        health_status = {
             "status": "healthy" if cpu_usage < 80 and memory.percent < 85 else "warning",
             "timestamp": datetime.now().isoformat(),
             "cpu_usage": cpu_usage,
@@ -571,8 +608,11 @@ class EnhancedSwaggerAPIGateway:
                 "platform": platform.platform(),
                 "python_version": sys.version,
                 "hostname": socket.gethostname()
-            }
+            },
+            "metrics_available": system_metrics_available
         }
+        
+        return health_status
     
     @logger.monitor_performance("vehicle_detections_query")
     def _get_vehicle_detections(self) -> Dict[str, Any]:
@@ -703,8 +743,9 @@ class EnhancedSwaggerAPIGateway:
                 if 'timestamp' not in event_data:
                     event_data['timestamp'] = datetime.now().isoformat()
                 
-                # Emit to all connected clients
-                self.socketio.emit('real_time_event', event_data)
+                # Emit to all connected clients (if SocketIO available)
+                if self.socketio:
+                    self.socketio.emit('real_time_event', event_data)
                 
                 logger.debug("Event broadcasted to WebSocket clients", extra={
                     "business_event": "event_broadcast",
@@ -731,14 +772,24 @@ class EnhancedSwaggerAPIGateway:
             
             self.is_running = True
             
-            # Run the SocketIO server
-            self.socketio.run(
-                self.app,
-                host=self.host,
-                port=self.port,
-                debug=debug,
-                use_reloader=False  # Disable reloader to prevent double initialization
-            )
+            # Run the server (with SocketIO if available, otherwise standard Flask)
+            if self.socketio:
+                self.socketio.run(
+                    self.app,
+                    host=self.host,
+                    port=self.port,
+                    debug=debug,
+                    use_reloader=False  # Disable reloader to prevent double initialization
+                )
+            else:
+                # Fallback to standard Flask server
+                logger.warning("Running without SocketIO - real-time features disabled")
+                self.app.run(
+                    host=self.host,
+                    port=self.port,
+                    debug=debug,
+                    use_reloader=False
+                )
             
         except Exception as e:
             logger.error("API gateway server failed to start", extra={

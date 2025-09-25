@@ -19,6 +19,7 @@ services:
   traffic-monitor:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: traffic-monitor
+    command: ['python', 'edge_api/edge_api_gateway_enhanced.py']
     restart: unless-stopped
     ports:
       - "5000:5000"

@@ -11,8 +11,15 @@ from functools import wraps
 from flask import jsonify, request, current_app
 from werkzeug.exceptions import HTTPException
 import redis
-import psycopg2
 from datetime import datetime
+
+# Optional PostgreSQL support - only import if available
+try:
+    import psycopg2
+    POSTGRESQL_AVAILABLE = True
+except ImportError:
+    psycopg2 = None
+    POSTGRESQL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -175,20 +182,26 @@ def safe_postgres_operation(operation_name: str = "PostgreSQL operation"):
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except psycopg2.OperationalError as e:
-                logger.error(f"PostgreSQL connection error in {operation_name}: {e}")
-                raise DataSourceError(
-                    "Database connection unavailable",
-                    source="PostgreSQL",
-                    operation=operation_name
-                )
-            except psycopg2.DatabaseError as e:
-                logger.error(f"PostgreSQL error in {operation_name}: {e}")
-                raise DataSourceError(
-                    f"Database operation failed: {str(e)}",
-                    source="PostgreSQL",
-                    operation=operation_name
-                )
+            except Exception as e:
+                # Handle PostgreSQL errors if psycopg2 is available
+                if POSTGRESQL_AVAILABLE and psycopg2:
+                    if isinstance(e, psycopg2.OperationalError):
+                        logger.error(f"PostgreSQL connection error in {operation_name}: {e}")
+                        raise DataSourceError(
+                            "Database connection unavailable",
+                            source="PostgreSQL",
+                            operation=operation_name
+                        )
+                    elif isinstance(e, psycopg2.DatabaseError):
+                        logger.error(f"PostgreSQL error in {operation_name}: {e}")
+                        raise DataSourceError(
+                            f"Database operation failed: {str(e)}",
+                            source="PostgreSQL",
+                            operation=operation_name
+                        )
+                
+                # Re-raise other exceptions
+                raise
         return wrapper
     return decorator
 
