@@ -6,10 +6,10 @@ class TrafficDashboard {
         // Check for old HTTP URL and update to HTTPS
         const storedUrl = localStorage.getItem('api-url');
         if (storedUrl && storedUrl.includes('http://100.121.231.16:5000')) {
-            localStorage.setItem('api-url', 'https://edge-traffic-monitoring.taild46447.ts.net/api');
+            localStorage.setItem('api-url', 'https://edge-traffic-monitoring.taild46447.ts.net:8443/api');
         }
         
-        this.apiBaseUrl = localStorage.getItem('api-url') || 'https://edge-traffic-monitoring.taild46447.ts.net/api';
+        this.apiBaseUrl = localStorage.getItem('api-url') || 'https://edge-traffic-monitoring.taild46447.ts.net:8443/api';
         this.isOnline = false;
         this.charts = {};
         this.refreshInterval = null;
@@ -241,7 +241,7 @@ class TrafficDashboard {
             
             // Check if this is a mixed content error (HTTPS to HTTP)
             if (error.message.includes('Failed to fetch') && location.protocol === 'https:' && this.apiBaseUrl.startsWith('http:')) {
-                this.updateApiStatus(false, 'Mixed Content Error: Cannot connect to HTTP API from HTTPS site. Please visit the API directly at https://edge-traffic-monitoring.taild46447.ts.net/docs/');
+                this.updateApiStatus(false, 'Mixed Content Error: Cannot connect to HTTP API from HTTPS site. Please visit the API directly at https://edge-traffic-monitoring.taild46447.ts.net:8443/docs/');
             } else {
                 this.updateApiStatus(false, `Connection failed: ${error.message}`);
             }

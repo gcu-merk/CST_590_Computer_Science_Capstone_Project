@@ -16,7 +16,7 @@
             try {
                 statusDiv.textContent = 'Connecting to API...';
                 
-                const response = await fetch('https://edge-traffic-monitoring.taild46447.ts.net/api/health');
+                const response = await fetch('https://edge-traffic-monitoring.taild46447.ts.net:8443/api/health');
                 
                 if (response.ok) {
                     const data = await response.json();
