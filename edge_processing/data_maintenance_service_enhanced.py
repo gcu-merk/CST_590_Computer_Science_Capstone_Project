@@ -113,7 +113,7 @@ class EnhancedDataMaintenanceService:
         
         # Statistics tracking
         self.stats = {
-            'last_cleanup': None,
+            'last_cleanup': 'never',
             'images_cleaned': 0,
             'logs_cleaned': 0,
             'space_freed_mb': 0,
@@ -325,13 +325,15 @@ class EnhancedDataMaintenanceService:
                 
                 # Store stats in Redis for monitoring
                 if self.redis_client and storage_stats:
+                    # Filter out None values to avoid Redis DataError
+                    filtered_stats = {k: v for k, v in self.stats.items() if v is not None}
                     self.redis_client.hset(
                         "maintenance:storage_stats",
                         mapping={
                             "usage_percent": storage_stats.get('usage_percent', 0),
                             "free_gb": storage_stats.get('free_gb', 0),
                             "last_check": datetime.now().isoformat(),
-                            **self.stats
+                            **filtered_stats
                         }
                     )
                 
