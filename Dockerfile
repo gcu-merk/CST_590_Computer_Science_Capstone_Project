@@ -4,7 +4,7 @@
 # Build stage - for compiling dependencies
 FROM arm64v8/python:3.11-slim-bookworm AS builder
 
-# Install build dependencies
+# Install build dependencies including SSL/TLS support
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
@@ -16,7 +16,13 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     git \
     wget \
+    libssl-dev \
+    ca-certificates \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
+
+# Update SSL certificates
+RUN update-ca-certificates
 
 # Create virtual environment
 RUN python -m venv /opt/venv
@@ -34,11 +40,16 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Runtime stage - minimal runtime image
 FROM arm64v8/python:3.11-slim-bookworm AS runtime
 
-# Add Raspberry Pi OS repositories for camera packages
-RUN apt-get update && apt-get install -y wget gnupg && \
-    mkdir -p /usr/share/keyrings && \
+# Install essential SSL/TLS support and add Raspberry Pi OS repositories
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    openssl \
+    && mkdir -p /usr/share/keyrings && \
     wget -qO - http://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor > /usr/share/keyrings/raspberrypi-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list && \
+    update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Install only runtime dependencies (no build tools)
