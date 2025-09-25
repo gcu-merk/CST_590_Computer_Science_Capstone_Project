@@ -2,7 +2,7 @@
 # Raspberry Pi 5 Edge ML Traffic Monitoring System
 
 # Build stage - for compiling dependencies
-FROM arm64v8/python:3.11-slim-bookworm AS builder
+FROM python:3.11-slim-bookworm AS builder
 
 # Install build dependencies including SSL/TLS support
 RUN apt-get update && apt-get install -y \
@@ -17,26 +17,24 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     libssl-dev \
+    libffi-dev \
     ca-certificates \
     openssl \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Update SSL certificates
-RUN update-ca-certificates
-
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Use system Python (has guaranteed SSL support)
+ENV PATH="/usr/local/bin:$PATH"
 
 # Copy and install Python dependencies
 COPY edge_api/requirements.txt /tmp/requirements-api.txt
 COPY edge_processing/requirements-pi.txt /tmp/requirements-pi.txt
 
-# Install Python packages in virtual environment using trusted hosts (like original)
-RUN pip install --no-cache-dir --upgrade pip
+# Install Python packages using system Python with SSL support
+RUN pip3 install --no-cache-dir --upgrade pip
 
 # Install API requirements with trusted hosts to handle SSL/certificate issues
-RUN pip install --no-cache-dir --timeout=60 \
+RUN pip3 install --no-cache-dir --timeout=60 \
     --trusted-host pypi.org \
     --trusted-host pypi.python.org \
     --trusted-host files.pythonhosted.org \
@@ -45,7 +43,7 @@ RUN pip install --no-cache-dir --timeout=60 \
     -r /tmp/requirements-api.txt
 
 # Install Pi packages that can work in Docker build environment
-RUN pip install --no-cache-dir --timeout=60 \
+RUN pip3 install --no-cache-dir --timeout=60 \
     --trusted-host pypi.org \
     --trusted-host pypi.python.org \
     --trusted-host files.pythonhosted.org \
@@ -62,7 +60,7 @@ RUN pip install --no-cache-dir --timeout=60 \
 # - opencv-python (large package, install at runtime)
 
 # Runtime stage - minimal runtime image
-FROM arm64v8/python:3.11-slim-bookworm AS runtime
+FROM python:3.11-slim-bookworm AS runtime
 
 # Install essential SSL/TLS support and add Raspberry Pi OS repositories
 RUN apt-get update && apt-get install -y \
@@ -98,9 +96,9 @@ RUN apt-get update && apt-get install -y \
     || echo "Pi packages not available") \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Copy Python packages from builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Create application user (security best practice)
 RUN groupadd -r appuser && \
