@@ -274,6 +274,28 @@ class EnhancedSwaggerAPIGateway:
                     "client_id": request.sid,
                     "active_connections": self.client_count
                 })
+        
+        @self.socketio.on('subscribe_events')
+        def handle_subscribe_events():
+            correlation_id = str(uuid.uuid4())[:8]
+            
+            with CorrelationContext.set_correlation_id(correlation_id):
+                logger.info("Client subscribed to events stream", extra={
+                    "business_event": "events_subscription",
+                    "correlation_id": correlation_id,
+                    "client_id": request.sid
+                })
+                
+                # Send recent events from database
+                recent_events = self._get_recent_events(limit=10)
+                for event in recent_events:
+                    emit('real_time_event', event)
+                
+                emit('events_status', {
+                    'status': 'subscribed',
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now().isoformat()
+                })
     
     def _setup_middleware(self):
         """Setup request/response middleware for logging and stats"""
@@ -335,6 +357,7 @@ class EnhancedSwaggerAPIGateway:
         vehicle_ns = self.api.namespace('vehicles', description='Vehicle detection and tracking')
         weather_ns = self.api.namespace('weather', description='Weather data and monitoring')
         analytics_ns = self.api.namespace('analytics', description='Traffic analytics and insights')
+        events_ns = self.api.namespace('events', description='Real-time event streaming and logs')
         
         # Health endpoints
         @health_ns.route('/system')
@@ -439,8 +462,73 @@ class EnhancedSwaggerAPIGateway:
                     })
                     return {"error": str(e)}, 500
         
+        # Events endpoints for real-time dashboard
+        @events_ns.route('/recent')
+        class RecentEvents(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get recent events for dashboard (fallback to REST when WebSocket unavailable)"""
+                try:
+                    # Get query parameters
+                    parser = reqparse.RequestParser()
+                    parser.add_argument('limit', type=int, default=50, help='Number of recent events to return')
+                    args = parser.parse_args()
+                    
+                    events = self._get_recent_events(limit=args['limit'])
+                    
+                    logger.debug("Recent events retrieved via REST", extra={
+                        "business_event": "events_rest_retrieval",
+                        "event_count": len(events),
+                        "limit": args['limit']
+                    })
+                    
+                    return {
+                        "events": events,
+                        "count": len(events),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                except Exception as e:
+                    logger.error("Failed to retrieve recent events via REST", extra={
+                        "business_event": "events_rest_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
+        @events_ns.route('/broadcast')
+        class BroadcastEvent(Resource):
+            @with_correlation_tracking
+            def post(self):
+                """Receive event from broadcaster service and send to WebSocket clients"""
+                try:
+                    event_data = request.get_json()
+                    
+                    if not event_data:
+                        return {"error": "No event data provided"}, 400
+                    
+                    # Broadcast the event to WebSocket clients
+                    self.broadcast_event(event_data)
+                    
+                    logger.debug("Event broadcast request processed", extra={
+                        "business_event": "broadcast_request_processed",
+                        "event_type": event_data.get('business_event'),
+                        "source_service": event_data.get('service_name')
+                    })
+                    
+                    return {
+                        "status": "broadcasted",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+                except Exception as e:
+                    logger.error("Failed to process broadcast request", extra={
+                        "business_event": "broadcast_request_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
         # Store reference to self for route methods
-        self._bind_route_methods(health_ns, vehicle_ns, weather_ns, analytics_ns)
+        self._bind_route_methods(health_ns, vehicle_ns, weather_ns, analytics_ns, events_ns)
     
     def _bind_route_methods(self, *namespaces):
         """Bind route handler methods to self"""
@@ -545,6 +633,91 @@ class EnhancedSwaggerAPIGateway:
             "primary_humidity": weather_sources.get("dht22", {}).get("humidity"),
             "timestamp": datetime.now().isoformat()
         }
+    
+    def _get_recent_events(self, limit=50) -> List[Dict[str, Any]]:
+        """Get recent events from the centralized logging database for real-time streaming"""
+        events = []
+        
+        try:
+            # Connect to the SQLite database where ServiceLogger stores events
+            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'centralized_logs.db')
+            
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row  # Enable dict-like access
+            cursor = conn.cursor()
+            
+            # Query recent business events for the dashboard
+            cursor.execute("""
+                SELECT timestamp, service_name, level, message, 
+                       business_event, correlation_id, extra_data
+                FROM logs 
+                WHERE business_event IS NOT NULL 
+                   AND business_event IN (
+                       'vehicle_detection', 'vehicle_detected', 'api_request_success',
+                       'radar_alert', 'system_status', 'health_check'
+                   )
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            """, (limit,))
+            
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                # Parse extra_data JSON if available
+                extra_data = {}
+                if row['extra_data']:
+                    try:
+                        extra_data = json.loads(row['extra_data'])
+                    except json.JSONDecodeError:
+                        pass
+                
+                event = {
+                    'timestamp': row['timestamp'],
+                    'service_name': row['service_name'],
+                    'level': row['level'],
+                    'message': row['message'],
+                    'business_event': row['business_event'],
+                    'correlation_id': row['correlation_id'],
+                    **extra_data  # Merge extra data fields
+                }
+                events.append(event)
+            
+            conn.close()
+            
+        except Exception as e:
+            logger.error("Failed to retrieve recent events", extra={
+                "business_event": "events_retrieval_failure",
+                "error": str(e)
+            })
+        
+        return events
+    
+    def broadcast_event(self, event_data):
+        """Broadcast a real-time event to all connected WebSocket clients"""
+        try:
+            correlation_id = str(uuid.uuid4())[:8]
+            
+            with CorrelationContext.set_correlation_id(correlation_id):
+                # Add timestamp if not present
+                if 'timestamp' not in event_data:
+                    event_data['timestamp'] = datetime.now().isoformat()
+                
+                # Emit to all connected clients
+                self.socketio.emit('real_time_event', event_data)
+                
+                logger.debug("Event broadcasted to WebSocket clients", extra={
+                    "business_event": "event_broadcast",
+                    "correlation_id": correlation_id,
+                    "event_type": event_data.get('business_event', 'unknown'),
+                    "active_connections": self.client_count
+                })
+                
+        except Exception as e:
+            logger.error("Failed to broadcast event", extra={
+                "business_event": "event_broadcast_failure",
+                "error": str(e)
+            })
     
     def run(self, debug=False):
         """Run the enhanced API gateway with logging"""

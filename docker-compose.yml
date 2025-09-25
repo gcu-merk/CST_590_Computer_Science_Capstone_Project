@@ -323,6 +323,39 @@ services:
       retries: 3
       start_period: 30s
 
+  realtime-events-broadcaster:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: realtime-events-broadcaster
+    command: ["python", "realtime_events_broadcaster.py"]
+    environment:
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      # Broadcaster Configuration
+      - CENTRALIZED_DB_PATH=/app/data/centralized_logs.db
+      - API_GATEWAY_URL=http://traffic-monitor:5000
+      - POLL_INTERVAL=1.0
+      - BATCH_SIZE=50
+      # Centralized Logging Configuration
+      - SERVICE_NAME=realtime_events_broadcaster
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/data:/app/data
+    depends_on:
+      traffic-monitor:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f realtime_events_broadcaster > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
   app-network:
     driver: bridge

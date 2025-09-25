@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""
+Real-time Events Broadcaster Service Requirements
+"""
+
+# Core dependencies
+requests>=2.31.0
+flask-socketio>=5.3.0
+
+# Database
+sqlite3  # Built into Python
+
+# Utilities
+python-dateutil>=2.8.2
+dataclasses  # Built into Python 3.7+
+
+# Development and testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

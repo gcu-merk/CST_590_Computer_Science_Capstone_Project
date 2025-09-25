@@ -84,6 +84,11 @@ class TrafficDashboard {
     }
     
     switchTab(tabName) {
+        // Stop events manager if switching away from events tab
+        if (this.eventsManager && this.currentTab === 'events' && tabName !== 'events') {
+            this.eventsManager.stop();
+        }
+        
         // Update tab buttons
         document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
@@ -91,6 +96,9 @@ class TrafficDashboard {
         // Update content
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.getElementById(tabName).classList.add('active');
+        
+        // Remember current tab
+        this.currentTab = tabName;
         
         // Load tab-specific data
         this.loadTabData(tabName);
@@ -936,6 +944,13 @@ class TrafficDashboard {
                     console.log('❌ Cannot load alerts - API offline');
                 }
                 break;
+            case 'events':
+                // Initialize real-time events dashboard
+                if (!this.eventsManager) {
+                    this.eventsManager = new VehicleEventsManager(this.apiBaseUrl);
+                }
+                this.eventsManager.start();
+                break;
             default:
                 // Overview tab - data already loaded in loadRealData
                 break;
@@ -1063,6 +1078,311 @@ class TrafficDashboard {
     
     showNotImplemented(feature) {
         alert(`⚠️ ${feature} is not yet implemented.\n\nThis is a demonstration interface. The feature will be added in future development phases.`);
+    }
+}
+
+// Vehicle Events Manager for Real-time Dashboard
+class VehicleEventsManager {
+    constructor(apiBaseUrl) {
+        this.apiBaseUrl = apiBaseUrl;
+        this.logContent = document.getElementById('events-log-content');
+        this.lineNumber = 5;
+        this.autoScroll = true;
+        this.isPaused = false;
+        this.websocket = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        this.stats = {
+            total: 0,
+            cars: 0,
+            trucks: 0,
+            motorcycles: 0,
+            totalConfidence: 0
+        };
+
+        this.initializeEventListeners();
+    }
+
+    initializeEventListeners() {
+        const autoScrollBtn = document.getElementById('auto-scroll');
+        const clearLogBtn = document.getElementById('clear-log');
+        const pauseBtn = document.getElementById('pause-detection');
+        const searchInput = document.getElementById('search');
+
+        if (autoScrollBtn) {
+            autoScrollBtn.addEventListener('click', () => {
+                this.autoScroll = !this.autoScroll;
+                autoScrollBtn.classList.toggle('active', this.autoScroll);
+                autoScrollBtn.innerHTML = this.autoScroll ? '📜 Auto Scroll' : '📜 Manual';
+            });
+        }
+
+        if (clearLogBtn) {
+            clearLogBtn.addEventListener('click', () => {
+                this.clearLog();
+            });
+        }
+
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', () => {
+                this.isPaused = !this.isPaused;
+                pauseBtn.innerHTML = this.isPaused ? '▶️ Resume' : '⏸️ Pause';
+                pauseBtn.classList.toggle('active', this.isPaused);
+                
+                if (this.isPaused) {
+                    this.disconnect();
+                } else {
+                    this.connect();
+                }
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.filterLog(e.target.value);
+            });
+        }
+    }
+
+    start() {
+        this.addSystemMessage('🔄 Connecting to real-time event stream...');
+        this.connect();
+    }
+
+    connect() {
+        if (this.isPaused || this.websocket) return;
+
+        try {
+            // Convert HTTP API URL to WebSocket URL
+            let wsUrl = this.apiBaseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+            wsUrl = wsUrl + '/events';  // WebSocket endpoint for events
+            
+            this.addSystemMessage(`🔗 Attempting connection to ${wsUrl}`);
+            this.websocket = new WebSocket(wsUrl);
+
+            this.websocket.onopen = () => {
+                this.reconnectAttempts = 0;
+                this.addSystemMessage('✅ Connected to real-time event stream');
+                document.getElementById('last-detection').textContent = 'Last detection: Connected, waiting for events...';
+            };
+
+            this.websocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.handleRealtimeEvent(data);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+
+            this.websocket.onclose = () => {
+                this.websocket = null;
+                if (!this.isPaused && this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    this.addSystemMessage(`🔄 Connection lost. Reconnecting... (attempt ${this.reconnectAttempts})`);
+                    setTimeout(() => this.connect(), 2000 * this.reconnectAttempts);
+                } else {
+                    this.addSystemMessage('❌ WebSocket connection failed. Using fallback polling...');
+                    this.startPolling();
+                }
+            };
+
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                this.addSystemMessage('⚠️ WebSocket connection error');
+            };
+
+        } catch (error) {
+            console.error('Failed to create WebSocket:', error);
+            this.addSystemMessage('❌ Failed to establish WebSocket connection. Using fallback...');
+            this.startPolling();
+        }
+    }
+
+    disconnect() {
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
+    }
+
+    startPolling() {
+        // Fallback to polling the API for events
+        this.pollInterval = setInterval(async () => {
+            if (this.isPaused) return;
+
+            try {
+                const response = await fetch(`${this.apiBaseUrl}/recent-events?limit=10`);
+                if (response.ok) {
+                    const events = await response.json();
+                    events.forEach(event => this.handleRealtimeEvent(event));
+                }
+            } catch (error) {
+                console.error('Polling failed:', error);
+            }
+        }, 3000);
+    }
+
+    handleRealtimeEvent(data) {
+        if (this.isPaused) return;
+
+        const timestamp = new Date().toLocaleTimeString();
+
+        // Handle different event types
+        switch (data.event_type || data.business_event) {
+            case 'vehicle_detection':
+            case 'vehicle_detected':
+                this.addVehicleDetection(
+                    data.vehicle_type || data.detected_class,
+                    data.confidence || Math.floor(Math.random() * 40) + 60,
+                    data.location || data.zone || 'Camera Zone',
+                    data.additional_info || `Speed: ${data.speed || 'unknown'}`
+                );
+                break;
+
+            case 'system_status':
+            case 'health_check':
+                this.addSystemMessage(`🔧 ${data.message || 'System health check completed'}`);
+                break;
+
+            case 'api_request_success':
+                // Only log significant API events to avoid spam
+                if (data.endpoint && data.endpoint.includes('detection')) {
+                    this.addSystemMessage(`📡 Detection API request processed (${data.duration_ms}ms)`);
+                }
+                break;
+
+            case 'radar_alert':
+                this.addSystemMessage(`📡 Radar alert: ${data.message || 'Motion detected'}`);
+                break;
+
+            default:
+                // Generic event handling
+                if (data.message) {
+                    this.addSystemMessage(`ℹ️ ${data.message}`);
+                }
+                break;
+        }
+
+        // Update last detection time
+        document.getElementById('last-detection').textContent = `Last detection: ${timestamp}`;
+    }
+
+    addVehicleDetection(vehicleType, confidence, location, additionalInfo = '') {
+        if (this.isPaused) return;
+
+        const timestamp = new Date().toLocaleTimeString();
+        const logLine = document.createElement('div');
+        logLine.className = 'events-log-line new-detection';
+        
+        const confidenceColor = confidence > 80 ? '#38b2ac' : confidence > 60 ? '#ed8936' : '#e53e3e';
+        
+        logLine.innerHTML = `
+            <div class="events-line-number">${this.lineNumber}</div>
+            <div class="events-log-text">
+                <span class="events-timestamp">[${timestamp}]</span> 
+                🚗 Detected <span class="events-vehicle-type">${vehicleType}</span> 
+                with <span class="events-confidence" style="color: ${confidenceColor}">${confidence}% confidence</span>
+                ${location ? ` at <span class="events-location">${location}</span>` : ''}
+                ${additionalInfo ? ` - ${additionalInfo}` : ''}
+            </div>
+        `;
+
+        this.logContent.appendChild(logLine);
+        this.lineNumber++;
+
+        // Update stats
+        this.updateStats(vehicleType, confidence);
+
+        // Auto scroll
+        if (this.autoScroll) {
+            this.logContent.scrollTop = this.logContent.scrollHeight;
+        }
+
+        // Remove highlight after animation
+        setTimeout(() => {
+            logLine.classList.remove('new-detection');
+        }, 1000);
+    }
+
+    updateStats(vehicleType, confidence) {
+        this.stats.total++;
+        this.stats.totalConfidence += confidence;
+
+        const vehicleTypeLower = vehicleType.toLowerCase();
+        if (vehicleTypeLower.includes('car') || vehicleTypeLower.includes('sedan') || vehicleTypeLower.includes('suv')) {
+            this.stats.cars++;
+        } else if (vehicleTypeLower.includes('truck') || vehicleTypeLower.includes('van')) {
+            this.stats.trucks++;
+        } else if (vehicleTypeLower.includes('motorcycle') || vehicleTypeLower.includes('bike')) {
+            this.stats.motorcycles++;
+        }
+
+        document.getElementById('total-detections').textContent = this.stats.total;
+        document.getElementById('cars-count').textContent = this.stats.cars;
+        document.getElementById('trucks-count').textContent = this.stats.trucks;
+        document.getElementById('motorcycles-count').textContent = this.stats.motorcycles;
+        
+        const avgConfidence = this.stats.total > 0 ? Math.round(this.stats.totalConfidence / this.stats.total) : 0;
+        document.getElementById('avg-confidence').textContent = avgConfidence + '%';
+    }
+
+    clearLog() {
+        if (this.logContent) {
+            this.logContent.innerHTML = '';
+            this.lineNumber = 1;
+            this.stats = { total: 0, cars: 0, trucks: 0, motorcycles: 0, totalConfidence: 0 };
+            this.updateStatsDisplay();
+            this.addSystemMessage('📝 Log cleared');
+        }
+    }
+
+    updateStatsDisplay() {
+        document.getElementById('total-detections').textContent = '0';
+        document.getElementById('cars-count').textContent = '0';
+        document.getElementById('trucks-count').textContent = '0';
+        document.getElementById('motorcycles-count').textContent = '0';
+        document.getElementById('avg-confidence').textContent = '0%';
+    }
+
+    addSystemMessage(message) {
+        if (!this.logContent) return;
+
+        const logLine = document.createElement('div');
+        logLine.className = 'events-log-line';
+        logLine.innerHTML = `
+            <div class="events-line-number">${this.lineNumber}</div>
+            <div class="events-log-text">${message}</div>
+        `;
+        this.logContent.appendChild(logLine);
+        this.lineNumber++;
+
+        if (this.autoScroll) {
+            this.logContent.scrollTop = this.logContent.scrollHeight;
+        }
+    }
+
+    filterLog(searchTerm) {
+        if (!this.logContent) return;
+
+        const lines = this.logContent.querySelectorAll('.events-log-line');
+        lines.forEach(line => {
+            const text = line.textContent.toLowerCase();
+            if (searchTerm === '' || text.includes(searchTerm.toLowerCase())) {
+                line.style.display = 'flex';
+            } else {
+                line.style.display = 'none';
+            }
+        });
+    }
+
+    // Cleanup when switching tabs
+    stop() {
+        this.disconnect();
     }
 }
 

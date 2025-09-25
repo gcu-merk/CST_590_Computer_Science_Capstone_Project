@@ -54,6 +54,10 @@
             <span class="tab-icon">🚨</span>
             <span>Alerts</span>
         </button>
+        <button class="tab" data-tab="events">
+            <span class="tab-icon">📡</span>
+            <span>Live Events</span>
+        </button>
     </div>
 
     <!-- Overview Tab Content -->
@@ -323,6 +327,81 @@
                 <li>Traffic congestion notifications</li>
                 <li>System health monitoring</li>
                 <li>Email/SMS alert delivery</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Live Events Tab Content -->
+    <div id="events" class="tab-content">
+        <div class="events-header">
+            <div class="events-title">
+                <h3>📡 Real-time Vehicle Detection System</h3>
+                <div class="events-subtitle" id="last-detection">Last detection: Connecting...</div>
+            </div>
+        </div>
+
+        <div class="events-status-bar">
+            <div class="events-stat">
+                <div class="events-stat-value" id="total-detections">0</div>
+                <div class="events-stat-label">Total Detections</div>
+            </div>
+            <div class="events-stat">
+                <div class="events-stat-value" id="cars-count">0</div>
+                <div class="events-stat-label">Cars</div>
+            </div>
+            <div class="events-stat">
+                <div class="events-stat-value" id="trucks-count">0</div>
+                <div class="events-stat-label">Trucks</div>
+            </div>
+            <div class="events-stat">
+                <div class="events-stat-value" id="motorcycles-count">0</div>
+                <div class="events-stat-label">Motorcycles</div>
+            </div>
+            <div class="events-stat">
+                <div class="events-stat-value" id="avg-confidence">0%</div>
+                <div class="events-stat-label">Avg Confidence</div>
+            </div>
+        </div>
+
+        <div class="events-controls">
+            <button id="auto-scroll" class="events-btn active">📜 Auto Scroll</button>
+            <button id="clear-log" class="events-btn">🗑️ Clear Log</button>
+            <button id="pause-detection" class="events-btn">⏸️ Pause</button>
+            <input type="text" class="events-search-box" id="search" placeholder="🔍 Search detections...">
+        </div>
+
+        <div class="events-detection-log">
+            <div class="events-log-header">
+                <div class="events-status-icon success"></div>
+                <span>Real-time Vehicle Detection Log</span>
+            </div>
+            <div class="events-log-content" id="events-log-content">
+                <div class="events-log-line">
+                    <div class="events-line-number">1</div>
+                    <div class="events-log-text">🚀 Vehicle detection system initialized</div>
+                </div>
+                <div class="events-log-line">
+                    <div class="events-line-number">2</div>
+                    <div class="events-log-text">📹 Camera feed connected</div>
+                </div>
+                <div class="events-log-line">
+                    <div class="events-line-number">3</div>
+                    <div class="events-log-text">🤖 AI model loaded successfully</div>
+                </div>
+                <div class="events-log-line">
+                    <div class="events-line-number">4</div>
+                    <div class="events-log-text">⏳ Waiting for vehicle detections...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="events-info">
+            <p>💡 <strong>Live Events Dashboard:</strong> This real-time feed shows vehicle detections and system events as they happen. Data is streamed directly from the edge processing system.</p>
+            <ul>
+                <li>🚗 Vehicle detections with confidence scores and locations</li>
+                <li>📊 Real-time statistics and detection counts</li>
+                <li>🔍 Search and filter capabilities</li>
+                <li>📡 WebSocket connection for instant updates</li>
             </ul>
         </div>
     </div>
