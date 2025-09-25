@@ -144,5 +144,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Switch to merk user (matches Pi host user)
 USER merk
 
-# Use Python entry point instead of shell script
-ENTRYPOINT ["python", "/app/docker_entrypoint.py"]
+# Set default command but allow override
+CMD ["python", "main_edge_app.py"]
