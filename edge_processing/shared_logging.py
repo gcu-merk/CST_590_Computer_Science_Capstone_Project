@@ -212,6 +212,15 @@ class ServiceLogger:
             'metrics': metrics,
             'timestamp': datetime.now().isoformat()
         })
+    
+    def log_service_event(self, event_name: str, event_data: Dict = None):
+        """Log general service events"""
+        self.logger.info(f"🔔 Service Event: {event_name}", extra={
+            'event_type': 'service_event',
+            'event_name': event_name,
+            'event_data': event_data or {},
+            'timestamp': datetime.now().isoformat()
+        })
 
 
 class StructuredFormatter(logging.Formatter):
@@ -307,6 +316,13 @@ class CorrelationContext:
     def get_correlation_id() -> Optional[str]:
         """Static method to get current correlation ID"""
         return getattr(CorrelationContext._local, 'correlation_id', None)
+    
+    @classmethod
+    def create(cls, operation_name: str = None):
+        """Create a new correlation context for the operation"""
+        import uuid
+        correlation_id = f"{operation_name or 'operation'}_{str(uuid.uuid4())[:8]}"
+        return CorrelationContextManager(correlation_id)
 
 
 class CorrelationContextManager:
