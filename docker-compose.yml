@@ -55,7 +55,7 @@ services:
   data-maintenance:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: data-maintenance
-    command: ["python", "-m", "edge_processing.data_maintenance_service_enhanced"]
+    command: ["python", "edge_processing/data_maintenance_service_enhanced.py"]
     environment:
       - SERVICE_TYPE=maintenance
       - ENABLE_MAINTENANCE=true
@@ -91,7 +91,7 @@ services:
   airport-weather:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: airport-weather
-    command: ["python", "-m", "edge_processing.airport_weather_service_enhanced"]
+    command: ["python", "edge_processing/airport_weather_service_enhanced.py"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
@@ -122,7 +122,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dht22-weather
-    command: ["python", "-m", "edge_processing.dht_22_weather_service_enhanced"]
+    command: ["python", "edge_processing/dht_22_weather_service_enhanced.py"]
     environment:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
@@ -218,7 +218,7 @@ services:
   vehicle-consolidator:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: vehicle-consolidator
-    command: ["python", "-m", "edge_processing.vehicle_detection.vehicle_consolidator_service"]
+    command: ["python", "edge_processing/vehicle_detection/vehicle_consolidator_service.py"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
@@ -274,7 +274,7 @@ services:
   database-persistence:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: database-persistence
-    command: ["python", "-m", "edge_processing.data_persistence.database_persistence_service_simplified"]
+    command: ["python", "edge_processing/data_persistence/database_persistence_service_simplified.py"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
@@ -310,7 +310,7 @@ services:
   redis-optimization:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
     container_name: redis-optimization
-    command: ["python", "-m", "edge_processing.data_persistence.redis_optimization_service_enhanced"]
+    command: ["python", "edge_processing/data_persistence/redis_optimization_service_enhanced.py"]
     environment:
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - REDIS_HOST=redis
