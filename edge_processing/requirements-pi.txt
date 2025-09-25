@@ -2,7 +2,7 @@
 # Note: picamera2 excluded - system uses host-capture/container-process architecture
 # Camera capture handled by host Pi, containers process shared volume images
 gpiozero>=1.6.2          # Simplified GPIO control
-RPi.GPIO>=0.7.1         # Low-level GPIO access
+# RPi.GPIO removed - using lgpio for Pi 5 compatibility
 gpustat>=1.1.1          # GPU monitoring for Pi 5
 redis>=4.6.0            # Redis client for real-time messaging
 lgpio>=0.2.2.0          # Low-level GPIO library (lgpio daemon)
@@ -14,6 +14,6 @@ numpy>=1.21.0           # Numerical computing for image analysis
 scikit-image>=0.19.0    # Advanced image processing algorithms
 
 # Modern GPIO libraries for Raspberry Pi 5
-lgpio>=0.2.2.0          # Low-level GPIO library (replaces CircuitPython)
+lgpio>=0.2.2.0          # Low-level GPIO library (primary GPIO access for Pi 5)
 gpiozero>=1.6.2          # Simplified GPIO control
-RPi.GPIO>=0.7.1         # Low-level GPIO access
+# RPi.GPIO removed - lgpio provides better Pi 5 compatibility

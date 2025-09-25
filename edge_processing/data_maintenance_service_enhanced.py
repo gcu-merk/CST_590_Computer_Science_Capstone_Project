@@ -362,7 +362,14 @@ class EnhancedDataMaintenanceService:
                 })
                 
         except Exception as e:
-            self.logger.log_error("Maintenance cycle failed", error=str(e))
+            import traceback
+            error_details = {
+                'error_message': str(e),
+                'error_type': type(e).__name__,
+                'traceback': traceback.format_exc(),
+                'ssd_path': str(self.ssd_path) if hasattr(self, 'ssd_path') else 'Not set'
+            }
+            self.logger.log_error("Maintenance cycle failed", **error_details)
 
     def run(self):
         """Main service loop"""
