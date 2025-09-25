@@ -32,15 +32,25 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY edge_api/requirements.txt /tmp/requirements-api.txt
 COPY edge_processing/requirements-pi.txt /tmp/requirements-pi.txt
 
-# Install Python packages in virtual environment
-# Install core API requirements first
+# Install Python packages in virtual environment using trusted hosts (like original)
 RUN pip install --no-cache-dir --upgrade pip
 
-# Install API requirements (should work on any platform)
-RUN pip install --no-cache-dir --timeout=60 -r /tmp/requirements-api.txt
+# Install API requirements with trusted hosts to handle SSL/certificate issues
+RUN pip install --no-cache-dir --timeout=60 \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org \
+    --trusted-host www.piwheels.org \
+    --trusted-host archive1.piwheels.org \
+    -r /tmp/requirements-api.txt
 
 # Install Pi packages that can work in Docker build environment
 RUN pip install --no-cache-dir --timeout=60 \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org \
+    --trusted-host www.piwheels.org \
+    --trusted-host archive1.piwheels.org \
     redis>=4.6.0 \
     numpy>=1.21.0 \
     pyserial>=3.5 \
