@@ -334,7 +334,7 @@ class RadarServiceEnhanced:
                                     details={"detection_id": detection_id, "speed": speed}
                                 )
                             elif alert_level == 'low':
-                                self.logger.log_info(f"⚠️  Low speed alert: {speed:.1f} mph")
+                                self.logger.info(f"⚠️  Low speed alert: {speed:.1f} mph")
                             
                             data['alert_level'] = alert_level
                             data['detection_id'] = detection_id
