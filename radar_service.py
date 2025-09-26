@@ -348,11 +348,14 @@ class RadarServiceEnhanced:
                             
                             # Publish motion detection to standardized FIFO stream
                             try:
-                                self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                                # Use detection_id as correlation_id to avoid context issues
+                                correlation_id = detection_id
+                                
+                                self._publish_to_redis_enhanced(data, correlation_id)
                                 self.logger.debug("✅ Redis stream publish successful")
                                 
                                 # Publish traffic event for consolidator notification
-                                self._publish_traffic_event(detection_id, speed, alert_level, ctx.correlation_id)
+                                self._publish_traffic_event(detection_id, speed, alert_level, correlation_id)
                                 self.logger.debug("✅ Traffic event publish successful")
                                 
                             except Exception as redis_error:
