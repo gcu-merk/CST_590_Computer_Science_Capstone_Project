@@ -296,9 +296,13 @@ class RadarServiceEnhanced:
                             time_since_last = current_time - self.last_detection_time
                             self.logger.log_debug(f"Time since last detection: {time_since_last:.2f}s")
                         self.last_detection_time = current_time
+                        
+                        # Publish motion detection to standardized FIFO stream
+                        with performance_monitor("redis_publishing"):
+                            self._publish_to_redis_enhanced(data, ctx.correlation_id)
                     
                     else:
-                        # Log noise filtering
+                        # Log noise filtering - no Redis publishing for noise
                         self.logger.log_debug(f"Filtered noise: {speed:.1f} mph below threshold")
                         data['alert_level'] = 'noise'
                 
@@ -310,10 +314,6 @@ class RadarServiceEnhanced:
                         details={"raw_speed": data.get('speed')}
                     )
                     data['alert_level'] = 'parse_error'
-            
-            # Publish to Redis with correlation tracking
-            with performance_monitor("redis_publishing"):
-                self._publish_to_redis_enhanced(data, ctx.correlation_id)
             
             # Track processing performance
             processing_time = time.time() - processing_start
@@ -418,49 +418,23 @@ class RadarServiceEnhanced:
             return 'normal'
 
     def _publish_to_redis_enhanced(self, data: Dict, correlation_id: str):
-        """Enhanced Redis publishing with correlation tracking and error handling"""
+        """Standardized FIFO Redis publishing with correlation tracking"""
         
         try:
             # Add correlation ID to data
             data['correlation_id'] = correlation_id
             
             with performance_monitor("redis_publish_operations"):
-                # Publish to radar channel
-                self.redis_client.publish('radar_detections', json.dumps(data))
+                # Publish to standardized FIFO traffic radar stream
+                self.redis_client.xadd('traffic:radar', data)
                 
-                # Store in radar data stream
-                self.redis_client.xadd('radar_data', data)
-                
-                # Trigger consolidator for significant detections
-                if data.get('speed', 0) >= 2.0:
-                    consolidator_event = {
-                        'event_type': 'radar_motion_detected',
-                        'correlation_id': correlation_id,
-                        'detection_id': data.get('detection_id'),
-                        'speed': data.get('speed', 0),
-                        'magnitude': data.get('magnitude', 'unknown'),
-                        'direction': data.get('direction', 'unknown'),
-                        'timestamp': data.get('_timestamp', time.time()),
-                        'trigger_source': 'radar_speed_detection',
-                        'alert_level': data.get('alert_level', 'normal')
+                self.logger.log_debug(
+                    f"📡 Published radar data to FIFO stream: {data.get('speed', 0):.1f} mph",
+                    details={
+                        "correlation_id": correlation_id,
+                        "stream": "traffic:radar"
                     }
-                    
-                    # Publish to traffic_events channel
-                    self.redis_client.publish('traffic_events', json.dumps(consolidator_event))
-                    
-                    self.logger.log_debug(
-                        f"🚨 Triggered consolidator for {data.get('speed', 0):.1f} mph detection",
-                        details={"correlation_id": correlation_id}
-                    )
-                
-                # Update service statistics
-                stats = {
-                    'last_detection': data.get('_timestamp', time.time()),
-                    'detection_count': self.detection_count,
-                    'uptime': time.time() - self.startup_time if self.startup_time else 0,
-                    'correlation_id': correlation_id
-                }
-                self.redis_client.hset('radar_stats', mapping=stats)
+                )
         
         except Exception as e:
             self.logger.log_error(

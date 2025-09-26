@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
 Database Persistence Service
-Consumes consolidated traffic data from Redis and stores in permanent database
+Consumes consolidated traffic data from Redis streams and stores in permanent database
 
 This service implements the final stage of the data pipeline:
-Radar Motion -> Consolidator -> Redis -> Database Persistence -> Long-term Storage
+Radar Motion -> Consolidator -> Redis Stream -> Database Persistence -> Long-term Storage
 
-Architecture:
-- Listens for 'database_events' on Redis pub/sub
-- Consumes consolidated traffic records from consolidator service  
-- Stores structured data in PostgreSQL/SQLite database
+FIFO Stream Architecture:
+- Consumes from 'traffic:consolidated' Redis stream using consumer groups
+- Processes consolidated traffic records in FIFO order 
+- Removes processed messages from Redis after successful database storage
 - Implements proper data retention and cleanup policies
 - Provides efficient querying for API layer consumption
 """
@@ -74,7 +74,7 @@ class DatabasePersistenceService:
     def __init__(self,
                  redis_host: str = "redis",
                  redis_port: int = 6379,
-                 db_path: str = "/mnt/storage/traffic_monitoring.db",
+                 db_path: str = "/app/data/traffic_data.db",
                  retention_days: int = 90,
                  batch_size: int = 100):
         
@@ -90,11 +90,15 @@ class DatabasePersistenceService:
         # Service state
         self.running = False
         self.redis_client = None
-        self.pubsub = None
         self.db_connection = None
         
+        # Redis stream configuration
+        self.stream_name = "traffic:consolidated"
+        self.consumer_group = "database_persistence_group"
+        self.consumer_name = f"persistence_consumer_{int(time.time())}"
+        
         # Processing threads
-        self.event_thread = None
+        self.stream_thread = None
         self.cleanup_thread = None
         
         # Statistics
@@ -106,7 +110,7 @@ class DatabasePersistenceService:
         logger.info(f"Data retention: {retention_days} days")
     
     def connect_redis(self) -> bool:
-        """Connect to Redis and setup pub/sub"""
+        """Connect to Redis and setup stream consumer group"""
         try:
             self.redis_client = redis.Redis(
                 host=self.redis_host,
@@ -119,11 +123,23 @@ class DatabasePersistenceService:
             # Test connection
             self.redis_client.ping()
             
-            # Setup pub/sub for database events
-            self.pubsub = self.redis_client.pubsub()
-            self.pubsub.subscribe("database_events")
+            # Create consumer group for FIFO processing
+            try:
+                self.redis_client.xgroup_create(
+                    self.stream_name,
+                    self.consumer_group,
+                    id='0',
+                    mkstream=True
+                )
+                logger.info(f"✅ Created consumer group: {self.consumer_group}")
+            except Exception as e:
+                if "BUSYGROUP" in str(e):
+                    logger.info(f"✅ Consumer group already exists: {self.consumer_group}")
+                else:
+                    logger.warning(f"Consumer group setup issue: {e}")
             
             logger.info(f"✅ Connected to Redis at {self.redis_host}:{self.redis_port}")
+            logger.info(f"🔄 Stream: {self.stream_name}, Consumer: {self.consumer_name}")
             return True
             
         except Exception as e:
@@ -228,11 +244,11 @@ class DatabasePersistenceService:
         logger.info("🗄️ Starting Database Persistence Service")
         
         # Start background threads
-        self.event_thread = threading.Thread(
-            target=self._process_database_events,
+        self.stream_thread = threading.Thread(
+            target=self._process_stream_messages,
             daemon=True
         )
-        self.event_thread.start()
+        self.stream_thread.start()
         
         self.cleanup_thread = threading.Thread(
             target=self._cleanup_loop,
@@ -243,52 +259,55 @@ class DatabasePersistenceService:
         logger.info("✅ Database persistence service started")
         return True
     
-    def _process_database_events(self):
-        """Process database persistence events from Redis pub/sub"""
-        logger.info("Processing database persistence events...")
+    def _process_stream_messages(self):
+        """Process consolidated traffic records from Redis stream in FIFO order"""
+        logger.info(f"🔄 Processing stream messages from '{self.stream_name}'...")
         
         while self.running:
             try:
-                # Listen for Redis pub/sub messages
-                message = self.pubsub.get_message(timeout=1.0)
+                # Read messages from stream using consumer group (FIFO)
+                messages = self.redis_client.xreadgroup(
+                    self.consumer_group,
+                    self.consumer_name,
+                    {self.stream_name: '>'},
+                    count=self.batch_size,
+                    block=1000  # Block for 1 second if no messages
+                )
                 
-                if message and message['type'] == 'message':
-                    try:
-                        event_data = json.loads(message['data'])
-                        
-                        if event_data.get('event_type') == 'new_consolidated_data':
-                            self._process_consolidated_record(event_data)
+                for stream, stream_messages in messages:
+                    for message_id, fields in stream_messages:
+                        try:
+                            # Process the consolidated record
+                            success = self._process_stream_record(message_id, fields)
                             
-                    except json.JSONDecodeError:
-                        logger.warning("Invalid JSON in database event")
-                    except Exception as e:
-                        logger.error(f"Error processing database event: {e}")
-                
-                time.sleep(0.1)  # Small delay to prevent CPU spinning
+                            if success:
+                                # Acknowledge and remove message from stream (FIFO completion)
+                                self._acknowledge_message(message_id)
+                            else:
+                                logger.warning(f"Failed to process message: {message_id}")
+                                
+                        except Exception as e:
+                            logger.error(f"Error processing stream message {message_id}: {e}")
                 
             except Exception as e:
-                logger.error(f"Database event processing error: {e}")
+                logger.error(f"Stream processing error: {e}")
                 time.sleep(1)
     
-    def _process_consolidated_record(self, event_data: Dict[str, Any]):
-        """Process and store consolidated traffic record"""
+    def _process_stream_record(self, message_id: str, fields: Dict[str, Any]) -> bool:
+        """Process and store consolidated traffic record from stream message"""
         try:
-            consolidation_id = event_data.get('consolidation_id')
-            if not consolidation_id:
-                logger.warning("No consolidation_id in database event")
-                return
+            # Parse consolidated data directly from stream fields
+            consolidated_data = json.loads(fields.get('data', '{}'))
             
-            # Fetch consolidated data from Redis
-            consolidated_data = self._fetch_consolidated_data(consolidation_id)
             if not consolidated_data:
-                logger.warning(f"Could not fetch consolidated data: {consolidation_id}")
-                return
+                logger.warning(f"No consolidated data in message: {message_id}")
+                return False
             
             # Convert to structured traffic record
             traffic_record = self._parse_consolidated_data(consolidated_data)
             if not traffic_record:
-                logger.warning(f"Could not parse consolidated data: {consolidation_id}")
-                return
+                logger.warning(f"Could not parse consolidated data from message: {message_id}")
+                return False
             
             # Store in database
             self._store_traffic_record(traffic_record)
@@ -297,29 +316,29 @@ class DatabasePersistenceService:
             self._update_daily_summary(traffic_record)
             
             self.records_processed += 1
-            logger.info(f"✅ Stored traffic record: {traffic_record.id} (total: {self.records_processed})")
+            logger.info(f"✅ FIFO Processed: {traffic_record.id} (msg: {message_id}, total: {self.records_processed})")
+            
+            return True
             
         except Exception as e:
-            logger.error(f"Error processing consolidated record: {e}")
+            logger.error(f"Error processing stream record {message_id}: {e}")
+            return False
     
-    def _fetch_consolidated_data(self, consolidation_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch consolidated data from Redis"""
+    def _acknowledge_message(self, message_id: str):
+        """Acknowledge and remove processed message from stream"""
         try:
-            # Try time-series key first
-            ts_key = f"consolidation:history:{consolidation_id}"
-            data = self.redis_client.get(ts_key)
+            # Acknowledge message processing
+            self.redis_client.xack(self.stream_name, self.consumer_group, message_id)
             
-            if not data:
-                # Fallback to latest key
-                data = self.redis_client.get('consolidation:latest')
+            # Delete message from stream (complete FIFO removal)
+            self.redis_client.xdel(self.stream_name, message_id)
             
-            if data:
-                return json.loads(data)
+            logger.debug(f"🧹 Removed processed message: {message_id}")
             
         except Exception as e:
-            logger.error(f"Error fetching consolidated data: {e}")
-        
-        return None
+            logger.error(f"Error acknowledging message {message_id}: {e}")
+    
+
     
     def _parse_consolidated_data(self, data: Dict[str, Any]) -> Optional[TrafficRecord]:
         """Parse consolidated data into structured traffic record"""
@@ -475,18 +494,21 @@ class DatabasePersistenceService:
     def _cleanup_redis_streams(self):
         """Trim Redis streams to keep only recent data"""
         try:
-            # Keep only last 1000 entries in radar stream (roughly last hour at 20Hz)
-            radar_len = self.redis_client.xlen('radar_data')
+            # Clean up radar stream (keep last 1000 entries - roughly last hour at 20Hz)
+            radar_stream = "traffic:radar"
+            radar_len = self.redis_client.xlen(radar_stream)
             if radar_len > 1000:
-                # Trim to keep only last 1000 entries
-                self.redis_client.xtrim('radar_data', maxlen=1000, approximate=True)
-                logger.info(f"🧹 Trimmed radar_data stream from {radar_len} to ~1000 entries")
+                self.redis_client.xtrim(radar_stream, maxlen=1000, approximate=True)
+                logger.info(f"🧹 Trimmed {radar_stream} stream: {radar_len} -> ~1000 entries")
             
-            # Clean up old consolidated data stream entries (keep last 100)
-            consolidated_len = self.redis_client.xlen('consolidated_traffic_data')
-            if consolidated_len > 100:
-                self.redis_client.xtrim('consolidated_traffic_data', maxlen=100, approximate=True)
-                logger.info(f"🧹 Trimmed consolidated_traffic_data stream from {consolidated_len} to ~100 entries")
+            # Clean up processed consolidated messages 
+            # Note: Successfully processed messages are automatically removed via XDEL
+            # This just trims any failed/pending messages older than 24 hours
+            consolidated_len = self.redis_client.xlen(self.stream_name)
+            if consolidated_len > 500:  # Keep more for debugging failed messages
+                # Only trim very old entries, let normal FIFO processing handle the rest
+                self.redis_client.xtrim(self.stream_name, maxlen=500, approximate=True)
+                logger.info(f"🧹 Trimmed {self.stream_name} stream: {consolidated_len} -> ~500 entries")
                 
         except Exception as e:
             logger.error(f"Error cleaning Redis streams: {e}")
@@ -547,8 +569,9 @@ class DatabasePersistenceService:
         """Stop the persistence service"""
         self.running = False
         
-        if self.pubsub:
-            self.pubsub.close()
+        # Wait for stream processing to complete
+        if self.stream_thread and self.stream_thread.is_alive():
+            self.stream_thread.join(timeout=5)
         
         if self.redis_client:
             self.redis_client.close()
@@ -556,7 +579,7 @@ class DatabasePersistenceService:
         if self.db_connection:
             self.db_connection.close()
         
-        logger.info("Database Persistence Service stopped")
+        logger.info("✅ Database Persistence Service stopped (FIFO processing complete)")
 
 def main():
     """Main entry point"""
@@ -564,7 +587,7 @@ def main():
     config = {
         'redis_host': os.getenv('REDIS_HOST', 'localhost'),
         'redis_port': int(os.getenv('REDIS_PORT', '6379')),
-        'db_path': os.getenv('DATABASE_PATH', os.getenv('DB_PATH', '/app/data/traffic_monitoring.db')),
+        'db_path': os.getenv('DATABASE_PATH', os.getenv('DB_PATH', '/app/data/traffic_data.db')),
         'retention_days': int(os.getenv('RETENTION_DAYS', '90')),
         'batch_size': int(os.getenv('BATCH_SIZE', '100'))
     }

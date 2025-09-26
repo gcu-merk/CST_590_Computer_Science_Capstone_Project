@@ -568,24 +568,39 @@ class VehicleDetectionConsolidatorEnhanced:
             return 0.0
     
     def _store_consolidated_data(self, consolidated_data: Dict[str, Any]):
-        """Store consolidated data with correlation tracking"""
+        """Store consolidated data in FIFO stream for database persistence"""
         try:
             correlation_id = consolidated_data.get('correlation_id')
             
-            # Store in Redis with TTL
-            key = f"consolidated_data:{correlation_id}:{int(time.time())}"
-            self.redis_client.hset(key, mapping={
+            # Add to standardized FIFO stream for database persistence
+            stream_name = "traffic:consolidated"
+            message_data = {
                 'data': json.dumps(consolidated_data),
-                'timestamp': time.time(),
-                'correlation_id': correlation_id
-            })
-            self.redis_client.expire(key, self.data_retention_hours * 3600)
+                'correlation_id': correlation_id,
+                'timestamp': time.time()
+            }
+            
+            # FIFO: Add to Redis stream for persistence service to consume
+            message_id = self.redis_client.xadd(stream_name, message_data)
+            
+            self.logger.log_business_event(
+                event_type="consolidated_data_queued", 
+                business_context="traffic_monitoring",
+                message=f"📦 Consolidated data queued for persistence (FIFO)",
+                details={
+                    'correlation_id': correlation_id,
+                    'consolidation_id': consolidated_data.get('consolidation_id'),
+                    'stream_message_id': message_id,
+                    'stream_name': stream_name
+                }
+            )
             
         except Exception as e:
             self.logger.log_error(
                 error_type="data_storage_error",
-                message="Error storing consolidated data",
-                exception=e
+                message="Error storing consolidated data to FIFO stream",
+                exception=e,
+                details={'correlation_id': consolidated_data.get('correlation_id')}
             )
     
     def _check_new_vehicle_detections_enhanced(self):
