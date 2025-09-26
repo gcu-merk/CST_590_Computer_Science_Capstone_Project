@@ -48,7 +48,7 @@ class ComprehensiveSystemValidator:
         # Validation configuration
         self.services_to_test = [
             "radar_service_enhanced.py",
-            "vehicle_consolidator_service_enhanced.py", 
+            "edge_processing/vehicle_detection/vehicle_consolidator_service.py", 
             "imx500_ai_host_capture_enhanced.py",
             "edge_processing/dht_22_weather_service_enhanced.py",
             "edge_api/edge_api_gateway_enhanced.py",

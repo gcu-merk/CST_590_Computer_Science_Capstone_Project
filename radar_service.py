@@ -154,26 +154,47 @@ class RadarServiceEnhanced:
             
             for cmd, description in commands:
                 try:
-                    with performance_monitor(f"radar_command_{cmd}"):
-                        self.logger.log_debug(f"📤 Sending command: {description}")
-                        
-                        self.ser.write(f'{cmd}\n'.encode())
-                        time.sleep(0.2)
-                        
-                        # Read response
+                    self.logger.log_debug(f"📤 Sending command: {description}")
+                    
+                    # Clear any pending data first
+                    if self.ser.in_waiting > 0:
+                        self.ser.read(self.ser.in_waiting)
+                    
+                    # Send command with proper line ending
+                    self.ser.write(f'{cmd}\r\n'.encode())
+                    self.ser.flush()  # Ensure command is sent
+                    time.sleep(0.5)  # Increased delay for radar response
+                    
+                    # Read response with timeout
+                    response_data = []
+                    timeout_count = 0
+                    while timeout_count < 10:  # 1 second timeout total
                         if self.ser.in_waiting > 0:
-                            response = self.ser.read(self.ser.in_waiting).decode('utf-8', errors='ignore').strip()
-                            if response:
-                                self.logger.log_debug(f"📥 Command response: {response}")
-                        
-                        successful_commands += 1
-                        
+                            data = self.ser.read(self.ser.in_waiting).decode('utf-8', errors='ignore')
+                            response_data.append(data)
+                            break
+                        time.sleep(0.1)
+                        timeout_count += 1
+                    
+                    response = ''.join(response_data).strip()
+                    if response:
+                        self.logger.log_debug(f"📥 Command response: {repr(response)}")
+                    else:
+                        self.logger.log_debug(f"⚠️  No response to command: {cmd}")
+                    
+                    successful_commands += 1
+                    
                 except Exception as e:
                     self.logger.log_error(
                         error_type="radar_command_failed",
                         message=f"Failed to send radar command: {cmd}",
                         exception=e,
-                        details={"command": cmd, "description": description}
+                        details={
+                            "command": cmd, 
+                            "description": description,
+                            "serial_port": str(self.ser),
+                            "is_open": self.ser.is_open if self.ser else False
+                        }
                     )
             
             self.logger.log_service_event(
@@ -236,8 +257,12 @@ class RadarServiceEnhanced:
         # Create correlation context for this detection
         with CorrelationContext.create("vehicle_detection") as ctx:
             
+            # Log all raw data for debugging
+            self.logger.log_debug(f"Raw radar data: {repr(line)}")
+            
             data = self._parse_radar_line_enhanced(line)
             if not data:
+                self.logger.log_debug(f"No parseable data from line: {repr(line)}")
                 return
             
             # Track processing performance
@@ -308,7 +333,13 @@ class RadarServiceEnhanced:
                         error_type="speed_conversion_error",
                         message="Failed to convert speed data",
                         exception=e,
-                        details={"raw_speed": data.get('speed')}
+                        details={
+                            "raw_speed": data.get('speed'),
+                            "raw_data": data.get('_raw'),
+                            "data_keys": list(data.keys()),
+                            "speed_value": repr(data.get('speed')),
+                            "speed_type": type(data.get('speed')).__name__
+                        }
                     )
                     data['alert_level'] = 'parse_error'
             
@@ -330,43 +361,54 @@ class RadarServiceEnhanced:
     def _parse_radar_line_enhanced(self, line: str) -> Optional[Dict]:
         """Enhanced radar data parsing with detailed error tracking"""
         
-        if not line:
+        if not line or not line.strip():
             return None
         
+        line = line.strip()
         timestamp = time.time()
         
         try:
+            # Debug: Log what we're trying to parse
+            self.logger.log_debug(f"Parsing radar line: {repr(line)}")
+            
             # Try CSV format first: "m",0.7 (magnitude, speed)
             import re
-            csv_match = re.match(r'^"([^"]+)",([\\d\\.]+)$', line)
+            csv_match = re.match(r'^"([^"]+)",([\\d\\.-]+)$', line)
             if csv_match:
                 magnitude = csv_match.group(1)
                 speed_raw = float(csv_match.group(2))
                 speed = abs(speed_raw)
                 
-                if speed >= 2.0:  # Filter noise
-                    return {
-                        'speed': speed,
-                        'magnitude': magnitude,
-                        'unit': 'mph',
-                        '_raw': line,
-                        '_timestamp': timestamp,
-                        '_source': 'ops243_radar',
-                        '_format': 'csv'
-                    }
-            
-            # Try JSON format for speed data only
-            if line.startswith('{'):
-                data = json.loads(line)
+                self.logger.log_debug(f"Parsed CSV format: magnitude={magnitude}, speed={speed}")
                 
-                if data.get('unit') == 'mps' and 'speed' in data:
-                    speed_mps = float(data['speed'])
-                    speed_mph = abs(speed_mps * 2.237)  # Convert m/s to mph
+                return {
+                    'speed': speed,
+                    'magnitude': magnitude,
+                    'unit': 'mph',
+                    '_raw': line,
+                    '_timestamp': timestamp,
+                    '_source': 'ops243_radar',
+                    '_format': 'csv'
+                }
+            
+            # Try JSON format
+            if line.startswith('{') and line.endswith('}'):
+                try:
+                    data = json.loads(line)
+                    self.logger.log_debug(f"Parsed JSON data: {data}")
                     
-                    if speed_mph >= 2.0:
+                    if 'speed' in data:
+                        speed_raw = data['speed']
+                        
+                        # Handle different units
+                        if data.get('unit') == 'mps':
+                            speed_mph = abs(float(speed_raw) * 2.237)  # Convert m/s to mph
+                        else:
+                            speed_mph = abs(float(speed_raw))  # Assume mph
+                        
                         return {
                             'speed': speed_mph,
-                            'speed_mps': speed_mps,
+                            'speed_mps': data.get('speed') if data.get('unit') == 'mps' else None,
                             'magnitude': data.get('magnitude', 'unknown'),
                             'unit': 'mph',
                             '_raw': line,
@@ -374,36 +416,81 @@ class RadarServiceEnhanced:
                             '_source': 'ops243_radar',
                             '_format': 'json'
                         }
-                
-                # Ignore range data and configuration messages
-                return None
+                    
+                    # If no speed, log what we got
+                    self.logger.log_debug(f"JSON data without speed field: {list(data.keys())}")
+                    return None
+                    
+                except json.JSONDecodeError as e:
+                    self.logger.log_debug(f"JSON parse error: {e}")
             
-            # Try simple format: "speed unit"
-            parts = line.split()
-            if len(parts) >= 2:
-                speed = float(parts[0])
-                unit = parts[1]
+            # Try simple numeric formats
+            # Format: "12.3" (just speed)
+            try:
+                speed = abs(float(line))
+                self.logger.log_debug(f"Parsed simple numeric: {speed}")
                 return {
                     'speed': speed,
-                    'unit': unit,
+                    'unit': 'mph',
                     '_raw': line,
                     '_timestamp': timestamp,
                     '_source': 'ops243_radar',
-                    '_format': 'simple'
+                    '_format': 'numeric'
                 }
+            except ValueError:
+                pass
+            
+            # Try space-separated format: "12.3 mph"
+            parts = line.split()
+            if len(parts) >= 2:
+                try:
+                    speed = abs(float(parts[0]))
+                    unit = parts[1]
+                    self.logger.log_debug(f"Parsed space-separated: {speed} {unit}")
+                    return {
+                        'speed': speed,
+                        'unit': unit,
+                        '_raw': line,
+                        '_timestamp': timestamp,
+                        '_source': 'ops243_radar',
+                        '_format': 'simple'
+                    }
+                except ValueError:
+                    pass
+            
+            # Try comma-separated without quotes: m,12.3
+            if ',' in line:
+                parts = line.split(',')
+                if len(parts) == 2:
+                    try:
+                        magnitude = parts[0].strip()
+                        speed = abs(float(parts[1].strip()))
+                        self.logger.log_debug(f"Parsed comma-separated: {magnitude},{speed}")
+                        return {
+                            'speed': speed,
+                            'magnitude': magnitude,
+                            'unit': 'mph',
+                            '_raw': line,
+                            '_timestamp': timestamp,
+                            '_source': 'ops243_radar',
+                            '_format': 'comma_separated'
+                        }
+                    except ValueError:
+                        pass
         
         except Exception as e:
-            self.logger.log_debug(
-                f"Parse error for radar line: {line[:50]}... Error: {str(e)}"
+            self.logger.log_error(
+                error_type="radar_parse_exception",
+                message=f"Exception parsing radar line: {line}",
+                exception=e,
+                details={"line_length": len(line), "line_repr": repr(line)}
             )
         
-        # Return unknown format for debugging
-        return {
-            '_raw': line,
-            '_timestamp': timestamp,
-            '_source': 'ops243_radar',
-            '_format': 'unknown'
-        }
+        # Log unrecognized format for debugging
+        self.logger.log_debug(f"Unrecognized radar format: {repr(line)}")
+        
+        # Return None for unrecognized formats to avoid processing
+        return None
 
     def _determine_alert_level(self, speed: float) -> str:
         """Determine alert level based on speed thresholds"""

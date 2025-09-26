@@ -47,7 +47,7 @@ class ConsolidatedDataAPI:
     Serves structured data from database persistence layer
     """
     
-    def __init__(self, db_path: str = "/mnt/storage/traffic_monitoring.db"):
+    def __init__(self, db_path: str = "/app/data/traffic_data.db"):
         self.db_path = db_path
         self.db_connection = None
         
@@ -477,7 +477,7 @@ def main():
     """Main entry point"""
     # Configuration
     config = {
-        'db_path': os.getenv('DB_PATH', '/mnt/storage/traffic_monitoring.db'),
+        'db_path': os.getenv('DB_PATH', '/app/data/traffic_data.db'),
         'host': os.getenv('API_HOST', '0.0.0.0'),
         'port': int(os.getenv('API_PORT', '5000')),
         'debug': os.getenv('API_DEBUG', 'false').lower() == 'true'

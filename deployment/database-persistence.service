@@ -44,7 +44,7 @@ StartLimitBurst=3
 # Environment variables
 Environment=REDIS_HOST=localhost
 Environment=REDIS_PORT=6379
-Environment=DB_PATH=/mnt/storage/traffic_monitoring.db
+Environment=DB_PATH=/mnt/storage/data/traffic_data.db
 Environment=RETENTION_DAYS=90
 Environment=BATCH_SIZE=100
 

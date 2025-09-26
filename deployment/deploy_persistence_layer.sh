@@ -112,7 +112,7 @@ StartLimitInterval=60
 StartLimitBurst=3
 
 # Environment variables
-Environment=DB_PATH=/mnt/storage/traffic_monitoring.db
+Environment=DB_PATH=/mnt/storage/data/traffic_data.db
 Environment=API_HOST=0.0.0.0
 Environment=API_PORT=5000
 Environment=API_DEBUG=false
@@ -157,7 +157,7 @@ import sqlite3
 import os
 from pathlib import Path
 
-DB_PATH = "/mnt/storage/traffic_monitoring.db"
+DB_PATH = "/mnt/storage/data/traffic_data.db"
 
 def init_database():
     print(f"Initializing database: {DB_PATH}")
@@ -265,8 +265,8 @@ echo ""
 echo "📈 Current Data Status:"
 
 # Check database
-if [ -f "$STORAGE_DIR/traffic_monitoring.db" ]; then
-    db_size=$(du -h "$STORAGE_DIR/traffic_monitoring.db" | cut -f1)
+if [ -f "$STORAGE_DIR/data/traffic_data.db" ]; then
+    db_size=$(du -h "$STORAGE_DIR/data/traffic_data.db" | cut -f1)
     echo "  Database size: $db_size"
 else
     echo "  Database: Not yet created"
