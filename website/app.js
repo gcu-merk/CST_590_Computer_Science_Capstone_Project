@@ -5,11 +5,11 @@ class TrafficDashboard {
     constructor() {
         // Check for old HTTP URL and update to HTTPS
         const storedUrl = localStorage.getItem('api-url');
-        if (storedUrl && storedUrl.includes('http://100.121.231.16:5000')) {
-            localStorage.setItem('api-url', 'https://edge-traffic-monitoring.taild46447.ts.net:8443/api');
+        if (storedUrl && (storedUrl.includes('http://100.121.231.16:5000') || storedUrl.includes(':8443'))) {
+            localStorage.setItem('api-url', 'https://edge-traffic-monitoring.taild46447.ts.net/api');
         }
-        
-        this.apiBaseUrl = localStorage.getItem('api-url') || 'https://edge-traffic-monitoring.taild46447.ts.net:8443/api';
+
+        this.apiBaseUrl = localStorage.getItem('api-url') || 'https://edge-traffic-monitoring.taild46447.ts.net/api';
         this.isOnline = false;
         this.charts = {};
         this.refreshInterval = null;
@@ -226,7 +226,7 @@ class TrafficDashboard {
         }
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/health`, {
+            const response = await fetch(`${this.apiBaseUrl}/health/system`, {
                 timeout: 5000
             });
             
@@ -241,7 +241,7 @@ class TrafficDashboard {
             
             // Check if this is a mixed content error (HTTPS to HTTP)
             if (error.message.includes('Failed to fetch') && location.protocol === 'https:' && this.apiBaseUrl.startsWith('http:')) {
-                this.updateApiStatus(false, 'Mixed Content Error: Cannot connect to HTTP API from HTTPS site. Please visit the API directly at https://edge-traffic-monitoring.taild46447.ts.net:8443/docs/');
+                this.updateApiStatus(false, 'Mixed Content Error: Cannot connect to HTTP API from HTTPS site. Please visit the API directly at https://edge-traffic-monitoring.taild46447.ts.net/docs/');
             } else {
                 this.updateApiStatus(false, `Connection failed: ${error.message}`);
             }
@@ -264,7 +264,7 @@ class TrafficDashboard {
         statusDiv.style.color = '#4a5568';
         
         try {
-            const response = await fetch(`${apiUrl}/health`, {
+            const response = await fetch(`${apiUrl}/health/system`, {
                 timeout: 10000
             });
             
