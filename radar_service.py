@@ -572,14 +572,14 @@ class RadarServiceEnhanced:
         """Standardized FIFO Redis publishing with correlation tracking"""
         
         try:
-            # Add correlation ID to data
-            data['correlation_id'] = correlation_id
-            
             # Convert all values to strings for Redis compatibility
             redis_data = {}
             for key, value in data.items():
                 if value is not None:
                     redis_data[key] = str(value)
+            
+            # Add correlation ID to Redis data (already as string)
+            redis_data['correlation_id'] = str(correlation_id)
             
             # Publish to standardized FIFO traffic radar stream
             self.redis_client.xadd('traffic:radar', redis_data)
