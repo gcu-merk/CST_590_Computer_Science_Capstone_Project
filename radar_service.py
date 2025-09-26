@@ -265,13 +265,18 @@ class RadarServiceEnhanced:
                 self.logger.debug(f"No parseable data from line: {repr(line)}")
                 return
             
+            # Additional validation: ensure we have valid speed data
+            if 'speed' not in data or data['speed'] is None:
+                self.logger.debug(f"No speed in parsed data: {data}")
+                return
+            
             # Track processing performance
             processing_start = time.time()
             
             # Check for significant vehicle detection
             is_significant = False
             
-            if 'speed' in data:
+            if 'speed' in data and data['speed'] is not None:
                 try:
                     speed = float(data['speed'])
                     magnitude = data.get('magnitude', 'unknown')
@@ -329,17 +334,23 @@ class RadarServiceEnhanced:
                         data['alert_level'] = 'noise'
                 
                 except (ValueError, TypeError) as e:
+                    # Log with more detail to understand the data format issue
+                    error_details = {
+                        "raw_speed": data.get('speed'),
+                        "raw_data": data.get('_raw'),
+                        "data_keys": list(data.keys()),
+                        "speed_value": repr(data.get('speed')),
+                        "speed_type": type(data.get('speed')).__name__,
+                        "exception_type": type(e).__name__,
+                        "exception_msg": str(e)
+                    }
+                    
+                    self.logger.error(f"❌ Speed conversion failed: {error_details}")
                     self.logger.log_error(
                         error_type="speed_conversion_error",
                         message="Failed to convert speed data",
                         exception=e,
-                        details={
-                            "raw_speed": data.get('speed'),
-                            "raw_data": data.get('_raw'),
-                            "data_keys": list(data.keys()),
-                            "speed_value": repr(data.get('speed')),
-                            "speed_type": type(data.get('speed')).__name__
-                        }
+                        details=error_details
                     )
                     data['alert_level'] = 'parse_error'
             
