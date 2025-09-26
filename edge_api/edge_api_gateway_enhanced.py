@@ -372,7 +372,7 @@ class EnhancedSwaggerAPIGateway:
         @health_ns.route('/system')
         class SystemHealth(Resource):
             @with_correlation_tracking
-            @health_ns.marshal_with(system_health_schema)
+            @health_ns.marshal_with(self.api.models['SystemHealth'])
             def get(self):
                 """Get comprehensive system health status"""
                 try:
@@ -425,7 +425,7 @@ class EnhancedSwaggerAPIGateway:
         @vehicle_ns.route('/detections')
         class VehicleDetections(Resource):
             @with_correlation_tracking
-            @vehicle_ns.marshal_with(vehicle_detections_response_schema)
+            @vehicle_ns.marshal_with(self.api.models['VehicleDetectionsResponse'])
             def get(self):
                 """Get recent vehicle detections"""
                 try:
@@ -449,7 +449,7 @@ class EnhancedSwaggerAPIGateway:
         @weather_ns.route('/current')
         class CurrentWeather(Resource):
             @with_correlation_tracking
-            @weather_ns.marshal_with(weather_response_schema)
+            @weather_ns.marshal_with(self.api.models['WeatherData'])
             def get(self):
                 """Get current weather conditions"""
                 try:
