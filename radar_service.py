@@ -2,7 +2,7 @@
 """
 OPS243-C Radar Service with Centralized Logging
 Enhanced production radar service with correlation tracking and performance monitoring
-Version: 2.1.1 - Fixed Redis publishing error handling (Sept 26, 2025)
+Version: 2.1.2 - Enhanced monitoring loop error handling (Sept 26, 2025)
 """
 
 import time
@@ -32,7 +32,7 @@ class RadarServiceEnhanced:
         # Initialize centralized logger
         self.logger = ServiceLogger(
             service_name="radar-service",
-            service_version="2.1.1",
+            service_version="2.1.2",
             environment=os.environ.get('ENVIRONMENT', 'production')
         )
         
@@ -225,22 +225,42 @@ class RadarServiceEnhanced:
                     
                     if self.ser and self.ser.in_waiting > 0:
                         # Process radar data with correlation context
-                        line = self.ser.readline().decode('utf-8', errors='ignore').strip()
-                        if line:
-                            self._process_radar_data_enhanced(line)
+                        try:
+                            line = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                            if line:
+                                self._process_radar_data_enhanced(line)
+                        except Exception as data_error:
+                            # Handle data processing errors separately from loop errors
+                            self.logger.log_error(
+                                error_type="radar_data_processing_error",
+                                message="Error processing radar data (continuing monitoring)",
+                                exception=data_error,
+                                details={"raw_line": repr(line) if 'line' in locals() else 'unknown'}
+                            )
+                            # Continue monitoring despite data processing errors
                     
                     # Log periodic statistics (every 5 minutes)
                     if time.time() - last_stats_log > 300:
-                        self._log_periodic_stats(loop_iterations)
-                        last_stats_log = time.time()
-                        loop_iterations = 0
+                        try:
+                            self._log_periodic_stats(loop_iterations)
+                            last_stats_log = time.time()
+                            loop_iterations = 0
+                        except Exception as stats_error:
+                            # Log stats error but don't break the loop
+                            self.logger.log_error(
+                                error_type="stats_logging_error", 
+                                message="Error logging statistics (continuing monitoring)",
+                                exception=stats_error
+                            )
+                            last_stats_log = time.time()  # Reset to avoid spam
                     
                     time.sleep(0.05)  # 20Hz sampling rate
                     
                 except Exception as e:
+                    # Only catch truly critical loop errors (serial communication, etc.)
                     self.logger.log_error(
-                        error_type="radar_loop_error",
-                        message="Error in radar monitoring loop",
+                        error_type="radar_loop_critical_error",
+                        message="Critical error in radar monitoring loop",
                         exception=e,
                         details={"loop_iterations": loop_iterations}
                     )
@@ -255,128 +275,138 @@ class RadarServiceEnhanced:
     def _process_radar_data_enhanced(self, line: str):
         """Enhanced radar data processing with correlation tracking and performance monitoring"""
         
-        # Create correlation context for this detection
-        with CorrelationContext.create("vehicle_detection") as ctx:
-            
-            # Log all raw data for debugging
-            self.logger.debug(f"Raw radar data: {repr(line)}")
-            
-            data = self._parse_radar_line_enhanced(line)
-            if not data:
-                self.logger.debug(f"No parseable data from line: {repr(line)}")
-                return
-            
-            # Additional validation: ensure we have valid speed data
-            if 'speed' not in data or data['speed'] is None:
-                self.logger.debug(f"No speed in parsed data: {data}")
-                return
-            
-            # Track processing performance
-            processing_start = time.time()
-            
-            # Check for significant vehicle detection
-            is_significant = False
-            
-            if 'speed' in data and data['speed'] is not None:
-                try:
-                    speed = float(data['speed'])
-                    magnitude = data.get('magnitude', 'unknown')
-                    
-                    # Filter significant detections (above noise threshold)
-                    if speed >= 2.0:
-                        is_significant = True
-                        self.detection_count += 1
-                        detection_id = str(uuid.uuid4())[:8]
-                        
-                        # Log vehicle detection with correlation
-                        alert_level = self._determine_alert_level(speed)
-                        
-                        self.logger.log_business_event(
-                            event_name="vehicle_detected",
-                            event_data={
-                                "detection_id": detection_id,
-                                "speed_mph": speed,
-                                "speed_mps": data.get('speed_mps'),
-                                "magnitude": magnitude,
-                                "alert_level": alert_level,
-                                "raw_data": data.get('_raw'),
-                                "detection_number": self.detection_count,
-                                "message": f"🚗 Vehicle detected: {speed:.1f} mph"
-                            }
-                        )
-                        
-                        # Log speed alerts with appropriate severity
-                        if alert_level == 'high':
-                            self.logger.log_warning(
-                                warning_type="high_speed_detected",
-                                message=f"🚨 HIGH SPEED ALERT: {speed:.1f} mph exceeds {self.high_speed_threshold} mph limit",
-                                details={"detection_id": detection_id, "speed": speed}
-                            )
-                        elif alert_level == 'low':
-                            self.logger.log_info(f"⚠️  Low speed alert: {speed:.1f} mph")
-                        
-                        data['alert_level'] = alert_level
-                        data['detection_id'] = detection_id
-                        
-                        # Track detection timing for performance analysis
-                        current_time = time.time()
-                        if self.last_detection_time:
-                            time_since_last = current_time - self.last_detection_time
-                            self.logger.debug(f"Time since last detection: {time_since_last:.2f}s")
-                        self.last_detection_time = current_time
-                        
-                        # Publish motion detection to standardized FIFO stream
-                        try:
-                            self._publish_to_redis_enhanced(data, ctx.correlation_id)
-                        except Exception as redis_error:
-                            # Don't let Redis errors break the detection loop
-                            self.logger.log_error(
-                                error_type="redis_publish_error",
-                                message="Failed to publish detection to Redis (detection still recorded)",
-                                exception=redis_error,
-                                details={"detection_id": detection_id, "speed": speed}
-                            )
-                    
-                    else:
-                        # Log noise filtering - no Redis publishing for noise
-                        self.logger.debug(f"Filtered noise: {speed:.1f} mph below threshold")
-                        data['alert_level'] = 'noise'
+        try:
+            # Create correlation context for this detection
+            with CorrelationContext.create("vehicle_detection") as ctx:
                 
-                except (ValueError, TypeError) as e:
-                    # Log with more detail to understand the data format issue
-                    error_details = {
-                        "raw_speed": data.get('speed'),
-                        "raw_data": data.get('_raw'),
-                        "data_keys": list(data.keys()),
-                        "speed_value": repr(data.get('speed')),
-                        "speed_type": type(data.get('speed')).__name__,
-                        "exception_type": type(e).__name__,
-                        "exception_msg": str(e)
-                    }
+                # Log all raw data for debugging
+                self.logger.debug(f"Raw radar data: {repr(line)}")
+                
+                data = self._parse_radar_line_enhanced(line)
+                if not data:
+                    self.logger.debug(f"No parseable data from line: {repr(line)}")
+                    return
+                
+                # Additional validation: ensure we have valid speed data
+                if 'speed' not in data or data['speed'] is None:
+                    self.logger.debug(f"No speed in parsed data: {data}")
+                    return
+                
+                # Track processing performance
+                processing_start = time.time()
+                
+                # Check for significant vehicle detection
+                is_significant = False
+                
+                if 'speed' in data and data['speed'] is not None:
+                    try:
+                        speed = float(data['speed'])
+                        magnitude = data.get('magnitude', 'unknown')
+                        
+                        # Filter significant detections (above noise threshold)
+                        if speed >= 2.0:
+                            is_significant = True
+                            self.detection_count += 1
+                            detection_id = str(uuid.uuid4())[:8]
+                            
+                            # Log vehicle detection with correlation
+                            alert_level = self._determine_alert_level(speed)
+                            
+                            self.logger.log_business_event(
+                                event_name="vehicle_detected",
+                                event_data={
+                                    "detection_id": detection_id,
+                                    "speed_mph": speed,
+                                    "speed_mps": data.get('speed_mps'),
+                                    "magnitude": magnitude,
+                                    "alert_level": alert_level,
+                                    "raw_data": data.get('_raw'),
+                                    "detection_number": self.detection_count,
+                                    "message": f"🚗 Vehicle detected: {speed:.1f} mph"
+                                }
+                            )
+                            
+                            # Log speed alerts with appropriate severity
+                            if alert_level == 'high':
+                                self.logger.log_warning(
+                                    warning_type="high_speed_detected",
+                                    message=f"🚨 HIGH SPEED ALERT: {speed:.1f} mph exceeds {self.high_speed_threshold} mph limit",
+                                    details={"detection_id": detection_id, "speed": speed}
+                                )
+                            elif alert_level == 'low':
+                                self.logger.log_info(f"⚠️  Low speed alert: {speed:.1f} mph")
+                            
+                            data['alert_level'] = alert_level
+                            data['detection_id'] = detection_id
+                            
+                            # Track detection timing for performance analysis
+                            current_time = time.time()
+                            if self.last_detection_time:
+                                time_since_last = current_time - self.last_detection_time
+                                self.logger.debug(f"Time since last detection: {time_since_last:.2f}s")
+                            self.last_detection_time = current_time
+                            
+                            # Publish motion detection to standardized FIFO stream
+                            try:
+                                self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                            except Exception as redis_error:
+                                # Don't let Redis errors break the detection loop
+                                self.logger.log_error(
+                                    error_type="redis_publish_error",
+                                    message="Failed to publish detection to Redis (detection still recorded)",
+                                    exception=redis_error,
+                                    details={"detection_id": detection_id, "speed": speed}
+                                )
+                        
+                        else:
+                            # Log noise filtering - no Redis publishing for noise
+                            self.logger.debug(f"Filtered noise: {speed:.1f} mph below threshold")
+                            data['alert_level'] = 'noise'
                     
-                    self.logger.error(f"❌ Speed conversion failed: {error_details}")
-                    self.logger.log_error(
-                        error_type="speed_conversion_error",
-                        message="Failed to convert speed data",
-                        exception=e,
-                        details=error_details
+                    except (ValueError, TypeError) as e:
+                        # Log with more detail to understand the data format issue
+                        error_details = {
+                            "raw_speed": data.get('speed'),
+                            "raw_data": data.get('_raw'),
+                            "data_keys": list(data.keys()),
+                            "speed_value": repr(data.get('speed')),
+                            "speed_type": type(data.get('speed')).__name__,
+                            "exception_type": type(e).__name__,
+                            "exception_msg": str(e)
+                        }
+                        
+                        self.logger.error(f"❌ Speed conversion failed: {error_details}")
+                        self.logger.log_error(
+                            error_type="speed_conversion_error",
+                            message="Failed to convert speed data",
+                            exception=e,
+                            details=error_details
+                        )
+                        data['alert_level'] = 'parse_error'
+                
+                # Track processing performance
+                processing_time = time.time() - processing_start
+                self.processing_times.append(processing_time)
+                
+                # Keep only last 1000 processing times for statistics
+                if len(self.processing_times) > 1000:
+                    self.processing_times = self.processing_times[-1000:]
+                
+                # Log performance metrics for significant detections
+                if is_significant:
+                    avg_processing = sum(self.processing_times) / len(self.processing_times)
+                    self.logger.debug(
+                        f"Detection processed in {processing_time*1000:.2f}ms (avg: {avg_processing*1000:.2f}ms)"
                     )
-                    data['alert_level'] = 'parse_error'
-            
-            # Track processing performance
-            processing_time = time.time() - processing_start
-            self.processing_times.append(processing_time)
-            
-            # Keep only last 1000 processing times for statistics
-            if len(self.processing_times) > 1000:
-                self.processing_times = self.processing_times[-1000:]
-            
-            # Log performance metrics for significant detections
-            if is_significant:
-                avg_processing = sum(self.processing_times) / len(self.processing_times)
-                self.logger.debug(
-                    f"Detection processed in {processing_time*1000:.2f}ms (avg: {avg_processing*1000:.2f}ms)"
-                )
+        
+        except Exception as e:
+            # Catch any unexpected exceptions in data processing to prevent loop crashes
+            self.logger.log_error(
+                error_type="radar_data_processing_exception",
+                message="Unexpected error in radar data processing",
+                exception=e,
+                details={"raw_line": repr(line)}
+            )
 
     def _parse_radar_line_enhanced(self, line: str) -> Optional[Dict]:
         """Enhanced radar data parsing with detailed error tracking"""
