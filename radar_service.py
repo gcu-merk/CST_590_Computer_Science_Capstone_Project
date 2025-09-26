@@ -325,7 +325,16 @@ class RadarServiceEnhanced:
                         self.last_detection_time = current_time
                         
                         # Publish motion detection to standardized FIFO stream
-                        self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                        try:
+                            self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                        except Exception as redis_error:
+                            # Don't let Redis errors break the detection loop
+                            self.logger.log_error(
+                                error_type="redis_publish_error",
+                                message="Failed to publish detection to Redis (detection still recorded)",
+                                exception=redis_error,
+                                details={"detection_id": detection_id, "speed": speed}
+                            )
                     
                     else:
                         # Log noise filtering - no Redis publishing for noise
