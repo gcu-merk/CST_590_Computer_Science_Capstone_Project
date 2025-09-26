@@ -257,10 +257,16 @@ class VehicleDetectionConsolidatorEnhanced:
                     message = self.pubsub.get_message(timeout=1.0)
                     
                     if message and message['type'] == 'message':
-                        with performance_monitor("event_message_processing"):
-                            self._handle_redis_message_enhanced(message)
-                            events_processed += 1
-                            self.event_count += 1
+                        # Process message without excessive performance logging
+                        processing_start = time.time()
+                        self._handle_redis_message_enhanced(message)
+                        events_processed += 1
+                        self.event_count += 1
+                        
+                        # Only log performance for slower operations (>10ms)
+                        processing_time = (time.time() - processing_start) * 1000
+                        if processing_time > 10.0:
+                            self.logger.debug(f"Slow message processing: {processing_time:.1f}ms")
                     
                     # Check for new vehicle detections directly
                     self._check_new_vehicle_detections_enhanced()
@@ -623,9 +629,8 @@ class VehicleDetectionConsolidatorEnhanced:
             
             while self.running:
                 try:
-                    with performance_monitor("stats_update_cycle"):
-                        self._update_statistics(ctx)
-                    
+                    # Update statistics without excessive performance logging
+                    self._update_statistics(ctx)
                     time.sleep(self.stats_update_interval)
                     
                 except Exception as e:
