@@ -291,17 +291,16 @@ class RadarServiceEnhanced:
                         alert_level = self._determine_alert_level(speed)
                         
                         self.logger.log_business_event(
-                            event_type="vehicle_detected",
-                            business_context="traffic_monitoring",
-                            message=f"🚗 Vehicle detected: {speed:.1f} mph",
-                            details={
+                            event_name="vehicle_detected",
+                            event_data={
                                 "detection_id": detection_id,
                                 "speed_mph": speed,
                                 "speed_mps": data.get('speed_mps'),
                                 "magnitude": magnitude,
                                 "alert_level": alert_level,
                                 "raw_data": data.get('_raw'),
-                                "detection_number": self.detection_count
+                                "detection_number": self.detection_count,
+                                "message": f"🚗 Vehicle detected: {speed:.1f} mph"
                             }
                         )
                         
