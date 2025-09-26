@@ -153,7 +153,7 @@ class EnhancedSwaggerAPIGateway:
         # Enable CORS for cross-origin requests
         CORS(self.app)
         
-        # Initialize Flask-RESTX API with Swagger configuration
+        # Initialize Flask-RESTX API with Swagger configuration and /api prefix
         self.api = Api(
             self.app,
             version=API_CONFIG['version'],
@@ -163,7 +163,8 @@ class EnhancedSwaggerAPIGateway:
             contact=API_CONFIG['contact'],
             license=API_CONFIG['license'],
             tags=API_CONFIG['tags'],
-            validate=True
+            validate=True,
+            prefix='/api'  # Add proper API prefix for industry standard
         )
         
         # Register models with API
