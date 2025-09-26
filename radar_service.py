@@ -349,17 +349,25 @@ class RadarServiceEnhanced:
                             # Publish motion detection to standardized FIFO stream
                             try:
                                 self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                                self.logger.debug("✅ Redis stream publish successful")
                                 
                                 # Publish traffic event for consolidator notification
                                 self._publish_traffic_event(detection_id, speed, alert_level, ctx.correlation_id)
+                                self.logger.debug("✅ Traffic event publish successful")
                                 
                             except Exception as redis_error:
                                 # Don't let Redis errors break the detection loop
+                                import traceback
                                 self.logger.log_error(
                                     error_type="redis_publish_error",
-                                    message="Failed to publish detection to Redis (detection still recorded)",
+                                    message=f"Failed to publish detection to Redis: {str(redis_error)}",
                                     exception=redis_error,
-                                    details={"detection_id": detection_id, "speed": speed}
+                                    details={
+                                        "detection_id": detection_id, 
+                                        "speed": speed,
+                                        "traceback": traceback.format_exc(),
+                                        "exception_type": type(redis_error).__name__
+                                    }
                                 )
                         
                         else:
@@ -567,8 +575,14 @@ class RadarServiceEnhanced:
             # Add correlation ID to data
             data['correlation_id'] = correlation_id
             
+            # Convert all values to strings for Redis compatibility
+            redis_data = {}
+            for key, value in data.items():
+                if value is not None:
+                    redis_data[key] = str(value)
+            
             # Publish to standardized FIFO traffic radar stream
-            self.redis_client.xadd('traffic:radar', data)
+            self.redis_client.xadd('traffic:radar', redis_data)
             
             self.logger.debug(
                 f"📡 Published radar data to FIFO stream: {data.get('speed', 0):.1f} mph",
@@ -586,11 +600,11 @@ class RadarServiceEnhanced:
                 exception=e,
                 details={
                     "correlation_id": correlation_id,
-                    "data_keys": list(data.keys()),
+                    "data_keys": list(data.keys()) if data else [],
                     "traceback": traceback.format_exc(),
                     "exception_type": type(e).__name__,
                     "redis_connected": self.redis_client is not None,
-                    "data_sample": {k: str(v)[:100] for k, v in data.items() if k != '_raw'}
+                    "data_sample": {k: str(v)[:100] for k, v in data.items() if k != '_raw'} if data else {}
                 }
             )
 
