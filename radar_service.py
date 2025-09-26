@@ -328,10 +328,10 @@ class RadarServiceEnhanced:
                             
                             # Log speed alerts with appropriate severity
                             if alert_level == 'high':
-                                self.logger.log_warning(
-                                    warning_type="high_speed_detected",
+                                self.logger.log_service_event(
+                                    event_type="high_speed_detected",
                                     message=f"🚨 HIGH SPEED ALERT: {speed:.1f} mph exceeds {self.high_speed_threshold} mph limit",
-                                    details={"detection_id": detection_id, "speed": speed}
+                                    details={"detection_id": detection_id, "speed": speed, "warning_level": "high"}
                                 )
                             elif alert_level == 'low':
                                 self.logger.info(f"⚠️  Low speed alert: {speed:.1f} mph")
