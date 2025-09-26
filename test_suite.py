@@ -318,21 +318,8 @@ class TestSystemIntegration(unittest.TestCase):
         """Set up integration test environment"""
         self.temp_dir = tempfile.mkdtemp()
     
-    @patch('edge_processing.vehicle_detection_service.VehicleDetectionService')
-    @patch('edge_processing.speed_analysis_service.SpeedAnalysisService')
-    @patch('edge_processing.data_fusion_engine.DataFusionEngine')
-    @patch('edge_processing.system_health_monitor.SystemHealthMonitor')
-    def test_edge_orchestrator(self, mock_health, mock_fusion, mock_speed, mock_detection):
-        """Test edge orchestrator coordination"""
-        from main_edge_app import EdgeOrchestrator
-        
-        orchestrator = EdgeOrchestrator()
-        
-        # Test service initialization
-        self.assertTrue(orchestrator.initialize_services())
-        
-        # Test graceful shutdown
-        orchestrator.shutdown()
+    # Note: EdgeOrchestrator test removed - main_edge_app.py moved to deprecated archive
+    # The current production system uses radar_service.py directly
 
 if __name__ == '__main__':
     # Configure test runner

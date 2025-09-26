@@ -165,7 +165,7 @@ class ContainerOrchestrator:
     
     def start_main_application(self):
         """Start the main application"""
-        app_module = os.getenv('APP_MODULE', 'main_edge_app')
+        app_module = os.getenv('APP_MODULE', 'radar_service')
         service_type = os.getenv('SERVICE_TYPE', 'main')
         
         logger.info(f"Starting {service_type} application: {app_module}")

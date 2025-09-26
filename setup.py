@@ -167,7 +167,7 @@ def main():
     else:
         print("   venv\\Scripts\\activate")
     print("2. Run the main application:")
-    print("   python main_edge_app.py")
+    print("   python radar_service.py")
     print("3. Access the API at: http://localhost:5000")
     print("4. Check system health: http://localhost:5000/api/health")
     print("\nFor more information, see the documentation folder.")

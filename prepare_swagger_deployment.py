@@ -34,21 +34,16 @@ def ensure_swagger_files():
     return True
 
 def validate_main_app():
-    """Validate that main_edge_app.py has been updated for Swagger"""
-    main_app_file = Path("main_edge_app.py")
+    """Validate that radar_service.py is present (main_edge_app.py deprecated)"""
+    radar_service_file = Path("radar_service.py")
     
-    if not main_app_file.exists():
-        print("❌ main_edge_app.py not found")
+    if not radar_service_file.exists():
+        print("❌ radar_service.py not found")
         return False
     
-    content = main_app_file.read_text()
-    
-    if "swagger_api_gateway" in content:
-        print("✅ main_edge_app.py updated to use Swagger API gateway")
-        return True
-    else:
-        print("⚠️  main_edge_app.py not updated for Swagger (will use fallback)")
-        return True  # This is okay, fallback will work
+    print("✅ radar_service.py found (main_edge_app.py has been deprecated)")
+    print("ℹ️  Current production system uses radar_service.py directly")
+    return True
 
 def check_requirements():
     """Check that requirements.txt includes Swagger dependencies"""

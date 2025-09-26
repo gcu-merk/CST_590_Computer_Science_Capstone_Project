@@ -145,4 +145,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 USER merk
 
 # Set default command but allow override
-CMD ["python", "main_edge_app.py"]
+CMD ["python", "radar_service.py"]
