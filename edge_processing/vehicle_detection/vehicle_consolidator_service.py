@@ -263,12 +263,11 @@ class VehicleDetectionConsolidatorEnhanced:
                             self.event_count += 1
                     
                     # Check for new vehicle detections directly
-                    with performance_monitor("detection_polling"):
-                        self._check_new_vehicle_detections_enhanced()
+                    self._check_new_vehicle_detections_enhanced()
                     
                     # Log periodic statistics (every 5 minutes)
                     if time.time() - last_stats_log > 300:
-                        self._log_processing_stats(events_processed, ctx.correlation_id)
+                        self._log_processing_stats(events_processed, ctx)
                         last_stats_log = time.time()
                         events_processed = 0
                     
@@ -621,7 +620,7 @@ class VehicleDetectionConsolidatorEnhanced:
             while self.running:
                 try:
                     with performance_monitor("stats_update_cycle"):
-                        self._update_statistics(ctx.correlation_id)
+                        self._update_statistics(ctx)
                     
                     time.sleep(self.stats_update_interval)
                     
@@ -645,7 +644,7 @@ class VehicleDetectionConsolidatorEnhanced:
             while self.running:
                 try:
                     with performance_monitor("cleanup_cycle"):
-                        cleanup_count = self._cleanup_old_data(ctx.correlation_id)
+                        cleanup_count = self._cleanup_old_data(ctx)
                     
                     if cleanup_count > 0:
                         self.logger.debug(
