@@ -122,7 +122,11 @@ class SimplifiedEnhancedDatabasePersistenceService:
         self.running = False
         self.db_connection = None
         self.redis_client = None
-        self.pubsub = None
+        
+        # Redis stream configuration
+        self.stream_name = "traffic:consolidated"
+        self.consumer_group = "database_persistence"
+        self.consumer_name = "persistence_worker"
         
         # Processing threads
         self.consumer_thread = None
@@ -284,16 +288,45 @@ class SimplifiedEnhancedDatabasePersistenceService:
             self.redis_client.ping()
             connection_time_ms = (time.time() - start_time) * 1000
             
-            # Subscribe to database events
-            self.pubsub = self.redis_client.pubsub()
-            self.pubsub.subscribe('database_events')
+            # Setup Redis stream consumer for traffic:consolidated
+            self.stream_name = "traffic:consolidated"
+            self.consumer_group = "database_persistence"
+            self.consumer_name = "persistence_worker"
+            
+            # Create consumer group if it doesn't exist
+            try:
+                self.redis_client.xgroup_create(
+                    self.stream_name,
+                    self.consumer_group,
+                    id='0',
+                    mkstream=True
+                )
+                logger.info("Created Redis stream consumer group", extra={
+                    "business_event": "redis_consumer_group_created",
+                    "stream_name": self.stream_name,
+                    "consumer_group": self.consumer_group
+                })
+            except Exception as e:
+                if "BUSYGROUP" in str(e):
+                    logger.info("Redis stream consumer group already exists", extra={
+                        "business_event": "redis_consumer_group_exists",
+                        "stream_name": self.stream_name,
+                        "consumer_group": self.consumer_group
+                    })
+                else:
+                    logger.warning("Consumer group setup issue", extra={
+                        "business_event": "redis_consumer_group_warning",
+                        "error": str(e)
+                    })
             
             logger.info("Redis connection established successfully", extra={
                 "business_event": "redis_connection_established",
                 "redis_host": self.redis_host,
                 "redis_port": self.redis_port,
                 "connection_time_ms": round(connection_time_ms, 2),
-                "subscribed_channels": ["database_events"]
+                "stream_name": self.stream_name,
+                "consumer_group": self.consumer_group,
+                "consumer_name": self.consumer_name
             })
             return True
             
@@ -547,38 +580,84 @@ class SimplifiedEnhancedDatabasePersistenceService:
             return False
     
     def _consume_redis_messages(self):
-        """Background thread to consume Redis pub/sub messages with correlation tracking"""
+        """Background thread to consume Redis stream messages with correlation tracking"""
         logger.info("Starting Redis message consumer", extra={
-            "business_event": "redis_consumer_start"
+            "business_event": "redis_consumer_start",
+            "stream_name": self.stream_name,
+            "consumer_group": self.consumer_group,
+            "consumer_name": self.consumer_name
         })
         
         try:
-            for message in self.pubsub.listen():
-                if not self.running:
-                    break
-                
-                if message['type'] == 'message':
-                    try:
-                        # Parse message data
-                        record_data = json.loads(message['data'])
-                        
-                        # Process the record
-                        self.process_traffic_record(record_data)
-                        
-                    except json.JSONDecodeError as e:
-                        logger.error("Invalid JSON in Redis message", extra={
-                            "business_event": "redis_message_parse_failure",
-                            "error": str(e),
-                            "message_data": message['data'][:200]  # First 200 chars
-                        })
-                        self.stats["redis_errors"] += 1
-                        
-                    except Exception as e:
-                        logger.error("Error processing Redis message", extra={
-                            "business_event": "redis_message_processing_failure",
-                            "error": str(e)
-                        })
-                        self.stats["redis_errors"] += 1
+            while self.running:
+                try:
+                    # Read messages from stream using consumer group (FIFO)
+                    messages = self.redis_client.xreadgroup(
+                        self.consumer_group,
+                        self.consumer_name,
+                        {self.stream_name: '>'},
+                        count=5,  # Process up to 5 messages at a time
+                        block=1000  # Block for 1 second if no messages
+                    )
+                    
+                    for stream_name, stream_messages in messages:
+                        for message_id, fields in stream_messages:
+                            try:
+                                # Parse consolidated data from stream
+                                consolidated_data_str = fields.get('data', '{}')
+                                consolidated_data = json.loads(consolidated_data_str)
+                                
+                                # Extract correlation_id for tracking
+                                correlation_id = fields.get('correlation_id') or consolidated_data.get('correlation_id')
+                                
+                                # Process the consolidated record
+                                success = self.process_traffic_record(consolidated_data)
+                                
+                                if success:
+                                    # Acknowledge message processing (removes from pending)
+                                    self.redis_client.xack(self.stream_name, self.consumer_group, message_id)
+                                    
+                                    # Delete processed message from stream
+                                    self.redis_client.xdel(self.stream_name, message_id)
+                                    
+                                    logger.debug("Processed and removed stream message", extra={
+                                        "business_event": "stream_message_processed",
+                                        "message_id": message_id,
+                                        "correlation_id": correlation_id
+                                    })
+                                else:
+                                    logger.warning("Failed to process stream message", extra={
+                                        "business_event": "stream_message_processing_failure",
+                                        "message_id": message_id,
+                                        "correlation_id": correlation_id
+                                    })
+                                
+                            except json.JSONDecodeError as e:
+                                logger.error("Invalid JSON in stream message", extra={
+                                    "business_event": "stream_message_parse_failure",
+                                    "error": str(e),
+                                    "message_id": message_id,
+                                    "message_data": str(fields)[:200]  # First 200 chars
+                                })
+                                self.stats["redis_errors"] += 1
+                                # Acknowledge bad message to prevent reprocessing
+                                self.redis_client.xack(self.stream_name, self.consumer_group, message_id)
+                                self.redis_client.xdel(self.stream_name, message_id)
+                                
+                            except Exception as e:
+                                logger.error("Error processing stream message", extra={
+                                    "business_event": "stream_message_processing_failure",
+                                    "error": str(e),
+                                    "message_id": message_id
+                                })
+                                self.stats["redis_errors"] += 1
+                                
+                except Exception as e:
+                    logger.error("Error reading from Redis stream", extra={
+                        "business_event": "redis_stream_read_error",
+                        "error": str(e)
+                    })
+                    time.sleep(1)  # Brief pause before retry
                         
         except Exception as e:
             logger.error("Redis consumer thread failed", extra={
