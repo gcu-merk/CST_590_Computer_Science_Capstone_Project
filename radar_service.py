@@ -154,7 +154,7 @@ class RadarServiceEnhanced:
             
             for cmd, description in commands:
                 try:
-                    self.logger.log_debug(f"📤 Sending command: {description}")
+                    self.logger.debug(f"📤 Sending command: {description}")
                     
                     # Clear any pending data first
                     if self.ser.in_waiting > 0:
@@ -178,9 +178,9 @@ class RadarServiceEnhanced:
                     
                     response = ''.join(response_data).strip()
                     if response:
-                        self.logger.log_debug(f"📥 Command response: {repr(response)}")
+                        self.logger.debug(f"📥 Command response: {repr(response)}")
                     else:
-                        self.logger.log_debug(f"⚠️  No response to command: {cmd}")
+                        self.logger.debug(f"⚠️  No response to command: {cmd}")
                     
                     successful_commands += 1
                     
@@ -258,11 +258,11 @@ class RadarServiceEnhanced:
         with CorrelationContext.create("vehicle_detection") as ctx:
             
             # Log all raw data for debugging
-            self.logger.log_debug(f"Raw radar data: {repr(line)}")
+            self.logger.debug(f"Raw radar data: {repr(line)}")
             
             data = self._parse_radar_line_enhanced(line)
             if not data:
-                self.logger.log_debug(f"No parseable data from line: {repr(line)}")
+                self.logger.debug(f"No parseable data from line: {repr(line)}")
                 return
             
             # Track processing performance
@@ -317,7 +317,7 @@ class RadarServiceEnhanced:
                         current_time = time.time()
                         if self.last_detection_time:
                             time_since_last = current_time - self.last_detection_time
-                            self.logger.log_debug(f"Time since last detection: {time_since_last:.2f}s")
+                            self.logger.debug(f"Time since last detection: {time_since_last:.2f}s")
                         self.last_detection_time = current_time
                         
                         # Publish motion detection to standardized FIFO stream
@@ -325,7 +325,7 @@ class RadarServiceEnhanced:
                     
                     else:
                         # Log noise filtering - no Redis publishing for noise
-                        self.logger.log_debug(f"Filtered noise: {speed:.1f} mph below threshold")
+                        self.logger.debug(f"Filtered noise: {speed:.1f} mph below threshold")
                         data['alert_level'] = 'noise'
                 
                 except (ValueError, TypeError) as e:
@@ -354,7 +354,7 @@ class RadarServiceEnhanced:
             # Log performance metrics for significant detections
             if is_significant:
                 avg_processing = sum(self.processing_times) / len(self.processing_times)
-                self.logger.log_debug(
+                self.logger.debug(
                     f"Detection processed in {processing_time*1000:.2f}ms (avg: {avg_processing*1000:.2f}ms)"
                 )
 
@@ -369,7 +369,7 @@ class RadarServiceEnhanced:
         
         try:
             # Debug: Log what we're trying to parse
-            self.logger.log_debug(f"Parsing radar line: {repr(line)}")
+            self.logger.debug(f"Parsing radar line: {repr(line)}")
             
             # Try CSV format first: "m",0.7 (magnitude, speed)
             import re
@@ -379,7 +379,7 @@ class RadarServiceEnhanced:
                 speed_raw = float(csv_match.group(2))
                 speed = abs(speed_raw)
                 
-                self.logger.log_debug(f"Parsed CSV format: magnitude={magnitude}, speed={speed}")
+                self.logger.debug(f"Parsed CSV format: magnitude={magnitude}, speed={speed}")
                 
                 return {
                     'speed': speed,
@@ -395,7 +395,7 @@ class RadarServiceEnhanced:
             if line.startswith('{') and line.endswith('}'):
                 try:
                     data = json.loads(line)
-                    self.logger.log_debug(f"Parsed JSON data: {data}")
+                    self.logger.debug(f"Parsed JSON data: {data}")
                     
                     if 'speed' in data:
                         speed_raw = data['speed']
@@ -418,17 +418,17 @@ class RadarServiceEnhanced:
                         }
                     
                     # If no speed, log what we got
-                    self.logger.log_debug(f"JSON data without speed field: {list(data.keys())}")
+                    self.logger.debug(f"JSON data without speed field: {list(data.keys())}")
                     return None
                     
                 except json.JSONDecodeError as e:
-                    self.logger.log_debug(f"JSON parse error: {e}")
+                    self.logger.debug(f"JSON parse error: {e}")
             
             # Try simple numeric formats
             # Format: "12.3" (just speed)
             try:
                 speed = abs(float(line))
-                self.logger.log_debug(f"Parsed simple numeric: {speed}")
+                self.logger.debug(f"Parsed simple numeric: {speed}")
                 return {
                     'speed': speed,
                     'unit': 'mph',
@@ -446,7 +446,7 @@ class RadarServiceEnhanced:
                 try:
                     speed = abs(float(parts[0]))
                     unit = parts[1]
-                    self.logger.log_debug(f"Parsed space-separated: {speed} {unit}")
+                    self.logger.debug(f"Parsed space-separated: {speed} {unit}")
                     return {
                         'speed': speed,
                         'unit': unit,
@@ -465,7 +465,7 @@ class RadarServiceEnhanced:
                     try:
                         magnitude = parts[0].strip()
                         speed = abs(float(parts[1].strip()))
-                        self.logger.log_debug(f"Parsed comma-separated: {magnitude},{speed}")
+                        self.logger.debug(f"Parsed comma-separated: {magnitude},{speed}")
                         return {
                             'speed': speed,
                             'magnitude': magnitude,
@@ -487,7 +487,7 @@ class RadarServiceEnhanced:
             )
         
         # Log unrecognized format for debugging
-        self.logger.log_debug(f"Unrecognized radar format: {repr(line)}")
+        self.logger.debug(f"Unrecognized radar format: {repr(line)}")
         
         # Return None for unrecognized formats to avoid processing
         return None
@@ -511,7 +511,7 @@ class RadarServiceEnhanced:
             # Publish to standardized FIFO traffic radar stream
             self.redis_client.xadd('traffic:radar', data)
             
-            self.logger.log_debug(
+            self.logger.debug(
                 f"📡 Published radar data to FIFO stream: {data.get('speed', 0):.1f} mph",
                 details={
                     "correlation_id": correlation_id,
@@ -566,13 +566,13 @@ class RadarServiceEnhanced:
             # Stop monitoring thread
             if self.thread:
                 self.thread.join(timeout=5)
-                self.logger.log_debug("Radar monitoring thread stopped")
+                self.logger.debug("Radar monitoring thread stopped")
             
             # Close UART connection
             if self.ser:
                 try:
                     self.ser.close()
-                    self.logger.log_debug("UART connection closed")
+                    self.logger.debug("UART connection closed")
                 except Exception as e:
                     self.logger.log_error(
                         error_type="uart_close_error",
