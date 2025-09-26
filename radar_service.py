@@ -2,6 +2,7 @@
 """
 OPS243-C Radar Service with Centralized Logging
 Enhanced production radar service with correlation tracking and performance monitoring
+Version: 2.1.1 - Fixed Redis publishing error handling (Sept 26, 2025)
 """
 
 import time
@@ -31,7 +32,7 @@ class RadarServiceEnhanced:
         # Initialize centralized logger
         self.logger = ServiceLogger(
             service_name="radar-service",
-            service_version="2.1.0",
+            service_version="2.1.1",
             environment=os.environ.get('ENVIRONMENT', 'production')
         )
         
