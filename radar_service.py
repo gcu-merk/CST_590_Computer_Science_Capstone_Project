@@ -50,7 +50,7 @@ class RadarServiceEnhanced:
         
         # Speed thresholds (configured via radar commands)
         self.low_speed_threshold = 2    # mph - triggers GPIO5 (Blue)
-        self.high_speed_threshold = 26  # mph - triggers GPIO6 (Purple)
+        self.high_speed_threshold = 200  # mph - effectively no upper limit
         
         # Statistics
         self.detection_count = 0
