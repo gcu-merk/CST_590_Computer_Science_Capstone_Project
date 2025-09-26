@@ -309,21 +309,18 @@ class VehicleDetectionConsolidatorEnhanced:
             with CorrelationContext.create("event_processing", correlation_id) as ctx:
                 event_type = event_data.get('event_type')
                 
-                self.logger.log_debug(
-                    f"Processing event: {event_type}",
-                    details={"event_data": event_data}
-                )
+                self.logger.debug(f"Processing event: {event_type}")
                 
                 if event_type == 'imx500_ai_capture':
                     self._process_imx500_capture_event_enhanced(event_data, correlation_id)
                 elif event_type == 'radar_motion_detected':
                     self._process_radar_motion_event_enhanced(event_data, correlation_id)
                 else:
-                    self.logger.log_debug(f"Unknown event type: {event_type}")
+                    self.logger.debug(f"Unknown event type: {event_type}")
                     
         except json.JSONDecodeError:
-            self.logger.log_warning(
-                warning_type="invalid_json_message",
+            self.logger.log_service_event(
+                event_type="invalid_json_message",
                 message="Invalid JSON in Redis message",
                 details={"raw_message": str(message.get('data', '')[:100])}
             )
@@ -363,7 +360,7 @@ class VehicleDetectionConsolidatorEnhanced:
                 )
                 
                 # Log performance metrics
-                self.logger.log_debug(
+                self.logger.debug(
                     f"IMX500 AI inference completed in {inference_time:.1f}ms (confidence: {confidence_score:.2f})"
                 )
                 
@@ -462,7 +459,7 @@ class VehicleDetectionConsolidatorEnhanced:
         try:
             collection_start = time.time()
             
-            self.logger.log_debug(
+            self.logger.debug(
                 f"Starting comprehensive data collection for correlation: {correlation_id}",
                 details={"trigger_event_type": trigger_event.get('event_type')}
             )
@@ -499,7 +496,7 @@ class VehicleDetectionConsolidatorEnhanced:
             
             collection_time = time.time() - collection_start
             
-            self.logger.log_debug(
+            self.logger.debug(
                 f"Comprehensive data collection completed in {collection_time*1000:.2f}ms",
                 details={
                     "correlation_id": correlation_id,
@@ -535,7 +532,7 @@ class VehicleDetectionConsolidatorEnhanced:
             
             return recent_radar
         except Exception as e:
-            self.logger.log_debug(f"Error collecting radar data: {e}")
+            self.logger.debug(f"Error collecting radar data: {e}")
             return []
     
     def _get_recent_imx500_data(self, correlation_id: str) -> List[Dict[str, Any]]:
@@ -550,7 +547,7 @@ class VehicleDetectionConsolidatorEnhanced:
             
             return recent_imx500
         except Exception as e:
-            self.logger.log_debug(f"Error collecting IMX500 data: {e}")
+            self.logger.debug(f"Error collecting IMX500 data: {e}")
             return []
     
     def _calculate_consolidation_confidence(self, consolidated_data: Dict[str, Any]) -> float:
@@ -610,7 +607,7 @@ class VehicleDetectionConsolidatorEnhanced:
             # Implementation depends on specific Redis key patterns
             pass
         except Exception as e:
-            self.logger.log_debug(f"Error checking new detections: {e}")
+            self.logger.debug(f"Error checking new detections: {e}")
     
     def _stats_update_loop_enhanced(self):
         """Enhanced statistics update loop with correlation tracking"""
@@ -651,7 +648,7 @@ class VehicleDetectionConsolidatorEnhanced:
                         cleanup_count = self._cleanup_old_data(ctx.correlation_id)
                     
                     if cleanup_count > 0:
-                        self.logger.log_debug(
+                        self.logger.debug(
                             f"Cleaned up {cleanup_count} old data entries"
                         )
                     
@@ -679,7 +676,7 @@ class VehicleDetectionConsolidatorEnhanced:
             recent_detection_count = len(self.recent_detections)
             
             # Log statistics
-            self.logger.log_debug(
+            self.logger.debug(
                 f"📊 Service statistics update",
                 details={
                     "correlation_id": correlation_id,
@@ -761,17 +758,17 @@ class VehicleDetectionConsolidatorEnhanced:
             # Stop background threads
             if self.stats_thread and self.stats_thread.is_alive():
                 self.stats_thread.join(timeout=5)
-                self.logger.log_debug("Statistics thread stopped")
+                self.logger.debug("Statistics thread stopped")
             
             if self.cleanup_thread and self.cleanup_thread.is_alive():
                 self.cleanup_thread.join(timeout=5)
-                self.logger.log_debug("Cleanup thread stopped")
+                self.logger.debug("Cleanup thread stopped")
             
             # Close Redis connections
             if self.pubsub:
                 try:
                     self.pubsub.close()
-                    self.logger.log_debug("Redis pub/sub closed")
+                    self.logger.debug("Redis pub/sub closed")
                 except Exception as e:
                     self.logger.log_error(
                         error_type="pubsub_close_error",
