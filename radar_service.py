@@ -16,65 +16,8 @@ import uuid
 from datetime import datetime
 from typing import Callable, Optional, Dict
 
-# Import centralized logging infrastructure with fallback
-try:
-    from edge_processing.shared_logging import ServiceLogger, CorrelationContext, performance_monitor
-    CENTRALIZED_LOGGING_AVAILABLE = True
-except ImportError as e:
-    print(f"Warning: Centralized logging not available: {e}")
-    # Fallback to basic logging
-    import logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    CENTRALIZED_LOGGING_AVAILABLE = False
-    
-    # Create fallback classes
-    class ServiceLogger:
-        def __init__(self, service_name, service_version, environment):
-            self.logger = logging.getLogger(service_name)
-            
-        def log_service_event(self, event_type, message, details=None):
-            self.logger.info(f"🔔 {message}")
-            
-        def log_business_event(self, event_type, business_context, message, details=None):
-            self.logger.info(f"🚗 {message}")
-            
-        def log_error(self, error_type, message, exception=None, details=None):
-            self.logger.error(f"❌ {message}")
-            if exception:
-                self.logger.error(f"Exception: {str(exception)}")
-                
-        def log_warning(self, warning_type, message, details=None):
-            self.logger.warning(f"⚠️ {message}")
-            
-        def log_info(self, message):
-            self.logger.info(message)
-            
-        def log_debug(self, message, details=None):
-            self.logger.debug(message)
-    
-    class CorrelationContext:
-        def __init__(self, correlation_id):
-            self.correlation_id = correlation_id
-            
-        @classmethod
-        def create(cls, operation_name):
-            return cls(str(uuid.uuid4())[:8])
-            
-        def __enter__(self):
-            return self
-            
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            pass
-    
-    class performance_monitor:
-        def __init__(self, operation_name):
-            self.operation_name = operation_name
-            
-        def __enter__(self):
-            return self
-            
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            pass
+# Import centralized logging infrastructure
+from edge_processing.shared_logging import ServiceLogger, CorrelationContext, performance_monitor
 
 class RadarServiceEnhanced:
     """Enhanced OPS243-C Radar Service with centralized logging and correlation tracking"""
@@ -264,112 +207,55 @@ class RadarServiceEnhanced:
             )
 
     def _radar_loop_enhanced(self):
-        """Enhanced radar monitoring loop with correlation tracking and improved error handling"""
+        """Enhanced radar monitoring loop with correlation tracking"""
         
-        self.logger.log_service_event(
-            event_type="radar_monitoring_started",
-            message="Starting enhanced radar monitoring loop with correlation tracking"
-        )
-        
-        loop_iterations = 0
-        last_stats_log = time.time()
-        consecutive_errors = 0
-        
-        while self.running:
-            try:
-                loop_iterations += 1
-                
-                # Check serial connection health
-                if not self.ser or not self.ser.is_open:
-                    self.logger.log_error(
-                        error_type="serial_connection_lost",
-                        message="Serial connection lost, attempting to reconnect"
-                    )
-                    try:
-                        if self.ser:
-                            self.ser.close()
-                        self.ser = serial.Serial(self.uart_port, self.baudrate, timeout=2)
-                        time.sleep(0.5)
-                        self.logger.log_info("Serial connection restored")
-                    except Exception as reconnect_error:
-                        self.logger.log_error(
-                            error_type="serial_reconnect_failed",
-                            message="Failed to reconnect to serial port",
-                            exception=reconnect_error
-                        )
-                        time.sleep(5)
-                        continue
-                
-                if self.ser and self.ser.in_waiting > 0:
-                    # Process radar data with individual correlation context
-                    try:
+        with CorrelationContext.create("radar_monitoring_session") as ctx:
+            self.logger.log_service_event(
+                event_type="radar_monitoring_started",
+                message="Starting enhanced radar monitoring loop with correlation tracking"
+            )
+            
+            loop_iterations = 0
+            last_stats_log = time.time()
+            
+            while self.running:
+                try:
+                    loop_iterations += 1
+                    
+                    if self.ser and self.ser.in_waiting > 0:
+                        # Process radar data with correlation context
                         line = self.ser.readline().decode('utf-8', errors='ignore').strip()
                         if line:
                             self._process_radar_data_enhanced(line)
-                            consecutive_errors = 0  # Reset error counter on success
-                    except Exception as data_error:
-                        consecutive_errors += 1
-                        self.logger.log_error(
-                            error_type="data_processing_error", 
-                            message=f"Error processing radar data (consecutive errors: {consecutive_errors})",
-                            exception=data_error,
-                            details={"raw_line": line if 'line' in locals() else "unknown"}
-                        )
-                        
-                        # If too many consecutive errors, take a longer break
-                        if consecutive_errors > 10:
-                            self.logger.log_warning(
-                                warning_type="excessive_errors",
-                                message="Too many consecutive data processing errors, taking extended break"
-                            )
-                            time.sleep(5)
-                            consecutive_errors = 0
-                
-                # Log periodic statistics (every 5 minutes)
-                if time.time() - last_stats_log > 300:
-                    self._log_periodic_stats(loop_iterations)
-                    last_stats_log = time.time()
-                    loop_iterations = 0
-                
-                time.sleep(0.05)  # 20Hz sampling rate
-                
-            except Exception as e:
-                consecutive_errors += 1
-                self.logger.log_error(
-                    error_type="radar_loop_error",
-                    message=f"Critical error in radar monitoring loop (consecutive: {consecutive_errors})",
-                    exception=e,
-                    details={
-                        "loop_iterations": loop_iterations,
-                        "consecutive_errors": consecutive_errors
-                    }
-                )
-                
-                # Exponential backoff for critical errors
-                sleep_time = min(30, 1 * (2 ** min(consecutive_errors, 5)))
-                time.sleep(sleep_time)
-                
-                # Reset connection if too many errors
-                if consecutive_errors > 5:
-                    try:
-                        if self.ser:
-                            self.ser.close()
-                            self.ser = None
-                    except:
-                        pass
-        
-        self.logger.log_service_event(
-            event_type="radar_monitoring_stopped",
-            message="Radar monitoring loop stopped",
-            details={"total_iterations": loop_iterations}
-        )
+                    
+                    # Log periodic statistics (every 5 minutes)
+                    if time.time() - last_stats_log > 300:
+                        self._log_periodic_stats(loop_iterations)
+                        last_stats_log = time.time()
+                        loop_iterations = 0
+                    
+                    time.sleep(0.05)  # 20Hz sampling rate
+                    
+                except Exception as e:
+                    self.logger.log_error(
+                        error_type="radar_loop_error",
+                        message="Error in radar monitoring loop",
+                        exception=e,
+                        details={"loop_iterations": loop_iterations}
+                    )
+                    time.sleep(1)
+            
+            self.logger.log_service_event(
+                event_type="radar_monitoring_stopped",
+                message="Radar monitoring loop stopped",
+                details={"total_iterations": loop_iterations}
+            )
 
     def _process_radar_data_enhanced(self, line: str):
-        """Enhanced radar data processing with improved error handling"""
+        """Enhanced radar data processing with correlation tracking and performance monitoring"""
         
-        try:
-            # Generate correlation ID for this detection
-            correlation_id = str(uuid.uuid4())[:8]
+        # Create correlation context for this detection
+        with CorrelationContext.create("vehicle_detection") as ctx:
             
             # Log all raw data for debugging
             self.logger.log_debug(f"Raw radar data: {repr(line)}")
@@ -396,7 +282,7 @@ class RadarServiceEnhanced:
                         self.detection_count += 1
                         detection_id = str(uuid.uuid4())[:8]
                         
-                        # Log vehicle detection
+                        # Log vehicle detection with correlation
                         alert_level = self._determine_alert_level(speed)
                         
                         self.logger.log_business_event(
@@ -435,7 +321,7 @@ class RadarServiceEnhanced:
                         self.last_detection_time = current_time
                         
                         # Publish motion detection to standardized FIFO stream
-                        self._publish_to_redis_enhanced(data, correlation_id)
+                        self._publish_to_redis_enhanced(data, ctx.correlation_id)
                     
                     else:
                         # Log noise filtering - no Redis publishing for noise
@@ -471,14 +357,6 @@ class RadarServiceEnhanced:
                 self.logger.log_debug(
                     f"Detection processed in {processing_time*1000:.2f}ms (avg: {avg_processing*1000:.2f}ms)"
                 )
-                
-        except Exception as e:
-            self.logger.log_error(
-                error_type="data_processing_error",
-                message="Critical error processing radar data",
-                exception=e,
-                details={"raw_line": repr(line) if 'line' in locals() else "unknown"}
-            )
 
     def _parse_radar_line_enhanced(self, line: str) -> Optional[Dict]:
         """Enhanced radar data parsing with detailed error tracking"""
