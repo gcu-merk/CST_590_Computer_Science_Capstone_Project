@@ -2,8 +2,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis
-    ports:
-      - "6379:6379"
+    # SECURITY: Removed external port exposure - Redis only accessible internally
+    # ports:
+    #   - "6379:6379"  # REMOVED: External access creates security vulnerability
     volumes:
       - ${REDIS_DATA_PATH:-/mnt/storage/redis_data}:/data
     command: redis-server --appendonly yes
@@ -21,8 +22,9 @@ services:
     container_name: traffic-monitor
     command: ['python', 'edge_api/edge_api_gateway_enhanced.py']
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    # SECURITY: Removed external HTTP port - API only accessible via HTTPS nginx proxy
+    # ports:
+    #   - "5000:5000"  # REMOVED: Force all external access through encrypted HTTPS
     devices:
       - /dev/gpiomem0:/dev/gpiomem  # GPIO access
     privileged: false
