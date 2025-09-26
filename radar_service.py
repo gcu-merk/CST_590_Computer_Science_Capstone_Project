@@ -349,6 +349,10 @@ class RadarServiceEnhanced:
                             # Publish motion detection to standardized FIFO stream
                             try:
                                 self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                                
+                                # Publish traffic event for consolidator notification
+                                self._publish_traffic_event(detection_id, speed, alert_level, ctx.correlation_id)
+                                
                             except Exception as redis_error:
                                 # Don't let Redis errors break the detection loop
                                 self.logger.log_error(
@@ -401,11 +405,16 @@ class RadarServiceEnhanced:
         
         except Exception as e:
             # Catch any unexpected exceptions in data processing to prevent loop crashes
+            import traceback
             self.logger.log_error(
                 error_type="radar_data_processing_exception",
-                message="Unexpected error in radar data processing",
+                message=f"Unexpected error in radar data processing: {str(e)}",
                 exception=e,
-                details={"raw_line": repr(line)}
+                details={
+                    "raw_line": repr(line),
+                    "traceback": traceback.format_exc(),
+                    "exception_type": type(e).__name__
+                }
             )
 
     def _parse_radar_line_enhanced(self, line: str) -> Optional[Dict]:
@@ -570,13 +579,60 @@ class RadarServiceEnhanced:
             )
         
         except Exception as e:
+            import traceback
             self.logger.log_error(
                 error_type="redis_publish_failed",
-                message="Failed to publish radar data to Redis",
+                message=f"Failed to publish radar data to Redis: {str(e)}",
                 exception=e,
                 details={
                     "correlation_id": correlation_id,
-                    "data_keys": list(data.keys())
+                    "data_keys": list(data.keys()),
+                    "traceback": traceback.format_exc(),
+                    "exception_type": type(e).__name__,
+                    "redis_connected": self.redis_client is not None,
+                    "data_sample": {k: str(v)[:100] for k, v in data.items() if k != '_raw'}
+                }
+            )
+
+    def _publish_traffic_event(self, detection_id: str, speed: float, alert_level: str, correlation_id: str):
+        """Publish traffic event to notify consolidator service"""
+        
+        try:
+            # Create event message for consolidator
+            event_data = {
+                "event_type": "vehicle_detection",
+                "detection_id": detection_id,
+                "speed_mph": speed,
+                "alert_level": alert_level,
+                "correlation_id": correlation_id,
+                "timestamp": time.time(),
+                "source": "radar_service"
+            }
+            
+            # Publish to traffic_events channel for consolidator notification
+            self.redis_client.publish('traffic_events', json.dumps(event_data))
+            
+            self.logger.debug(
+                f"🔔 Published traffic event: {speed:.1f} mph detection",
+                details={
+                    "detection_id": detection_id,
+                    "correlation_id": correlation_id,
+                    "channel": "traffic_events"
+                }
+            )
+            
+        except Exception as e:
+            import traceback
+            self.logger.log_error(
+                error_type="traffic_event_publish_failed",
+                message=f"Failed to publish traffic event: {str(e)}",
+                exception=e,
+                details={
+                    "detection_id": detection_id,
+                    "speed": speed,
+                    "correlation_id": correlation_id,
+                    "traceback": traceback.format_exc(),
+                    "exception_type": type(e).__name__
                 }
             )
 
