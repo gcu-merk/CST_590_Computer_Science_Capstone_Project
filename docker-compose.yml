@@ -22,9 +22,10 @@ services:
     container_name: traffic-monitor
     command: ['python', 'edge_api/edge_api_gateway_enhanced.py']
     restart: unless-stopped
-    # SECURITY: Removed external HTTP port - API only accessible via HTTPS nginx proxy
-    # ports:
-    #   - "5000:5000"  # REMOVED: Force all external access through encrypted HTTPS
+    # SECURITY: Internal port only - accessible to nginx proxy but not externally
+    expose:
+      - "5000"  # Internal access only for nginx proxy
+    # External HTTP access removed - API only accessible via HTTPS nginx proxy
     devices:
       - /dev/gpiomem0:/dev/gpiomem  # GPIO access
     privileged: false
