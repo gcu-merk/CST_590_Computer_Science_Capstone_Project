@@ -226,7 +226,19 @@ class TrafficDashboard {
         }
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/health/system`, {
+            // Try the basic health endpoint first (more reliable)
+            let response = await fetch(`${this.apiBaseUrl.replace('/api', '')}/health`, {
+                timeout: 5000
+            });
+            
+            if (response.ok) {
+                this.updateApiStatus(true);
+                this.loadRealData();
+                return;
+            }
+            
+            // Fallback to system health endpoint
+            response = await fetch(`${this.apiBaseUrl}/health/system`, {
                 timeout: 5000
             });
             
@@ -264,29 +276,42 @@ class TrafficDashboard {
         statusDiv.style.color = '#4a5568';
         
         try {
-            const response = await fetch(`${apiUrl}/health/system`, {
+            // Try the basic health endpoint first (more reliable)
+            let response = await fetch(`${apiUrl.replace('/api', '')}/health`, {
                 timeout: 10000
             });
             
+            let data = { status: 'healthy' };
+            
             if (response.ok) {
-                const data = await response.json();
-                this.apiBaseUrl = apiUrl;
-                localStorage.setItem('api-url', apiUrl);
-                
-                statusDiv.textContent = `✅ Connected! System status: ${data.status || 'OK'}`;
-                statusDiv.style.background = '#c6f6d5';
-                statusDiv.style.color = '#276749';
-                
-                this.updateApiStatus(true);
-                this.loadRealData();
-                this.startRefreshTimer();
-                
-                setTimeout(() => {
-                    document.getElementById('api-modal').style.display = 'none';
-                }, 2000);
+                data = await response.json();
             } else {
-                throw new Error(`HTTP ${response.status}`);
+                // Fallback to system health endpoint
+                response = await fetch(`${apiUrl}/health/system`, {
+                    timeout: 10000
+                });
+                
+                if (response.ok) {
+                    data = await response.json();
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
             }
+            
+            this.apiBaseUrl = apiUrl;
+            localStorage.setItem('api-url', apiUrl);
+            
+            statusDiv.textContent = `✅ Connected! System status: ${data.status || 'OK'}`;
+            statusDiv.style.background = '#c6f6d5';
+            statusDiv.style.color = '#276749';
+            
+            this.updateApiStatus(true);
+            this.loadRealData();
+            this.startRefreshTimer();
+            
+            setTimeout(() => {
+                document.getElementById('api-modal').style.display = 'none';
+            }, 2000);
         } catch (error) {
             statusDiv.textContent = `❌ Connection failed: ${error.message}`;
             statusDiv.style.background = '#fed7d7';
