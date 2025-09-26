@@ -305,7 +305,7 @@ class VehicleDetectionConsolidatorEnhanced:
             # Extract or create correlation ID
             correlation_id = event_data.get('correlation_id', str(uuid.uuid4())[:8])
             
-            with CorrelationContext.create("event_processing", correlation_id) as ctx:
+            with CorrelationContext.create(correlation_id) as ctx:
                 event_type = event_data.get('event_type')
                 
                 self.logger.debug(f"Processing event: {event_type}")
