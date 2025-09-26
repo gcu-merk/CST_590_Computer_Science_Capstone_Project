@@ -79,7 +79,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="missing_dependency",
                 message="Redis required for vehicle detection data consolidation",
-                exception=RuntimeError("Redis not available")
+                error=str(RuntimeError("Redis not available"))
             )
             raise RuntimeError("Redis required for vehicle detection data consolidation")
         
@@ -88,7 +88,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="missing_redis_models",
                 message="RedisDataManager not available - consolidator cannot start",
-                exception=RuntimeError("Redis models not available")
+                error=str(RuntimeError("Redis models not available"))
             )
             raise RuntimeError("Redis models not available")
         
@@ -173,7 +173,7 @@ class VehicleDetectionConsolidatorEnhanced:
                 self.logger.log_error(
                     error_type="redis_connection_failed",
                     message=f"Failed to connect to Redis: {str(e)}",
-                    exception=e,
+                    error=str(e),
                     details={
                         "redis_host": self.redis_host,
                         "redis_port": self.redis_port
@@ -194,7 +194,7 @@ class VehicleDetectionConsolidatorEnhanced:
                 self.logger.log_error(
                     error_type="startup_failed",
                     message="Cannot start consolidator without Redis connection",
-                    exception=RuntimeError("Redis connection failed")
+                    error=str(RuntimeError("Redis connection failed"))
                 )
                 return False
             
@@ -230,7 +230,7 @@ class VehicleDetectionConsolidatorEnhanced:
                 self.logger.log_error(
                     error_type="service_runtime_error",
                     message="Consolidator service encountered runtime error",
-                    exception=e
+                    error=str(e)
                 )
             finally:
                 self.stop()
@@ -284,9 +284,9 @@ class VehicleDetectionConsolidatorEnhanced:
                     
                 except Exception as e:
                     self.logger.log_error(
+                        message=f"Error in event processing loop: {str(e)}",
+                        error=str(e),
                         error_type="event_processing_error",
-                        message="Error in event processing loop",
-                        exception=e,
                         details={"events_processed": events_processed}
                     )
                     time.sleep(1)
@@ -328,7 +328,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="message_handling_error",
                 message="Error handling Redis message",
-                exception=e,
+                error=str(e),
                 details={"message_type": message.get('type')}
             )
     
@@ -397,7 +397,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="imx500_processing_error",
                 message="Error processing IMX500 capture event",
-                exception=e,
+                error=str(e),
                 details={"correlation_id": correlation_id, "event_data": event_data}
             )
     
@@ -449,7 +449,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="radar_consolidation_error",
                 message="Error processing radar motion event for consolidation",
-                exception=e,
+                error=str(e),
                 details={"correlation_id": correlation_id, "event_data": event_data}
             )
     
@@ -512,7 +512,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="data_collection_error",
                 message="Error during comprehensive data collection",
-                exception=e,
+                error=str(e),
                 details={"correlation_id": correlation_id}
             )
             return {}
@@ -596,7 +596,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="data_storage_error",
                 message="Error storing consolidated data to FIFO stream",
-                exception=e,
+                error=str(e),
                 details={'correlation_id': consolidated_data.get('correlation_id')}
             )
     
@@ -629,7 +629,7 @@ class VehicleDetectionConsolidatorEnhanced:
                     self.logger.log_error(
                         error_type="stats_update_error",
                         message="Error in statistics update loop",
-                        exception=e
+                        error=str(e)
                     )
                     time.sleep(self.stats_update_interval)
     
@@ -658,7 +658,7 @@ class VehicleDetectionConsolidatorEnhanced:
                     self.logger.log_error(
                         error_type="cleanup_error", 
                         message="Error in cleanup loop",
-                        exception=e
+                        error=str(e)
                     )
                     time.sleep(3600)
     
@@ -692,7 +692,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="stats_calculation_error",
                 message="Error calculating statistics",
-                exception=e
+                error=str(e)
             )
     
     def _cleanup_old_data(self, correlation_id: str) -> int:
@@ -719,7 +719,7 @@ class VehicleDetectionConsolidatorEnhanced:
             self.logger.log_error(
                 error_type="cleanup_execution_error",
                 message="Error during data cleanup",
-                exception=e,
+                error=str(e),
                 details={"correlation_id": correlation_id}
             )
             return 0
@@ -773,7 +773,7 @@ class VehicleDetectionConsolidatorEnhanced:
                     self.logger.log_error(
                         error_type="pubsub_close_error",
                         message="Error closing Redis pub/sub",
-                        exception=e
+                        error=str(e)
                     )
             
             # Log final statistics
