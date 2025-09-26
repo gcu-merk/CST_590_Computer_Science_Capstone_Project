@@ -326,9 +326,13 @@ class VehicleDetectionConsolidatorEnhanced:
         except Exception as e:
             self.logger.log_error(
                 error_type="message_handling_error",
-                message="Error handling Redis message",
+                message=f"Error handling Redis message: {str(e)}",
                 error=str(e),
-                details={"message_type": message.get('type')}
+                details={
+                    "message_type": message.get('type'),
+                    "exception_type": type(e).__name__,
+                    "message_data": str(message.get('data', ''))[:200]
+                }
             )
     
     def _process_imx500_capture_event_enhanced(self, event_data: Dict[str, Any], correlation_id: str):
