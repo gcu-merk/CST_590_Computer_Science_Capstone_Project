@@ -203,10 +203,9 @@ class RadarServiceEnhanced:
                     
                     if self.ser and self.ser.in_waiting > 0:
                         # Process radar data with correlation context
-                        with performance_monitor("radar_data_processing"):
-                            line = self.ser.readline().decode('utf-8', errors='ignore').strip()
-                            if line:
-                                self._process_radar_data_enhanced(line)
+                        line = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                        if line:
+                            self._process_radar_data_enhanced(line)
                     
                     # Log periodic statistics (every 5 minutes)
                     if time.time() - last_stats_log > 300:
@@ -237,10 +236,9 @@ class RadarServiceEnhanced:
         # Create correlation context for this detection
         with CorrelationContext.create("vehicle_detection") as ctx:
             
-            with performance_monitor("data_parsing"):
-                data = self._parse_radar_line_enhanced(line)
-                if not data:
-                    return
+            data = self._parse_radar_line_enhanced(line)
+            if not data:
+                return
             
             # Track processing performance
             processing_start = time.time()
@@ -298,8 +296,7 @@ class RadarServiceEnhanced:
                         self.last_detection_time = current_time
                         
                         # Publish motion detection to standardized FIFO stream
-                        with performance_monitor("redis_publishing"):
-                            self._publish_to_redis_enhanced(data, ctx.correlation_id)
+                        self._publish_to_redis_enhanced(data, ctx.correlation_id)
                     
                     else:
                         # Log noise filtering - no Redis publishing for noise
@@ -424,17 +421,16 @@ class RadarServiceEnhanced:
             # Add correlation ID to data
             data['correlation_id'] = correlation_id
             
-            with performance_monitor("redis_publish_operations"):
-                # Publish to standardized FIFO traffic radar stream
-                self.redis_client.xadd('traffic:radar', data)
-                
-                self.logger.log_debug(
-                    f"📡 Published radar data to FIFO stream: {data.get('speed', 0):.1f} mph",
-                    details={
-                        "correlation_id": correlation_id,
-                        "stream": "traffic:radar"
-                    }
-                )
+            # Publish to standardized FIFO traffic radar stream
+            self.redis_client.xadd('traffic:radar', data)
+            
+            self.logger.log_debug(
+                f"📡 Published radar data to FIFO stream: {data.get('speed', 0):.1f} mph",
+                details={
+                    "correlation_id": correlation_id,
+                    "stream": "traffic:radar"
+                }
+            )
         
         except Exception as e:
             self.logger.log_error(
