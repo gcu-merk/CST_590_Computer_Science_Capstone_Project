@@ -50,6 +50,7 @@ services:
       - ${STORAGE_ROOT:-/mnt/storage}/processed_data:/app/processed_data
       - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
       - ${STORAGE_ROOT:-/mnt/storage}/ai_camera_images:/app/ai_camera_images
+      - ${STORAGE_ROOT:-/mnt/storage}/database:/app/data
     depends_on:
       redis:
         condition: service_healthy
