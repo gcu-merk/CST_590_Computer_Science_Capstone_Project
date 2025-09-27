@@ -392,7 +392,7 @@ class VehicleDetectionConsolidatorEnhanced:
                         "alert_level": alert_level,
                         "detection_id": detection_id,
                         "confidence": 0.85,  # Radar generally reliable
-                        "direction": "approaching" if speed > 0 else "receding"
+                        "direction": "approaching" if speed < 0 else "receding"  # Negative = approaching sensor
                     },
                     
                     # Weather data (fetch current conditions)
@@ -400,10 +400,10 @@ class VehicleDetectionConsolidatorEnhanced:
                     
                     # Camera data placeholder (no IMX500 correlation yet)
                     "camera_data": {
-                        "vehicle_count": 1 if speed > 2.0 else 0,  # Assume vehicle if significant speed
+                        "vehicle_count": 1 if abs(speed) >= 2.0 else 0,  # Use absolute speed for vehicle detection
                         "detection_confidence": None,
                         "vehicle_types": None,
-                        "recent_summary": {"count": 1 if speed > 2.0 else 0}
+                        "recent_summary": {"count": 1 if abs(speed) >= 2.0 else 0}
                     },
                     
                     # Processing metadata

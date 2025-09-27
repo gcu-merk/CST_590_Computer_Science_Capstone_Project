@@ -304,7 +304,8 @@ class RadarServiceEnhanced:
                         magnitude = data.get('magnitude', 'unknown')
                         
                         # Filter significant detections (above noise threshold)
-                        if speed >= 2.0:
+                        # Use absolute value to detect both approaching (-) and departing (+) vehicles
+                        if abs(speed) >= 2.0:
                             is_significant = True
                             self.detection_count += 1
                             detection_id = str(uuid.uuid4())[:8]
@@ -563,10 +564,11 @@ class RadarServiceEnhanced:
         return None
 
     def _determine_alert_level(self, speed: float) -> str:
-        """Determine alert level based on speed thresholds"""
-        if speed >= self.high_speed_threshold:
+        """Determine alert level based on speed thresholds using absolute value"""
+        abs_speed = abs(speed)
+        if abs_speed >= self.high_speed_threshold:
             return 'high'
-        elif speed >= self.low_speed_threshold:
+        elif abs_speed >= self.low_speed_threshold:
             return 'low'
         else:
             return 'normal'
