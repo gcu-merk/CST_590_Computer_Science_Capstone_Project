@@ -809,18 +809,22 @@ class SimplifiedEnhancedDatabasePersistenceService:
                     }
                     print(f"DEBUG TRAFFIC DETECTION DATA TYPES: {debug_data}")
                     
+                    # Insert traffic detection with auto-increment id and separate consolidation_id
                     cursor.execute("""
                         INSERT OR REPLACE INTO traffic_detections 
-                        (id, correlation_id, timestamp, trigger_source, location_id, processing_metadata)
+                        (consolidation_id, correlation_id, timestamp, trigger_source, location_id, processing_metadata)
                         VALUES (?, ?, ?, ?, ?, ?)
                     """, (
-                        str(traffic_detection.id),
+                        str(traffic_detection.id),  # This is actually the consolidation_id
                         str(traffic_detection.correlation_id),
                         float(traffic_detection.timestamp) if traffic_detection.timestamp else None,
                         str(traffic_detection.trigger_source),
                         str(traffic_detection.location_id) if traffic_detection.location_id else 'default',
                         json.dumps(traffic_detection.processing_metadata) if traffic_detection.processing_metadata else None
                     ))
+                    
+                    # Get the auto-generated database ID for foreign key relationships
+                    db_detection_id = cursor.lastrowid
                     
                     # 2. Insert radar detection (if present)
                     if radar_detection:
@@ -829,7 +833,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
                             (detection_id, speed_mph, speed_mps, confidence, alert_level, direction, distance, detection_source_id)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
-                            radar_detection.detection_id,
+                            db_detection_id,  # Use the auto-generated database ID
                             radar_detection.speed_mph,
                             radar_detection.speed_mps,
                             radar_detection.confidence,
@@ -844,17 +848,19 @@ class SimplifiedEnhancedDatabasePersistenceService:
                         cursor.execute("""
                             INSERT OR REPLACE INTO camera_detections
                             (detection_id, vehicle_count, vehicle_types, detection_confidence, 
-                             image_path, roi_data, inference_time_ms, camera_source)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                             processing_time, image_metadata)
+                            VALUES (?, ?, ?, ?, ?, ?)
                         """, (
-                            camera_detection.detection_id,
+                            db_detection_id,  # Use the auto-generated database ID
                             camera_detection.vehicle_count,
                             json.dumps(camera_detection.vehicle_types) if camera_detection.vehicle_types else None,
                             camera_detection.detection_confidence,
-                            camera_detection.image_path,
-                            json.dumps(camera_detection.roi_data) if camera_detection.roi_data else None,
-                            camera_detection.inference_time_ms,
-                            camera_detection.camera_source
+                            camera_detection.inference_time_ms if hasattr(camera_detection, 'inference_time_ms') else None,
+                            json.dumps({
+                                'image_path': getattr(camera_detection, 'image_path', None),
+                                'roi_data': getattr(camera_detection, 'roi_data', None),
+                                'camera_source': getattr(camera_detection, 'camera_source', None)
+                            })
                         ))
                     
                     # 4. Insert weather conditions (time-bucketed to reduce redundancy)
@@ -867,9 +873,9 @@ class SimplifiedEnhancedDatabasePersistenceService:
                             # Check if weather record exists in this time bucket
                             cursor.execute("""
                                 SELECT id FROM weather_conditions 
-                                WHERE source = ? AND timestamp BETWEEN ? AND ?
+                                WHERE weather_source = ? AND timestamp BETWEEN ? AND ?
                                 ORDER BY timestamp DESC LIMIT 1
-                            """, (weather_condition.source, time_bucket, time_bucket + 300))
+                            """, (weather_condition.weather_source if hasattr(weather_condition, 'weather_source') else 'dht22', time_bucket, time_bucket + 300))
                             
                             existing_weather = cursor.fetchone()
                             
@@ -879,28 +885,24 @@ class SimplifiedEnhancedDatabasePersistenceService:
                                 # Insert new weather condition
                                 cursor.execute("""
                                     INSERT INTO weather_conditions
-                                    (timestamp, source, temperature, humidity, conditions, wind_speed, pressure, visibility, raw_data)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    (timestamp, temperature, humidity, pressure, weather_source)
+                                    VALUES (?, ?, ?, ?, ?)
                                 """, (
                                     weather_condition.timestamp,
-                                    weather_condition.source,
                                     weather_condition.temperature,
                                     weather_condition.humidity,
-                                    weather_condition.conditions,
-                                    weather_condition.wind_speed,
-                                    weather_condition.pressure,
-                                    weather_condition.visibility,
-                                    json.dumps(weather_condition.raw_data) if weather_condition.raw_data else None
+                                    weather_condition.pressure if hasattr(weather_condition, 'pressure') else None,
+                                    weather_condition.weather_source if hasattr(weather_condition, 'weather_source') else 'dht22'
                                 ))
                                 weather_id_cache[cache_key] = cursor.lastrowid
                         
                         # 5. Create traffic-weather correlation
                         cursor.execute("""
                             INSERT OR IGNORE INTO traffic_weather_correlation
-                            (detection_id, weather_id, correlation_strength)
+                            (traffic_detection_id, weather_condition_id, correlation_strength)
                             VALUES (?, ?, ?)
                         """, (
-                            traffic_detection.id,
+                            db_detection_id,  # Use the auto-generated database ID
                             weather_id_cache[cache_key],
                             1.0  # Full correlation for concurrent readings
                         ))
