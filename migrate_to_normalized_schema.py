@@ -468,7 +468,7 @@ class DatabaseMigrator:
             self.stats.legacy_records_found = total_records
             
             if total_records == 0:
-                logger.info("ℹ️  No legacy records to migrate")
+                logger.info("ℹ️  No legacy records to migrate - normalized schema already created")
                 return True
             
             logger.info(f"🔄 Starting migration of {total_records:,} records in batches of {self.batch_size}")
@@ -608,16 +608,23 @@ class DatabaseMigrator:
             
             # 3. Check legacy schema
             has_legacy, record_count = self.check_legacy_schema()
-            if not has_legacy or record_count == 0:
-                logger.info("ℹ️  No migration needed - no legacy data found")
-                return True
+            if not has_legacy:
+                logger.info("ℹ️  No legacy table found - creating normalized schema for new database")
+            elif record_count == 0:
+                logger.info("ℹ️  Legacy table is empty - will create normalized schema")
+            else:
+                logger.info(f"📊 Found {record_count:,} legacy records to migrate")
             
             # 4. Check if normalized schema already exists
             if self.check_normalized_schema():
-                user_input = input("⚠️  Normalized schema already exists. Continue? (y/N): ")
-                if user_input.lower() != 'y':
-                    logger.info("Migration cancelled by user")
-                    return False
+                if record_count > 0:  # Only ask if there's actual data to migrate
+                    user_input = input("⚠️  Normalized schema already exists. Continue? (y/N): ")
+                    if user_input.lower() != 'y':
+                        logger.info("Migration cancelled by user")
+                        return False
+                else:
+                    logger.info("✅ Normalized schema already exists - no migration needed")
+                    return True
             
             # 5. Create normalized schema
             if not self.create_normalized_schema():
