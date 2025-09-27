@@ -394,53 +394,56 @@ class TrafficDashboard {
                 console.error('❌ Analytics API error:', error.message);
             }
             
-            // Load weather data from individual endpoints
+            // Load weather data from the combined endpoint
             try {
-                const [dht22Response, airportResponse] = await Promise.all([
-                    fetch(`${this.apiBaseUrl}/weather/current`),
-                    fetch(`${this.apiBaseUrl}/weather/current`)
-                ]);
+                const weatherResponse = await fetch(`${this.apiBaseUrl}/weather/current`);
 
-                let combinedWeatherData = {};
-                let hasValidData = false;
+                if (weatherResponse.ok) {
+                    const weatherData = await weatherResponse.json();
+                    let combinedWeatherData = {};
+                    let hasValidData = false;
 
-                // Process DHT22 sensor data
-                if (dht22Response.ok) {
-                    const dht22Data = await dht22Response.json();
-                    if (dht22Data.data) {
-                        combinedWeatherData.temperature_f = dht22Data.data.temperature_f;
-                        combinedWeatherData.temperature_c = dht22Data.data.temperature_c;
-                        combinedWeatherData.humidity = dht22Data.data.humidity;
+                    // Process DHT22 sensor data
+                    if (weatherData.sources && weatherData.sources.dht22) {
+                        const dht22Data = weatherData.sources.dht22;
+                        combinedWeatherData.temperature_f = dht22Data.temperature;
+                        combinedWeatherData.temperature_c = dht22Data.temperature_c;
+                        combinedWeatherData.humidity = dht22Data.humidity;
                         hasValidData = true;
                         console.log('✅ DHT22 weather data loaded successfully');
                     }
-                } else {
-                    console.error(`❌ DHT22 Weather API failed: ${dht22Response.status}`);
-                }
 
-                // Process airport weather data
-                if (airportResponse.ok) {
-                    const airportData = await airportResponse.json();
-                    if (airportData.data) {
-                        combinedWeatherData.weather_description = airportData.data.textDescription;
-                        combinedWeatherData.sky_condition = airportData.data.cloudLayers;
+                    // Process airport weather data
+                    if (weatherData.sources && weatherData.sources.airport) {
+                        const airportData = weatherData.sources.airport;
+                        combinedWeatherData.airport_temperature_f = airportData.temperature;
+                        combinedWeatherData.airport_temperature_c = airportData.temperature_c;
+                        combinedWeatherData.weather_description = airportData.textDescription;
+                        combinedWeatherData.sky_condition = airportData.cloudLayers;
                         hasValidData = true;
                         console.log('✅ Airport weather data loaded successfully');
                     }
-                } else {
-                    console.error(`❌ Airport Weather API failed: ${airportResponse.status}`);
-                }
 
-                if (hasValidData) {
-                    this.updateWeatherData(combinedWeatherData);
-                    console.log('✅ Combined weather data processed successfully');
+                    if (hasValidData) {
+                        this.updateWeatherData(combinedWeatherData);
+                        console.log('✅ Combined weather data processed successfully');
+                    } else {
+                        console.error('❌ No valid weather data from weather sources');
+                        document.getElementById('airport-temp').textContent = 'No Data';
+                        document.getElementById('local-temp').textContent = 'No Data';
+                        document.getElementById('local-humidity').textContent = 'No Data';
+                    }
                 } else {
-                    console.error('❌ No valid weather data from either endpoint');
-                    document.getElementById('temperature').textContent = 'No Data';
+                    console.error(`❌ Weather API failed: ${weatherResponse.status}`);
+                    document.getElementById('airport-temp').textContent = 'API Error';
+                    document.getElementById('local-temp').textContent = 'API Error';
+                    document.getElementById('local-humidity').textContent = 'API Error';
                 }
             } catch (error) {
                 console.error('❌ Weather API error:', error.message);
-                document.getElementById('temperature').textContent = 'API Error';
+                document.getElementById('airport-temp').textContent = 'API Error';
+                document.getElementById('local-temp').textContent = 'API Error';
+                document.getElementById('local-humidity').textContent = 'API Error';
             }
             
         } catch (error) {
@@ -465,7 +468,7 @@ class TrafficDashboard {
         document.getElementById('avg-speed').textContent = avgSpeed;
         document.getElementById('speed-violations').textContent = violations;
         if (latestTemp) {
-            document.getElementById('temperature').textContent = `${Math.round(latestTemp * 9/5 + 32)}°F`;
+            document.getElementById('local-temp').textContent = `${Math.round(latestTemp * 9/5 + 32)}°F`;
         }
     }
     
@@ -562,41 +565,48 @@ class TrafficDashboard {
     updateWeatherData(weatherData) {
         if (!weatherData) {
             console.error('❌ No weather data received');
-            document.getElementById('temperature').textContent = 'No Data';
+            document.getElementById('airport-temp').textContent = 'No Data';
+            document.getElementById('local-temp').textContent = 'No Data';
+            document.getElementById('local-humidity').textContent = 'No Data';
             return;
         }
         
-        // Update temperature if available - handle multiple API formats
-        let temperature = null;
-        let tempDisplay = 'No Temp Data';
-        
-        if (weatherData.temperature_f) {
-            // New API format - temperature_f directly available
-            temperature = weatherData.temperature_f;
-            tempDisplay = `${Math.round(temperature)}°F`;
-        } else if (weatherData.temperature_c) {
-            // New API format - convert from Celsius
-            const tempF = Math.round(weatherData.temperature_c * 9/5 + 32);
-            tempDisplay = `${tempF}°F`;
-            temperature = tempF;
-        } else if (weatherData.data && weatherData.data.temperature) {
-            // Legacy API format - nested temperature
-            const tempF = Math.round(weatherData.data.temperature * 9/5 + 32);
-            tempDisplay = `${tempF}°F`;
-            temperature = tempF;
-        } else if (weatherData.temperature) {
-            // Legacy API format - direct temperature field
-            const tempF = Math.round(weatherData.temperature * 9/5 + 32);
-            tempDisplay = `${tempF}°F`;
-            temperature = tempF;
+        // Update airport temperature
+        const airportTempElement = document.getElementById('airport-temp');
+        if (weatherData.airport_temperature_f) {
+            airportTempElement.textContent = `${Math.round(weatherData.airport_temperature_f)}°F`;
+            console.log(`📊 Updated airport temperature: ${Math.round(weatherData.airport_temperature_f)}°F`);
+        } else if (weatherData.airport_temperature_c) {
+            const tempF = Math.round(weatherData.airport_temperature_c * 9/5 + 32);
+            airportTempElement.textContent = `${tempF}°F`;
+            console.log(`📊 Updated airport temperature: ${tempF}°F`);
+        } else {
+            airportTempElement.textContent = '--°F';
+            console.log('📊 No airport temperature data available');
         }
         
-        document.getElementById('temperature').textContent = tempDisplay;
-        
-        if (temperature) {
-            console.log(`📊 Updated temperature: ${tempDisplay}`);
+        // Update local DHT22 temperature
+        const localTempElement = document.getElementById('local-temp');
+        if (weatherData.temperature_f) {
+            localTempElement.textContent = `${Math.round(weatherData.temperature_f)}°F`;
+            console.log(`📊 Updated local temperature: ${Math.round(weatherData.temperature_f)}°F`);
+        } else if (weatherData.temperature_c) {
+            const tempF = Math.round(weatherData.temperature_c * 9/5 + 32);
+            localTempElement.textContent = `${tempF}°F`;
+            console.log(`📊 Updated local temperature: ${tempF}°F`);
         } else {
-            console.log('📊 No temperature data in weather response');
+            localTempElement.textContent = '--°F';
+            console.log('📊 No local temperature data available');
+        }
+        
+        // Update local DHT22 humidity
+        const humidityElement = document.getElementById('local-humidity');
+        if (weatherData.humidity !== undefined && weatherData.humidity !== null) {
+            humidityElement.textContent = `${Math.round(weatherData.humidity)}%`;
+            console.log(`📊 Updated humidity: ${Math.round(weatherData.humidity)}%`);
+        } else {
+            humidityElement.textContent = '--%';
+            console.log('📊 No humidity data available');
         }
         
         // Update weather condition display if element exists
@@ -898,7 +908,9 @@ class TrafficDashboard {
         document.getElementById('total-vehicles').textContent = 'No Data';
         document.getElementById('avg-speed').textContent = 'No Data';
         document.getElementById('speed-violations').textContent = 'No Data';
-        document.getElementById('temperature').textContent = 'No Data';
+        document.getElementById('airport-temp').textContent = 'No Data';
+        document.getElementById('local-temp').textContent = 'No Data';
+        document.getElementById('local-humidity').textContent = 'No Data';
         
         // Clear charts and show "No Data" message
         this.showChartsUnavailable();
