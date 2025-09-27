@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements-persistence.txt
 
 # Copy source code
 COPY edge_processing/ ./edge_processing/
-COPY edge_processing/data_persistence/database_persistence_service.py ./
+COPY edge_processing/data_persistence/database_persistence_service_simplified.py ./
 
 # Create necessary directories
 RUN mkdir -p /app/data /app/logs
@@ -23,4 +23,4 @@ RUN mkdir -p /app/data /app/logs
 ENV PYTHONPATH=/app:/app/edge_processing
 
 # Run database persistence service
-CMD ["python", "database_persistence_service.py"]
+CMD ["python", "database_persistence_service_simplified.py"]
