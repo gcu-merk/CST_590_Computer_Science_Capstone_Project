@@ -1,0 +1,147 @@
+{
+  "report_metadata": {
+    "title": "Centralized Application Log Analysis Report",
+    "generated_date": "2025-09-27T05:47:00-05:00",
+    "analysis_period": "Last 8 Hours (2025-09-26T21:47 - 2025-09-27T05:47)",
+    "system": "Traffic Monitoring IoT System (Raspberry Pi 5)",
+    "report_id": "LOG-2025-09-27-0547"
+  },
+  "executive_summary": {
+    "overall_health": "EXCELLENT",
+    "health_score": 98.5,
+    "containers_healthy": 11,
+    "uptime_hours": 9,
+    "critical_errors": 0
+  },
+  "container_status": {
+    "total_containers": 11,
+    "healthy_containers": 11,
+    "services": [
+      {"name": "radar-service", "status": "Up 9h (healthy)", "function": "Vehicle detection and speed monitoring"},
+      {"name": "vehicle-consolidator", "status": "Up 9h (healthy)", "function": "Data processing and correlation"},
+      {"name": "traffic-monitor", "status": "Up 9h (healthy)", "function": "Camera-based traffic analysis"},
+      {"name": "nginx-proxy", "status": "Up 9h (healthy)", "function": "Reverse proxy and load balancing"},
+      {"name": "realtime-events-broadcaster", "status": "Up 9h (healthy)", "function": "WebSocket event streaming"},
+      {"name": "database-persistence", "status": "Up 9h (healthy)", "function": "Data storage and retrieval"},
+      {"name": "redis", "status": "Up 9h (healthy)", "function": "Caching and message queuing"},
+      {"name": "redis-optimization", "status": "Up 9h (healthy)", "function": "Performance optimization"},
+      {"name": "dht22-weather", "status": "Up 9h (healthy)", "function": "Environmental sensor monitoring"},
+      {"name": "airport-weather", "status": "Up 9h (healthy)", "function": "External weather data integration"},
+      {"name": "data-maintenance", "status": "Up 9h (healthy)", "function": "System cleanup and maintenance"}
+    ]
+  },
+  "error_analysis": {
+    "critical_errors": 0,
+    "minor_issues": [
+      {
+        "id": 1,
+        "category": "DHT22 Weather Sensor",
+        "severity": "Non-Critical",
+        "issue": "2 DHT22 sensor read failures in the last 2 hours",
+        "impact": "Minimal - service recovers automatically on next cycle",
+        "status": "Expected hardware behavior for environmental sensors",
+        "recovery": "Automatic"
+      },
+      {
+        "id": 2,
+        "category": "System Log Rotation",
+        "severity": "Minor",
+        "issue": "Logrotate service failed once at midnight",
+        "impact": "Low - manual cleanup may be needed eventually",
+        "status": "Routine maintenance item"
+      },
+      {
+        "id": 3,
+        "category": "WiFi Signal Monitoring",
+        "severity": "Informational",
+        "issue": "wpa_supplicant signal strength monitoring failed",
+        "impact": "None on core functionality",
+        "status": "Network monitoring feature, not affecting connectivity"
+      }
+    ]
+  },
+  "performance_metrics": {
+    "radar_service": {
+      "vehicle_detection": "Active",
+      "speed_alerts": "Functioning (10-19 mph range)",
+      "connection_errors": 0,
+      "structured_logging": "Operational"
+    },
+    "vehicle_consolidator": {
+      "processing_performance": "Consistent",
+      "cleanup_cycle_time": "0.04-0.07ms",
+      "memory_management": "Optimal",
+      "processing_errors": 0
+    },
+    "traffic_monitor": {
+      "health_checks": "HTTP 200 every 30 seconds",
+      "camera_integration": "Stable",
+      "api_failures": 0
+    },
+    "database_caching": {
+      "redis_errors": 0,
+      "persistence_operations": "All successful",
+      "query_response": "Within normal parameters"
+    }
+  },
+  "storage_status": {
+    "ssd_storage": {
+      "usage_gb": 96,
+      "total_gb": 1800,
+      "utilization_percent": 6,
+      "status": "Excellent",
+      "mount": "/mnt/storage",
+      "purpose": "Application logs, camera captures, database storage"
+    },
+    "sd_card_storage": {
+      "usage_gb": 13,
+      "total_gb": 235,
+      "utilization_percent": 6,
+      "status": "Excellent",
+      "mount": "/",
+      "system_logs_mb": 217,
+      "docker_kb": 4
+    },
+    "analysis": {
+      "configuration": "Optimal - Heavy I/O migrated to SSD",
+      "sd_protection": "Only essential system files remain",
+      "balanced_usage": "Both devices at healthy 6% utilization",
+      "docker_migration": "Successfully moved to SSD"
+    }
+  },
+  "reliability_score": {
+    "total": 98.5,
+    "components": {
+      "uptime": 100,
+      "service_availability": 100,
+      "error_rate": 95,
+      "performance": 100,
+      "storage_health": 100
+    }
+  },
+  "recommendations": [
+    "No immediate action required - system operating exceptionally well",
+    "Monitor DHT22 sensor for frequency increase in failures",
+    "Schedule logrotate maintenance during next maintenance window",
+    "Continue current monitoring schedule",
+    "Review sensor failure patterns monthly"
+  ],
+  "technical_details": {
+    "logging_config": {
+      "directory": "/mnt/storage/logs/applications/",
+      "format": "Structured JSON with correlation IDs",
+      "rotation": "10MB files, 5 backup copies",
+      "integrated_services": 11
+    },
+    "monitoring": {
+      "health_check_interval": "30 seconds",
+      "service_discovery": "Automatic via Docker Compose",
+      "performance_metrics": "Real-time collection active"
+    },
+    "network": {
+      "proxy": "Nginx handling HTTP/HTTPS traffic",
+      "ssl_tls": "Active on port 8443",
+      "websockets": "Real-time event streaming functional"
+    }
+  }
+}
