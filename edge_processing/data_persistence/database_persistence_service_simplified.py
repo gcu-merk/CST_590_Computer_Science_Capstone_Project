@@ -994,13 +994,21 @@ class SimplifiedEnhancedDatabasePersistenceService:
         """Store original consolidated JSON for API efficiency"""
         try:
             cursor = self.db_connection.cursor()
+            
+            # Start transaction for atomicity
+            cursor.execute("BEGIN")
+            
             cursor.execute("""
                 INSERT OR REPLACE INTO consolidated_events 
                 (consolidation_id, event_json)
                 VALUES (?, ?)
             """, (consolidation_id, event_json))
             
-            logger.debug("Stored consolidated JSON", extra={
+            # Commit transaction to ensure data is persisted
+            cursor.execute("COMMIT")
+            cursor.close()
+            
+            logger.info("Stored consolidated JSON", extra={
                 "business_event": "consolidated_json_stored",
                 "consolidation_id": consolidation_id,
                 "json_size_bytes": len(event_json)
@@ -1012,6 +1020,11 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 "consolidation_id": consolidation_id,
                 "error": str(e)
             })
+            # Rollback on error
+            try:
+                cursor.execute("ROLLBACK")
+            except:
+                pass
     
     def _get_database_stats(self) -> Dict[str, Any]:
         """Get comprehensive database statistics for normalized 3NF schema"""
