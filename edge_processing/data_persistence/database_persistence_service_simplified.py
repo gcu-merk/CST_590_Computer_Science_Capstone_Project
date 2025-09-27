@@ -242,11 +242,12 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # Ensure database directory exists
                 self.database_path.parent.mkdir(parents=True, exist_ok=True)
                 
-                # Connect to SQLite with optimizations
+                # Connect to SQLite with optimizations and manual transaction control
                 self.db_connection = sqlite3.connect(
                     str(self.database_path),
                     check_same_thread=False,
-                    timeout=30.0
+                    timeout=30.0,
+                    isolation_level=None  # Manual transaction control
                 )
                 
                 # Enable WAL mode for better concurrent access
@@ -808,8 +809,8 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 start_time = time.time()
                 cursor = self.db_connection.cursor()
                 
-                # Start transaction for atomicity
-                cursor.execute("BEGIN TRANSACTION")
+                # Start transaction for atomicity (manual mode with isolation_level=None)
+                cursor.execute("BEGIN")
                 
                 weather_id_cache = {}  # Cache weather IDs to avoid duplicates
                 
