@@ -236,35 +236,23 @@ class SimplifiedEnhancedDatabasePersistenceService:
         """Initialize SQLite database with optimized schema and performance monitoring"""
         correlation_id = CorrelationContext.get_correlation_id() or str(uuid.uuid4())[:8]
         
-        # Debug logging for initialization
-        print(f"🔧 DEBUG: Starting database initialization")
-        print(f"🔧 DEBUG: Database path: {self.database_path}")
-        print(f"🔧 DEBUG: Path exists: {self.database_path.exists()}")
-        print(f"🔧 DEBUG: Parent dir exists: {self.database_path.parent.exists()}")
-        
         try:
             with CorrelationContext.set_correlation_id(correlation_id):
                 # Ensure database directory exists
-                print(f"🔧 DEBUG: Creating directory: {self.database_path.parent}")
                 self.database_path.parent.mkdir(parents=True, exist_ok=True)
-                print(f"🔧 DEBUG: Directory created successfully")
                 
                 # Connect to SQLite with optimizations
-                print(f"🔧 DEBUG: Connecting to SQLite at: {self.database_path}")
                 self.db_connection = sqlite3.connect(
                     str(self.database_path),
                     check_same_thread=False,
                     timeout=30.0
                 )
-                print(f"🔧 DEBUG: SQLite connection successful")
                 
                 # Enable WAL mode for better concurrent access
-                print(f"🔧 DEBUG: Setting SQLite pragmas")
                 self.db_connection.execute("PRAGMA journal_mode=WAL")
                 self.db_connection.execute("PRAGMA synchronous=NORMAL")
                 self.db_connection.execute("PRAGMA cache_size=10000")
                 self.db_connection.execute("PRAGMA temp_store=MEMORY")
-                print(f"🔧 DEBUG: SQLite pragmas set successfully")
                 
                 # Create optimized schema
                 cursor = self.db_connection.cursor()
@@ -465,20 +453,14 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 
         except Exception as e:
             import traceback
-            error_details = traceback.format_exc()
             logger.error("Failed to initialize SQLite database", extra={
                 "business_event": "database_initialization_failure",
                 "correlation_id": correlation_id,
                 "database_path": str(self.database_path),
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "full_traceback": error_details
+                "traceback": traceback.format_exc()
             })
-            # Also print to stdout for immediate debugging
-            print(f"❌ DATABASE INITIALIZATION ERROR: {e}")
-            print(f"❌ Error type: {type(e).__name__}")
-            print(f"❌ Database path: {self.database_path}")
-            print(f"❌ Full traceback:\n{error_details}")
             return False
     
     def connect_redis(self) -> bool:
@@ -993,6 +975,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 
                 stats = {
                     "total_detections": total_detections,
+                    "total_records": total_detections,  # Add this for backward compatibility
                     "total_radar_records": total_radar,
                     "total_camera_records": total_camera,
                     "total_weather_records": total_weather,
