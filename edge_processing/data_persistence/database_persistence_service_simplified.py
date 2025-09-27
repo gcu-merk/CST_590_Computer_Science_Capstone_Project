@@ -264,7 +264,8 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # Core traffic detections table (1NF - atomic values only)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS traffic_detections (
-                        id TEXT PRIMARY KEY,
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        consolidation_id TEXT UNIQUE NOT NULL,
                         correlation_id TEXT NOT NULL,
                         timestamp REAL NOT NULL,
                         trigger_source TEXT NOT NULL,
@@ -277,7 +278,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # Radar detection data (2NF - functionally dependent on detection_id)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS radar_detections (
-                        detection_id TEXT PRIMARY KEY,
+                        detection_id INTEGER PRIMARY KEY,
                         speed_mph REAL NOT NULL,
                         speed_mps REAL NOT NULL,
                         confidence REAL NOT NULL,
@@ -292,14 +293,12 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # Camera/AI detection data (2NF - functionally dependent on detection_id)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS camera_detections (
-                        detection_id TEXT PRIMARY KEY,
-                        vehicle_count INTEGER NOT NULL DEFAULT 0,
-                        vehicle_types TEXT, -- JSON array for multiple types
+                        detection_id INTEGER PRIMARY KEY,
+                        vehicle_count INTEGER DEFAULT 0,
                         detection_confidence REAL,
-                        image_path TEXT,
-                        roi_data TEXT, -- JSON for ROI coordinates
-                        inference_time_ms INTEGER,
-                        camera_source TEXT DEFAULT 'imx500',
+                        vehicle_types TEXT, -- JSON array
+                        processing_time REAL,
+                        image_metadata TEXT, -- JSON for image details
                         FOREIGN KEY (detection_id) REFERENCES traffic_detections(id) ON DELETE CASCADE
                     )
                 """)
@@ -308,28 +307,24 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS weather_conditions (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        timestamp REAL NOT NULL,
-                        source TEXT NOT NULL, -- 'dht22', 'airport', etc.
+                        timestamp REAL UNIQUE NOT NULL,
                         temperature REAL,
                         humidity REAL,
-                        conditions TEXT,
-                        wind_speed REAL,
                         pressure REAL,
-                        visibility REAL,
-                        raw_data TEXT, -- Original sensor JSON
+                        weather_source TEXT DEFAULT 'dht22',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
                 
-                # Traffic-Weather correlation (Many-to-One relationship)
+                # Traffic-Weather correlation (3NF - relationship table)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS traffic_weather_correlation (
-                        detection_id TEXT NOT NULL,
-                        weather_id INTEGER NOT NULL,
-                        correlation_strength REAL DEFAULT 1.0, -- How closely related (temporal proximity)
-                        PRIMARY KEY (detection_id, weather_id),
-                        FOREIGN KEY (detection_id) REFERENCES traffic_detections(id) ON DELETE CASCADE,
-                        FOREIGN KEY (weather_id) REFERENCES weather_conditions(id) ON DELETE CASCADE
+                        traffic_detection_id INTEGER,
+                        weather_condition_id INTEGER,
+                        correlation_strength REAL DEFAULT 1.0,
+                        PRIMARY KEY (traffic_detection_id, weather_condition_id),
+                        FOREIGN KEY (traffic_detection_id) REFERENCES traffic_detections(id) ON DELETE CASCADE,
+                        FOREIGN KEY (weather_condition_id) REFERENCES weather_conditions(id) ON DELETE CASCADE
                     )
                 """)
                 
@@ -338,6 +333,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # ============================================================
                 
                 # Core detections indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_traffic_consolidation_id ON traffic_detections(consolidation_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_timestamp ON traffic_detections(timestamp)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_correlation ON traffic_detections(correlation_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_source ON traffic_detections(trigger_source)")
@@ -353,12 +349,12 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 
                 # Weather indexes
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_timestamp ON weather_conditions(timestamp)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_source ON weather_conditions(source)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_source ON weather_conditions(weather_source)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_temperature ON weather_conditions(temperature)")
                 
                 # Correlation indexes
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_detection ON traffic_weather_correlation(detection_id)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_weather ON traffic_weather_correlation(weather_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_detection ON traffic_weather_correlation(traffic_detection_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_weather ON traffic_weather_correlation(weather_condition_id)")
                 
                 # Daily summaries table for reporting
                 cursor.execute("""
