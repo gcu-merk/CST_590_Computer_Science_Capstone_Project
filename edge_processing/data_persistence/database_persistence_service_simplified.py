@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Enhanced Database Persistence Service - NORMALIZED 3NF SCHEMA - WITH CENTRALIZED LOGGING
-Enhanced version with normalized 3NF database schema and centralized logging integration
+Enhanced Database Persistence Service - DUAL JSON+3NF STORAGE - WITH CENTRALIZED LOGGING
+Enhanced version with dual storage: JSON source of truth + normalized 3NF analytics schema
 
-This enhanced service implements proper database normalization:
-- Normalized 3NF schema with separate tables for traffic, radar, camera, weather data
+This enhanced service implements dual storage architecture:
+- JSON source of truth in consolidated_events table for fast API serving
+- Normalized 3NF schema with separate tables for traffic, radar, camera, weather analytics
 - Enhanced with ServiceLogger and CorrelationContext for observability
 - Improved performance monitoring and business event tracking
 - Multi-table insertion with transaction management for data integrity
