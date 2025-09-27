@@ -1,14 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>API Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CST 590 Traffic Monitoring - API Test</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 20px;
+            background: #f7fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 { color: #2d3748; }
+        #status { 
+            padding: 15px; 
+            margin: 20px 0; 
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        #result { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        pre { margin: 0; white-space: pre-wrap; }
+    </style>
 </head>
 <body>
-    <h1>Traffic Monitoring API Test</h1>
-    <div id="status">Testing API connection...</div>
-    <div id="result"></div>
-    
-    <script>
+    <div class="container">
+        <h1>🚗 CST 590 Traffic Monitoring API Test</h1>
+        <p>Testing connection to the Raspberry Pi traffic monitoring system...</p>
+        <div id="status">Testing API connection...</div>
+        <div id="result"></div>
+    </div>    <script>
         async function testAPI() {
             const statusDiv = document.getElementById('status');
             const resultDiv = document.getElementById('result');
@@ -16,7 +50,7 @@
             try {
                 statusDiv.textContent = 'Connecting to API...';
                 
-                const response = await fetch('https://edge-traffic-monitoring.taild46447.ts.net:8443/api/health');
+                const response = await fetch('https://edge-traffic-monitoring.taild46447.ts.net/api/health');
                 
                 if (response.ok) {
                     const data = await response.json();

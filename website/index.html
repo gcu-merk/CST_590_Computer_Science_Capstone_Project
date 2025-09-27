@@ -3,22 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Analytics Dashboard</title>
-    <!-- Updated weather endpoints integration - Sep 23, 2025 -->
+    <title>CST 590 Traffic Monitoring System - Capstone Project</title>
+    <meta name="description" content="Real-time traffic monitoring system using AI cameras and radar sensors for Oklahoma City. CST 590 Computer Science Capstone Project.">
+    <meta name="keywords" content="traffic monitoring, AI, computer vision, radar sensors, Raspberry Pi, real-time analytics">
+    <meta name="author" content="Grand Canyon University CST 590 Capstone">
+    
+    <!-- Open Graph metadata for social sharing -->
+    <meta property="og:title" content="CST 590 Traffic Monitoring System">
+    <meta property="og:description" content="Real-time traffic monitoring system using AI cameras and radar sensors">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/">
+    
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>�</text></svg>">
 </head>
 <body>
     <!-- Header Section -->
     <div class="header">
         <div class="header-content">
             <div class="header-left">
-                <div class="logo">📊</div>
+                <div class="logo">�</div>
                 <div class="header-text">
-                    <h1>Traffic Analytics Dashboard</h1>
-                    <p class="subtitle">Traffic monitoring for Oklahoma City</p>
+                    <h1>CST 590 Traffic Monitoring System</h1>
+                    <p class="subtitle">Real-time AI-powered traffic analysis • GCU Capstone Project</p>
                 </div>
             </div>
             <div class="header-right">
@@ -157,12 +166,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Weather Impact -->
-        <div class="weather-impact">
-            <h3>🌤️ Weather Impact Analysis</h3>
-            <p>Current clear weather conditions are contributing to normal traffic patterns. Rain expected tomorrow may increase congestion by 15-20%.</p>
-        </div>
     </div>
 
     <!-- Traffic Patterns Tab Content -->
@@ -216,27 +219,6 @@
                 <div class="metric-label">Speed Violations</div>
                 <div class="metric-trend negative">↑ 8% this month</div>
             </div>
-            
-            <div class="metric-card">
-                <div class="metric-icon braking">🛑</div>
-                <div class="metric-value">23</div>
-                <div class="metric-label">Hard Braking Events</div>
-                <div class="metric-trend positive">↓ 12% this month</div>
-            </div>
-        </div>
-
-        <div class="safety-recommendations">
-            <h3>🔧 Safety Recommendations</h3>
-            <div class="recommendation-list">
-                <div class="recommendation high">
-                    <span>Install speed bumps in Oklahoma City</span>
-                    <span class="priority">High Priority</span>
-                </div>
-                <div class="recommendation medium">
-                    <span>Increase signage in Oklahoma City</span>
-                    <span class="priority">Medium</span>
-                </div>
-            </div>
         </div>
         
         <div class="not-implemented">
@@ -263,10 +245,6 @@
                     <span>Speed Violation Report</span>
                     <button class="download-btn">Download CSV</button>
                 </div>
-                <div class="report-item">
-                    <span>Weather Impact Analysis</span>
-                    <button class="download-btn">Download PDF</button>
-                </div>
             </div>
         </div>
 
@@ -276,7 +254,6 @@
                 <button class="export-btn primary">Export PDF Report</button>
                 <button class="export-btn primary">Export CSV Data</button>
                 <button class="export-btn secondary">Export Excel</button>
-                <button class="export-btn secondary">Schedule Report</button>
             </div>
         </div>
         
@@ -430,6 +407,42 @@
             </div>
         </div>
     </div>
+
+    <!-- Project Information Footer -->
+    <footer class="project-footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>📚 Project Documentation</h3>
+                <ul class="footer-links">
+                    <li><a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project" target="_blank" rel="noopener">GitHub Repository</a></li>
+                    <li><a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/README.md" target="_blank" rel="noopener">Project Overview</a></li>
+                    <li><a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/tree/main/documentation/docs" target="_blank" rel="noopener">Technical Documentation</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>🛠️ System Components</h3>
+                <ul class="footer-links">
+                    <li><a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/documentation/docs/Implementation_Deployment.md" target="_blank" rel="noopener">Implementation Guide</a></li>
+                    <li><a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/documentation/docs/User_Guide.md" target="_blank" rel="noopener">User Guide</a></li>
+                    <li><a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/API_ENDPOINTS_WITH_LINKS.html" target="_blank" rel="noopener">API Documentation</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>🎓 Academic Project</h3>
+                <p class="footer-info">
+                    <strong>CST 590 Computer Science Capstone</strong><br>
+                    Grand Canyon University<br>
+                    Fall 2025
+                </p>
+                <p class="project-tech">
+                    Built with: Raspberry Pi 5, IMX500 AI Camera, Radar Sensors, Python, Docker
+                </p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Grand Canyon University CST 590 Capstone Project. This is an academic project for educational purposes.</p>
+        </div>
+    </footer>
 
     <!-- Socket.IO client for real-time WebSocket communication -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
