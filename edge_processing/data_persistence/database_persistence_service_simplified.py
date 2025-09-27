@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Enhanced Database Persistence Service - SIMPLIFIED SQLITE-ONLY - WITH CENTRALIZED LOGGING
-Enhanced version of database_persistence_service.py with centralized logging integration
+Enhanced Database Persistence Service - NORMALIZED 3NF SCHEMA - WITH CENTRALIZED LOGGING
+Enhanced version with normalized 3NF database schema and centralized logging integration
 
-This simplified enhanced service maintains the original SQLite-focused architecture:
-- Single SQLite database for reliable local persistence (no failover complexity)
+This enhanced service implements proper database normalization:
+- Normalized 3NF schema with separate tables for traffic, radar, camera, weather data
 - Enhanced with ServiceLogger and CorrelationContext for observability
 - Improved performance monitoring and business event tracking
-- Maintains original simplicity while adding comprehensive logging
+- Multi-table insertion with transaction management for data integrity
+- Backwards compatibility with legacy schema detection
+- Version: 2.0 (Normalized Schema)
 
 Enhanced Features:
 - Centralized logging with ServiceLogger and CorrelationContext integration
