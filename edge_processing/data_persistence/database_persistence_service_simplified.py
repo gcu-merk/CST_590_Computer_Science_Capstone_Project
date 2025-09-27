@@ -48,54 +48,124 @@ except ImportError:
 # Initialize centralized logging
 logger = ServiceLogger("database_persistence_service")
 
+# ============================================================
+# NORMALIZED 3NF DATABASE ENTITIES
+# ============================================================
+
+@dataclass
+class TrafficDetection:
+    """Core traffic detection record (3NF normalized)"""
+    id: str
+    correlation_id: str
+    timestamp: float  # Unix timestamp for precision
+    trigger_source: str
+    location_id: str = "default"
+    processing_metadata: Optional[Dict] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'correlation_id': self.correlation_id,
+            'timestamp': self.timestamp,
+            'trigger_source': self.trigger_source,
+            'location_id': self.location_id,
+            'processing_metadata': json.dumps(self.processing_metadata) if self.processing_metadata else None
+        }
+
+@dataclass  
+class RadarDetection:
+    """Radar-specific detection data (3NF normalized)"""
+    detection_id: str
+    speed_mph: float
+    speed_mps: float
+    confidence: float
+    alert_level: str
+    direction: Optional[str] = None
+    distance: Optional[float] = None
+    detection_source_id: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'detection_id': self.detection_id,
+            'speed_mph': self.speed_mph,
+            'speed_mps': self.speed_mps,
+            'confidence': self.confidence,
+            'alert_level': self.alert_level,
+            'direction': self.direction,
+            'distance': self.distance,
+            'detection_source_id': self.detection_source_id
+        }
+
+@dataclass
+class CameraDetection:
+    """Camera/AI detection data (3NF normalized)"""
+    detection_id: str
+    vehicle_count: int = 0
+    vehicle_types: Optional[List[str]] = None
+    detection_confidence: Optional[float] = None
+    image_path: Optional[str] = None
+    roi_data: Optional[Dict] = None
+    inference_time_ms: Optional[int] = None
+    camera_source: str = "imx500"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'detection_id': self.detection_id,
+            'vehicle_count': self.vehicle_count,
+            'vehicle_types': json.dumps(self.vehicle_types) if self.vehicle_types else None,
+            'detection_confidence': self.detection_confidence,
+            'image_path': self.image_path,
+            'roi_data': json.dumps(self.roi_data) if self.roi_data else None,
+            'inference_time_ms': self.inference_time_ms,
+            'camera_source': self.camera_source
+        }
+
+@dataclass
+class WeatherCondition:
+    """Weather condition data (3NF normalized, time-bucketed)"""
+    id: Optional[int] = None
+    timestamp: Optional[float] = None
+    source: Optional[str] = None
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    conditions: Optional[str] = None
+    wind_speed: Optional[float] = None
+    pressure: Optional[float] = None
+    visibility: Optional[float] = None
+    raw_data: Optional[Dict] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'timestamp': self.timestamp,
+            'source': self.source,
+            'temperature': self.temperature,
+            'humidity': self.humidity,
+            'conditions': self.conditions,
+            'wind_speed': self.wind_speed,
+            'pressure': self.pressure,
+            'visibility': self.visibility,
+            'raw_data': json.dumps(self.raw_data) if self.raw_data else None
+        }
+
+# Legacy TrafficRecord for backwards compatibility during migration
 @dataclass
 class TrafficRecord:
-    """Structured traffic record for database storage"""
+    """Legacy structured traffic record (DEPRECATED - use normalized entities)"""
     id: str
     timestamp: datetime
     trigger_source: str
-    
-    # Radar data
     radar_confidence: float
     radar_distance: Optional[float]
     radar_speed: Optional[float]
-    
-    # Vehicle data
     vehicle_count: int
     vehicle_types: List[str]
     detection_confidence: float
-    
-    # Weather data
     temperature: Optional[float]
     humidity: Optional[float]
     weather_condition: Optional[str]
-    
-    # Camera data
     image_path: Optional[str]
     roi_data: Optional[Dict]
-    
-    # Location data
     location_id: str = "default"
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization"""
-        return {
-            'id': self.id,
-            'timestamp': self.timestamp.isoformat(),
-            'trigger_source': self.trigger_source,
-            'radar_confidence': self.radar_confidence,
-            'radar_distance': self.radar_distance,
-            'radar_speed': self.radar_speed,
-            'vehicle_count': self.vehicle_count,
-            'vehicle_types': json.dumps(self.vehicle_types),
-            'detection_confidence': self.detection_confidence,
-            'temperature': self.temperature,
-            'humidity': self.humidity,
-            'weather_condition': self.weather_condition,
-            'image_path': self.image_path,
-            'roi_data': json.dumps(self.roi_data) if self.roi_data else None,
-            'location_id': self.location_id
-        }
 
 class SimplifiedEnhancedDatabasePersistenceService:
     """
@@ -146,7 +216,8 @@ class SimplifiedEnhancedDatabasePersistenceService:
         }
         
         # Processing queues and batching
-        self.record_batch = []
+        self.record_batch = []  # Legacy batch for backward compatibility
+        self.normalized_batch = []  # New normalized 3NF batch
         self.last_commit_time = time.time()
         self.processing_times = []
         
@@ -184,33 +255,108 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # Create optimized schema
                 cursor = self.db_connection.cursor()
                 
-                # Main traffic records table
+                # ============================================================
+                # NORMALIZED 3NF SCHEMA - TRAFFIC MONITORING SYSTEM
+                # ============================================================
+                
+                # Core traffic detections table (1NF - atomic values only)
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS traffic_records (
+                    CREATE TABLE IF NOT EXISTS traffic_detections (
                         id TEXT PRIMARY KEY,
-                        timestamp TEXT NOT NULL,
+                        correlation_id TEXT NOT NULL,
+                        timestamp REAL NOT NULL,
                         trigger_source TEXT NOT NULL,
-                        radar_confidence REAL,
-                        radar_distance REAL,
-                        radar_speed REAL,
-                        vehicle_count INTEGER NOT NULL,
-                        vehicle_types TEXT,
-                        detection_confidence REAL NOT NULL,
-                        temperature REAL,
-                        humidity REAL,
-                        weather_condition TEXT,
-                        image_path TEXT,
-                        roi_data TEXT,
                         location_id TEXT DEFAULT 'default',
+                        processing_metadata TEXT, -- JSON for processor version, etc.
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
                 
-                # Performance indexes
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON traffic_records(timestamp)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_trigger_source ON traffic_records(trigger_source)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_location_timestamp ON traffic_records(location_id, timestamp)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON traffic_records(created_at)")
+                # Radar detection data (2NF - functionally dependent on detection_id)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS radar_detections (
+                        detection_id TEXT PRIMARY KEY,
+                        speed_mph REAL NOT NULL,
+                        speed_mps REAL NOT NULL,
+                        confidence REAL NOT NULL,
+                        alert_level TEXT NOT NULL,
+                        direction TEXT,
+                        distance REAL,
+                        detection_source_id TEXT,
+                        FOREIGN KEY (detection_id) REFERENCES traffic_detections(id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # Camera/AI detection data (2NF - functionally dependent on detection_id)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS camera_detections (
+                        detection_id TEXT PRIMARY KEY,
+                        vehicle_count INTEGER NOT NULL DEFAULT 0,
+                        vehicle_types TEXT, -- JSON array for multiple types
+                        detection_confidence REAL,
+                        image_path TEXT,
+                        roi_data TEXT, -- JSON for ROI coordinates
+                        inference_time_ms INTEGER,
+                        camera_source TEXT DEFAULT 'imx500',
+                        FOREIGN KEY (detection_id) REFERENCES traffic_detections(id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # Weather conditions (3NF - independent entity, time-bucketed)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS weather_conditions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp REAL NOT NULL,
+                        source TEXT NOT NULL, -- 'dht22', 'airport', etc.
+                        temperature REAL,
+                        humidity REAL,
+                        conditions TEXT,
+                        wind_speed REAL,
+                        pressure REAL,
+                        visibility REAL,
+                        raw_data TEXT, -- Original sensor JSON
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
+                # Traffic-Weather correlation (Many-to-One relationship)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS traffic_weather_correlation (
+                        detection_id TEXT NOT NULL,
+                        weather_id INTEGER NOT NULL,
+                        correlation_strength REAL DEFAULT 1.0, -- How closely related (temporal proximity)
+                        PRIMARY KEY (detection_id, weather_id),
+                        FOREIGN KEY (detection_id) REFERENCES traffic_detections(id) ON DELETE CASCADE,
+                        FOREIGN KEY (weather_id) REFERENCES weather_conditions(id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # ============================================================
+                # PERFORMANCE INDEXES FOR NORMALIZED SCHEMA
+                # ============================================================
+                
+                # Core detections indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_timestamp ON traffic_detections(timestamp)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_correlation ON traffic_detections(correlation_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_source ON traffic_detections(trigger_source)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_detections_location_time ON traffic_detections(location_id, timestamp)")
+                
+                # Radar indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_radar_speed ON radar_detections(speed_mph)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_radar_alert_level ON radar_detections(alert_level)")
+                
+                # Camera indexes  
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_camera_vehicle_count ON camera_detections(vehicle_count)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_camera_confidence ON camera_detections(detection_confidence)")
+                
+                # Weather indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_timestamp ON weather_conditions(timestamp)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_source ON weather_conditions(source)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_temperature ON weather_conditions(temperature)")
+                
+                # Correlation indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_detection ON traffic_weather_correlation(detection_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_weather ON traffic_weather_correlation(weather_id)")
                 
                 # Daily summaries table for reporting
                 cursor.execute("""
@@ -390,17 +536,18 @@ class SimplifiedEnhancedDatabasePersistenceService:
     
     @logger.monitor_performance("record_processing")
     def process_traffic_record(self, record_data: Dict[str, Any]) -> bool:
-        """Process individual traffic record with performance monitoring"""
+        """Process consolidated traffic record into normalized 3NF database"""
         correlation_id = record_data.get('correlation_id') or str(uuid.uuid4())[:8]
         
         try:
             with CorrelationContext.set_correlation_id(correlation_id):
-                # Parse timestamp
-                timestamp_str = record_data.get('timestamp', datetime.now().isoformat())
-                if isinstance(timestamp_str, (int, float)):
-                    timestamp = datetime.fromtimestamp(timestamp_str)
+                # Parse timestamp 
+                timestamp_value = record_data.get('timestamp', time.time())
+                if isinstance(timestamp_value, str):
+                    timestamp_dt = datetime.fromisoformat(timestamp_value.replace('Z', '+00:00'))
+                    timestamp = timestamp_dt.timestamp()
                 else:
-                    timestamp = datetime.fromisoformat(str(timestamp_str).replace('Z', '+00:00'))
+                    timestamp = float(timestamp_value)
                 
                 # Extract data from nested consolidated record structure
                 radar_data = record_data.get('radar_data', {})
@@ -408,93 +555,124 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 camera_data = record_data.get('camera_data', {})
                 processing_metadata = record_data.get('processing_metadata', {})
                 
-                # Extract radar fields safely
-                radar_speed = radar_data.get('speed')  # MPH from radar
-                radar_confidence = radar_data.get('confidence', 0.0)
-                alert_level = radar_data.get('alert_level', 'normal')
-                
-                # Extract weather fields safely
-                dht22_data = weather_data.get('dht22', {})
-                temperature = dht22_data.get('temperature')
-                humidity = dht22_data.get('humidity')
-                
-                # Extract airport weather as fallback
-                airport_weather = weather_data.get('airport_weather', {})
-                if temperature is None:
-                    temperature = airport_weather.get('temperature')
-                weather_condition = airport_weather.get('conditions')
-                
-                # Extract camera/vehicle fields
-                vehicle_count = camera_data.get('vehicle_count', 0)
-                detection_confidence = camera_data.get('detection_confidence', 0.0)
-                
                 # Use consolidation_id as record ID if available
                 record_id = record_data.get('consolidation_id', record_data.get('id', str(uuid.uuid4())))
                 
-                # Create traffic record with properly extracted data
-                traffic_record = TrafficRecord(
+                # ============================================================ 
+                # CREATE NORMALIZED ENTITIES
+                # ============================================================
+                
+                # 1. Core traffic detection
+                traffic_detection = TrafficDetection(
                     id=record_id,
+                    correlation_id=correlation_id,
                     timestamp=timestamp,
                     trigger_source=record_data.get('trigger_source', 'unknown'),
-                    radar_confidence=radar_confidence,
-                    radar_distance=record_data.get('radar_distance'),  # Keep legacy support
-                    radar_speed=radar_speed,  # Now extracted from radar_data.speed
-                    vehicle_count=vehicle_count,  # From camera_data.vehicle_count
-                    vehicle_types=record_data.get('vehicle_types', []),
-                    detection_confidence=detection_confidence,  # From camera_data.detection_confidence
-                    temperature=temperature,  # From weather_data.dht22.temperature
-                    humidity=humidity,  # From weather_data.dht22.humidity
-                    weather_condition=weather_condition,  # From airport_weather.conditions
-                    image_path=record_data.get('image_path'),
-                    roi_data=record_data.get('roi_data'),
-                    location_id=record_data.get('location_id', 'default')
+                    location_id=record_data.get('location_id', 'default'),
+                    processing_metadata=processing_metadata
                 )
                 
-                # Add to batch for processing
-                self.record_batch.append(traffic_record)
+                # 2. Radar detection data (if present)
+                radar_detection = None
+                if radar_data and radar_data.get('speed') is not None:
+                    radar_detection = RadarDetection(
+                        detection_id=record_id,
+                        speed_mph=float(radar_data.get('speed', 0)),
+                        speed_mps=float(radar_data.get('speed_mps', 0)),
+                        confidence=float(radar_data.get('confidence', 0.0)),
+                        alert_level=radar_data.get('alert_level', 'normal'),
+                        direction=radar_data.get('direction'),
+                        distance=radar_data.get('distance'),
+                        detection_source_id=radar_data.get('detection_id')
+                    )
+                
+                # 3. Camera detection data (if present)
+                camera_detection = None
+                if camera_data and (camera_data.get('vehicle_count', 0) > 0 or camera_data.get('image_path')):
+                    vehicle_types = camera_data.get('vehicle_types')
+                    if isinstance(vehicle_types, str):
+                        try:
+                            vehicle_types = json.loads(vehicle_types)
+                        except:
+                            vehicle_types = [vehicle_types] if vehicle_types else None
+                    
+                    camera_detection = CameraDetection(
+                        detection_id=record_id,
+                        vehicle_count=int(camera_data.get('vehicle_count', 0)),
+                        vehicle_types=vehicle_types,
+                        detection_confidence=camera_data.get('detection_confidence'),
+                        image_path=camera_data.get('image_path'),
+                        roi_data=camera_data.get('roi_data'),
+                        inference_time_ms=camera_data.get('inference_time_ms'),
+                        camera_source=camera_data.get('camera_source', 'imx500')
+                    )
+                
+                # 4. Weather condition data (time-bucketed to reduce redundancy)
+                weather_conditions = []
+                
+                # DHT22 sensor data
+                dht22_data = weather_data.get('dht22', {})
+                if dht22_data and (dht22_data.get('temperature') is not None or dht22_data.get('humidity') is not None):
+                    weather_conditions.append(WeatherCondition(
+                        timestamp=timestamp,
+                        source='dht22',
+                        temperature=dht22_data.get('temperature'),
+                        humidity=dht22_data.get('humidity'),
+                        raw_data=dht22_data
+                    ))
+                
+                # Airport weather data
+                airport_weather = weather_data.get('airport_weather', {})
+                if airport_weather and airport_weather.get('temperature') is not None:
+                    weather_conditions.append(WeatherCondition(
+                        timestamp=timestamp,
+                        source='airport',
+                        temperature=airport_weather.get('temperature'),
+                        conditions=airport_weather.get('conditions'),
+                        wind_speed=airport_weather.get('wind_speed'),
+                        pressure=airport_weather.get('pressure'),
+                        visibility=airport_weather.get('visibility'),
+                        raw_data=airport_weather
+                    ))
+                
+                # Add normalized entities to batch
+                normalized_record = {
+                    'traffic_detection': traffic_detection,
+                    'radar_detection': radar_detection,
+                    'camera_detection': camera_detection, 
+                    'weather_conditions': weather_conditions,
+                    'correlation_id': correlation_id
+                }
+                
+                self.normalized_batch.append(normalized_record)
                 self.stats["records_processed"] += 1
                 
-                logger.debug("Traffic record processed for batch", extra={
-                    "business_event": "record_processed",
+                logger.info("Normalized traffic record processed", extra={
+                    "business_event": "normalized_record_processed",
                     "correlation_id": correlation_id,
-                    "record_id": traffic_record.id,
-                    "trigger_source": traffic_record.trigger_source,
-                    "vehicle_count": traffic_record.vehicle_count,
-                    "radar_speed": traffic_record.radar_speed,
-                    "temperature": traffic_record.temperature,
-                    "humidity": traffic_record.humidity,
-                    "extracted_from_nested": True,
-                    "batch_size": len(self.record_batch)
+                    "detection_id": record_id,
+                    "trigger_source": traffic_detection.trigger_source,
+                    "has_radar": radar_detection is not None,
+                    "has_camera": camera_detection is not None,
+                    "weather_sources": len(weather_conditions),
+                    "radar_speed": radar_detection.speed_mph if radar_detection else None,
+                    "vehicle_count": camera_detection.vehicle_count if camera_detection else 0,
+                    "batch_size": len(self.normalized_batch)
                 })
-                
-                # Log data extraction details for debugging
-                if radar_speed is not None or temperature is not None:
-                    logger.info("Successfully extracted consolidated data", extra={
-                        "business_event": "data_extraction_success",
-                        "correlation_id": correlation_id,
-                        "radar_speed_mph": radar_speed,
-                        "temperature_f": temperature,
-                        "humidity_percent": humidity,
-                        "weather_condition": weather_condition,
-                        "vehicle_count": vehicle_count,
-                        "has_radar_data": bool(radar_data),
-                        "has_weather_data": bool(weather_data),
-                        "has_camera_data": bool(camera_data)
-                    })
                 
                 # Check if batch is ready for commit
                 current_time = time.time()
-                batch_ready = (len(self.record_batch) >= self.batch_size or 
+                batch_ready = (len(self.normalized_batch) >= self.batch_size or 
                              (current_time - self.last_commit_time) >= self.commit_interval_seconds)
                 
                 if batch_ready:
-                    return self._commit_batch()
+                    return self._commit_normalized_batch()
                 
                 return True
                 
         except Exception as e:
-            logger.error("Failed to process traffic record", extra={
-                "business_event": "record_processing_failure",
+            logger.error("Failed to process normalized traffic record", extra={
+                "business_event": "normalized_processing_failure",
                 "correlation_id": correlation_id,
                 "error": str(e),
                 "record_data_keys": list(record_data.keys()) if record_data else None
@@ -588,37 +766,254 @@ class SimplifiedEnhancedDatabasePersistenceService:
             # Don't clear batch on error - will retry
             return False
     
+    @logger.monitor_performance("normalized_batch_commit")
+    def _commit_normalized_batch(self) -> bool:
+        """Commit normalized 3NF batch to multiple tables with transaction management"""
+        if not self.normalized_batch:
+            return True
+            
+        correlation_id = CorrelationContext.get_correlation_id() or str(uuid.uuid4())[:8]
+        batch_size = len(self.normalized_batch)
+        
+        try:
+            with CorrelationContext.set_correlation_id(correlation_id):
+                start_time = time.time()
+                cursor = self.db_connection.cursor()
+                
+                # Start transaction for atomicity
+                cursor.execute("BEGIN TRANSACTION")
+                
+                weather_id_cache = {}  # Cache weather IDs to avoid duplicates
+                
+                for record in self.normalized_batch:
+                    traffic_detection = record['traffic_detection']
+                    radar_detection = record['radar_detection']
+                    camera_detection = record['camera_detection']
+                    weather_conditions = record['weather_conditions']
+                    
+                    # 1. Insert core traffic detection
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO traffic_detections 
+                        (id, correlation_id, timestamp, trigger_source, location_id, processing_metadata)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        traffic_detection.id,
+                        traffic_detection.correlation_id,
+                        traffic_detection.timestamp,
+                        traffic_detection.trigger_source,
+                        traffic_detection.location_id,
+                        json.dumps(traffic_detection.processing_metadata) if traffic_detection.processing_metadata else None
+                    ))
+                    
+                    # 2. Insert radar detection (if present)
+                    if radar_detection:
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO radar_detections
+                            (detection_id, speed_mph, speed_mps, confidence, alert_level, direction, distance, detection_source_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            radar_detection.detection_id,
+                            radar_detection.speed_mph,
+                            radar_detection.speed_mps,
+                            radar_detection.confidence,
+                            radar_detection.alert_level,
+                            radar_detection.direction,
+                            radar_detection.distance,
+                            radar_detection.detection_source_id
+                        ))
+                    
+                    # 3. Insert camera detection (if present)
+                    if camera_detection:
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO camera_detections
+                            (detection_id, vehicle_count, vehicle_types, detection_confidence, 
+                             image_path, roi_data, inference_time_ms, camera_source)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            camera_detection.detection_id,
+                            camera_detection.vehicle_count,
+                            json.dumps(camera_detection.vehicle_types) if camera_detection.vehicle_types else None,
+                            camera_detection.detection_confidence,
+                            camera_detection.image_path,
+                            json.dumps(camera_detection.roi_data) if camera_detection.roi_data else None,
+                            camera_detection.inference_time_ms,
+                            camera_detection.camera_source
+                        ))
+                    
+                    # 4. Insert weather conditions (time-bucketed to reduce redundancy)
+                    for weather_condition in weather_conditions:
+                        # Check if we already have weather data for this time bucket (5-minute intervals)
+                        time_bucket = int(weather_condition.timestamp // 300) * 300  # 5-minute buckets
+                        cache_key = f"{weather_condition.source}_{time_bucket}"
+                        
+                        if cache_key not in weather_id_cache:
+                            # Check if weather record exists in this time bucket
+                            cursor.execute("""
+                                SELECT id FROM weather_conditions 
+                                WHERE source = ? AND timestamp BETWEEN ? AND ?
+                                ORDER BY timestamp DESC LIMIT 1
+                            """, (weather_condition.source, time_bucket, time_bucket + 300))
+                            
+                            existing_weather = cursor.fetchone()
+                            
+                            if existing_weather:
+                                weather_id_cache[cache_key] = existing_weather[0]
+                            else:
+                                # Insert new weather condition
+                                cursor.execute("""
+                                    INSERT INTO weather_conditions
+                                    (timestamp, source, temperature, humidity, conditions, wind_speed, pressure, visibility, raw_data)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    weather_condition.timestamp,
+                                    weather_condition.source,
+                                    weather_condition.temperature,
+                                    weather_condition.humidity,
+                                    weather_condition.conditions,
+                                    weather_condition.wind_speed,
+                                    weather_condition.pressure,
+                                    weather_condition.visibility,
+                                    json.dumps(weather_condition.raw_data) if weather_condition.raw_data else None
+                                ))
+                                weather_id_cache[cache_key] = cursor.lastrowid
+                        
+                        # 5. Create traffic-weather correlation
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO traffic_weather_correlation
+                            (detection_id, weather_id, correlation_strength)
+                            VALUES (?, ?, ?)
+                        """, (
+                            traffic_detection.id,
+                            weather_id_cache[cache_key],
+                            1.0  # Full correlation for concurrent readings
+                        ))
+                
+                # Commit transaction
+                cursor.execute("COMMIT")
+                cursor.close()
+                
+                # Update statistics
+                commit_time_ms = (time.time() - start_time) * 1000
+                self.stats["records_stored"] += batch_size
+                self.last_commit_time = time.time()
+                self.stats["last_record_time"] = datetime.now().isoformat()
+                
+                # Track processing times
+                self.processing_times.append(commit_time_ms)
+                if len(self.processing_times) > 100:
+                    self.processing_times.pop(0)
+                self.stats["avg_processing_time_ms"] = sum(self.processing_times) / len(self.processing_times)
+                
+                logger.info("Normalized batch committed to 3NF database", extra={
+                    "business_event": "normalized_batch_commit_success",
+                    "correlation_id": correlation_id,
+                    "batch_size": batch_size,
+                    "commit_time_ms": round(commit_time_ms, 2),
+                    "total_records_stored": self.stats["records_stored"],
+                    "weather_buckets_cached": len(weather_id_cache),
+                    "schema_type": "3NF_normalized"
+                })
+                
+                # Clear batch
+                self.normalized_batch.clear()
+                return True
+                
+        except Exception as e:
+            # Rollback transaction on error
+            try:
+                cursor.execute("ROLLBACK")
+                cursor.close()
+            except:
+                pass
+                
+            logger.error("Failed to commit normalized batch to database", extra={
+                "business_event": "normalized_batch_commit_failure", 
+                "correlation_id": correlation_id,
+                "batch_size": batch_size,
+                "error": str(e)
+            })
+            self.stats["database_errors"] += 1
+            # Don't clear batch on error - will retry
+            return False
+    
     def _get_database_stats(self) -> Dict[str, Any]:
-        """Get comprehensive database statistics"""
+        """Get comprehensive database statistics for normalized 3NF schema"""
         try:
             cursor = self.db_connection.cursor()
             
-            # Get record count
-            cursor.execute("SELECT COUNT(*) FROM traffic_records")
-            total_records = cursor.fetchone()[0]
+            # Check if we have normalized tables, fallback to legacy if needed
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='traffic_detections'")
+            has_normalized_schema = cursor.fetchone() is not None
+            
+            if has_normalized_schema:
+                # Get normalized schema stats
+                cursor.execute("SELECT COUNT(*) FROM traffic_detections")
+                total_detections = cursor.fetchone()[0] or 0
+                
+                cursor.execute("SELECT COUNT(*) FROM radar_detections")
+                total_radar = cursor.fetchone()[0] or 0
+                
+                cursor.execute("SELECT COUNT(*) FROM camera_detections")
+                total_camera = cursor.fetchone()[0] or 0
+                
+                cursor.execute("SELECT COUNT(*) FROM weather_conditions")
+                total_weather = cursor.fetchone()[0] or 0
+                
+                # Get recent activity (last 24 hours)
+                current_time = time.time()
+                yesterday = current_time - (24 * 60 * 60)
+                cursor.execute("""
+                    SELECT COUNT(*) FROM traffic_detections 
+                    WHERE timestamp > ?
+                """, (yesterday,))
+                recent_records = cursor.fetchone()[0] or 0
+                
+                stats = {
+                    "total_detections": total_detections,
+                    "total_radar_records": total_radar,
+                    "total_camera_records": total_camera,
+                    "total_weather_records": total_weather,
+                    "recent_24h_records": recent_records,
+                    "schema_type": "3NF_normalized"
+                }
+                self.stats["total_records"] = total_detections
+                
+            else:
+                # Fallback to legacy schema stats
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='traffic_records'")
+                if cursor.fetchone():
+                    cursor.execute("SELECT COUNT(*) FROM traffic_records")
+                    total_records = cursor.fetchone()[0] or 0
+                    
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM traffic_records 
+                        WHERE datetime(timestamp) > datetime('now', '-24 hours')
+                    """)
+                    recent_records = cursor.fetchone()[0] or 0
+                    
+                    stats = {
+                        "total_records": total_records,
+                        "recent_24h_records": recent_records,
+                        "schema_type": "legacy_denormalized"
+                    }
+                    self.stats["total_records"] = total_records
+                else:
+                    stats = {
+                        "total_records": 0,
+                        "recent_24h_records": 0,
+                        "schema_type": "no_tables"
+                    }
+                    self.stats["total_records"] = 0
             
             # Get database size
             db_size_bytes = 0
             if self.database_path.exists():
                 db_size_bytes = self.database_path.stat().st_size
             
-            # Get recent activity
-            cursor.execute("""
-                SELECT COUNT(*) FROM traffic_records 
-                WHERE timestamp > datetime('now', '-24 hours')
-            """)
-            recent_records = cursor.fetchone()[0]
+            stats["size_mb"] = round(db_size_bytes / (1024 * 1024), 2)
+            self.stats["database_size_mb"] = stats["size_mb"]
             
             cursor.close()
-            
-            stats = {
-                "total_records": total_records,
-                "size_mb": round(db_size_bytes / (1024 * 1024), 2),
-                "recent_24h_records": recent_records
-            }
-            
-            self.stats["database_size_mb"] = stats["size_mb"]
-            self.stats["total_records"] = stats["total_records"]
             
             return stats
             
