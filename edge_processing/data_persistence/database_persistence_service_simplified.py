@@ -397,22 +397,54 @@ class SimplifiedEnhancedDatabasePersistenceService:
             with CorrelationContext.set_correlation_id(correlation_id):
                 # Parse timestamp
                 timestamp_str = record_data.get('timestamp', datetime.now().isoformat())
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                if isinstance(timestamp_str, (int, float)):
+                    timestamp = datetime.fromtimestamp(timestamp_str)
+                else:
+                    timestamp = datetime.fromisoformat(str(timestamp_str).replace('Z', '+00:00'))
                 
-                # Create traffic record
+                # Extract data from nested consolidated record structure
+                radar_data = record_data.get('radar_data', {})
+                weather_data = record_data.get('weather_data', {})
+                camera_data = record_data.get('camera_data', {})
+                processing_metadata = record_data.get('processing_metadata', {})
+                
+                # Extract radar fields safely
+                radar_speed = radar_data.get('speed')  # MPH from radar
+                radar_confidence = radar_data.get('confidence', 0.0)
+                alert_level = radar_data.get('alert_level', 'normal')
+                
+                # Extract weather fields safely
+                dht22_data = weather_data.get('dht22', {})
+                temperature = dht22_data.get('temperature')
+                humidity = dht22_data.get('humidity')
+                
+                # Extract airport weather as fallback
+                airport_weather = weather_data.get('airport_weather', {})
+                if temperature is None:
+                    temperature = airport_weather.get('temperature')
+                weather_condition = airport_weather.get('conditions')
+                
+                # Extract camera/vehicle fields
+                vehicle_count = camera_data.get('vehicle_count', 0)
+                detection_confidence = camera_data.get('detection_confidence', 0.0)
+                
+                # Use consolidation_id as record ID if available
+                record_id = record_data.get('consolidation_id', record_data.get('id', str(uuid.uuid4())))
+                
+                # Create traffic record with properly extracted data
                 traffic_record = TrafficRecord(
-                    id=record_data.get('id', str(uuid.uuid4())),
+                    id=record_id,
                     timestamp=timestamp,
                     trigger_source=record_data.get('trigger_source', 'unknown'),
-                    radar_confidence=record_data.get('radar_confidence', 0.0),
-                    radar_distance=record_data.get('radar_distance'),
-                    radar_speed=record_data.get('radar_speed'),
-                    vehicle_count=record_data.get('vehicle_count', 0),
+                    radar_confidence=radar_confidence,
+                    radar_distance=record_data.get('radar_distance'),  # Keep legacy support
+                    radar_speed=radar_speed,  # Now extracted from radar_data.speed
+                    vehicle_count=vehicle_count,  # From camera_data.vehicle_count
                     vehicle_types=record_data.get('vehicle_types', []),
-                    detection_confidence=record_data.get('detection_confidence', 0.0),
-                    temperature=record_data.get('temperature'),
-                    humidity=record_data.get('humidity'),
-                    weather_condition=record_data.get('weather_condition'),
+                    detection_confidence=detection_confidence,  # From camera_data.detection_confidence
+                    temperature=temperature,  # From weather_data.dht22.temperature
+                    humidity=humidity,  # From weather_data.dht22.humidity
+                    weather_condition=weather_condition,  # From airport_weather.conditions
                     image_path=record_data.get('image_path'),
                     roi_data=record_data.get('roi_data'),
                     location_id=record_data.get('location_id', 'default')
@@ -428,8 +460,27 @@ class SimplifiedEnhancedDatabasePersistenceService:
                     "record_id": traffic_record.id,
                     "trigger_source": traffic_record.trigger_source,
                     "vehicle_count": traffic_record.vehicle_count,
+                    "radar_speed": traffic_record.radar_speed,
+                    "temperature": traffic_record.temperature,
+                    "humidity": traffic_record.humidity,
+                    "extracted_from_nested": True,
                     "batch_size": len(self.record_batch)
                 })
+                
+                # Log data extraction details for debugging
+                if radar_speed is not None or temperature is not None:
+                    logger.info("Successfully extracted consolidated data", extra={
+                        "business_event": "data_extraction_success",
+                        "correlation_id": correlation_id,
+                        "radar_speed_mph": radar_speed,
+                        "temperature_f": temperature,
+                        "humidity_percent": humidity,
+                        "weather_condition": weather_condition,
+                        "vehicle_count": vehicle_count,
+                        "has_radar_data": bool(radar_data),
+                        "has_weather_data": bool(weather_data),
+                        "has_camera_data": bool(camera_data)
+                    })
                 
                 # Check if batch is ready for commit
                 current_time = time.time()
