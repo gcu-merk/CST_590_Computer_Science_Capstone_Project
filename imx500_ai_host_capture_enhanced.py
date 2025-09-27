@@ -73,7 +73,10 @@ class IMX500AIHostCapture:
                  redis_host: str = "localhost",
                  redis_port: int = 6379,
                  street_roi: dict = None,
-                 enable_radar_gpio: bool = True):
+                 enable_radar_gpio: bool = True,
+                 radar_triggered_mode: bool = False,
+                 radar_trigger_channel: str = "traffic_events",
+                 radar_min_speed_trigger: float = 2.0):
         
         if not PICAMERA2_AVAILABLE:
             raise RuntimeError("picamera2 not available - required for IMX500 AI processing")
@@ -105,7 +108,9 @@ class IMX500AIHostCapture:
         self.radar_gpio_initialized = False
         
         # Radar-triggered capture mode
-        self.radar_triggered_mode = False
+        self.radar_triggered_mode = radar_triggered_mode
+        self.radar_trigger_channel = radar_trigger_channel
+        self.radar_min_speed_trigger = radar_min_speed_trigger
         self.radar_last_trigger = 0
         
         # Directory structure
@@ -413,8 +418,18 @@ class IMX500AIHostCapture:
             return False
         
         self.running = True
-        logger.info(f"🚗 Starting IMX500 AI capture service (interval: {self.capture_interval}s)")
         
+        if self.radar_triggered_mode and self.redis_client:
+            logger.info(f"🎯 Starting RADAR-TRIGGERED IMX500 AI capture service")
+            logger.info(f"   Listening on Redis channel: {self.radar_trigger_channel}")
+            logger.info(f"   Minimum speed trigger: {self.radar_min_speed_trigger} mph")
+            return self._run_radar_triggered_mode()
+        else:
+            logger.info(f"🚗 Starting IMX500 AI capture service (continuous mode, interval: {self.capture_interval}s)")
+            return self._run_continuous_mode()
+    
+    def _run_continuous_mode(self):
+        """Original continuous capture mode"""
         try:
             while self.running:
                 start_time = time.time()
@@ -444,6 +459,68 @@ class IMX500AIHostCapture:
             logger.info("Capture service interrupted by user")
         except Exception as e:
             logger.error(f"Capture service error: {e}")
+        finally:
+            self.stop()
+        
+        return True
+    
+    def _run_radar_triggered_mode(self):
+        """Radar-triggered capture mode using Redis subscription"""
+        try:
+            pubsub = self.redis_client.pubsub()
+            pubsub.subscribe(self.radar_trigger_channel)
+            logger.info(f"✅ Subscribed to radar triggers on '{self.radar_trigger_channel}'")
+            
+            for message in pubsub.listen():
+                if not self.running:
+                    break
+                    
+                if message['type'] == 'message':
+                    try:
+                        # Parse radar trigger message
+                        data = json.loads(message['data'])
+                        
+                        # Check if this is a vehicle detection with sufficient speed
+                        if (data.get('event_type') == 'vehicle_detection' and 
+                            data.get('speed_mph', 0) >= self.radar_min_speed_trigger):
+                            
+                            speed = data.get('speed_mph', 0)
+                            detection_id = data.get('detection_id', 'unknown')
+                            
+                            logger.info(f"🎯 Radar trigger: {speed:.1f} mph vehicle detected (ID: {detection_id})")
+                            
+                            # Trigger immediate IMX500 capture
+                            result = self.capture_with_ai_analysis()
+                            if result:
+                                # Add radar correlation data
+                                result["trigger_source"] = "radar"
+                                result["radar_speed_mph"] = speed
+                                result["radar_detection_id"] = detection_id
+                                result["correlation_id"] = data.get('correlation_id')
+                                
+                                # Log results
+                                vehicle_count = result["ai_results"]["detection_count"]
+                                inference_time = result["ai_results"]["inference_time_ms"]
+                                
+                                if vehicle_count > 0:
+                                    primary = result["ai_results"]["primary_vehicle"]
+                                    logger.info(f"📸 Radar-triggered capture: {vehicle_count} vehicles detected (primary: {primary['vehicle_type'] if primary else 'none'}, {inference_time:.1f}ms)")
+                                else:
+                                    logger.info(f"📸 Radar-triggered capture: No vehicles in camera view ({inference_time:.1f}ms)")
+                                
+                                # Publish correlation results
+                                self._publish_ai_results(result)
+                            
+                            # Cleanup periodically
+                            self._cleanup_old_files()
+                            
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.debug(f"Ignoring non-vehicle radar message: {e}")
+                        
+        except KeyboardInterrupt:
+            logger.info("Radar-triggered capture service interrupted by user")
+        except Exception as e:
+            logger.error(f"Radar-triggered capture service error: {e}")
         finally:
             self.stop()
         
@@ -603,14 +680,20 @@ def main():
             'x_end': float(os.getenv('STREET_ROI_X_END', '0.85')),      # 85% from left  
             'y_start': float(os.getenv('STREET_ROI_Y_START', '0.5')),   # 50% from top (exclude cross street)
             'y_end': float(os.getenv('STREET_ROI_Y_END', '0.9'))        # 90% from top
-        }
+        },
+        'radar_triggered_mode': os.getenv('RADAR_TRIGGERED_MODE', 'false').lower() == 'true',
+        'radar_trigger_channel': os.getenv('RADAR_TRIGGER_CHANNEL', 'traffic_events'),
+        'radar_min_speed_trigger': float(os.getenv('RADAR_MIN_SPEED_TRIGGER', '2.0'))
     }
     
     logger.info("=== IMX500 AI Host Capture Service ===")
     logger.info(f"Capture directory: {config['capture_dir']}")
     logger.info(f"AI model: {config['ai_model_path']}")
     logger.info(f"Confidence threshold: {config['confidence_threshold']}")
-    logger.info(f"Capture interval: {config['capture_interval']}s")
+    if config['radar_triggered_mode']:
+        logger.info(f"Mode: RADAR-TRIGGERED (channel: {config['radar_trigger_channel']}, min speed: {config['radar_min_speed_trigger']} mph)")
+    else:
+        logger.info(f"Mode: CONTINUOUS (interval: {config['capture_interval']}s)")
     logger.info(f"Street ROI: {config['street_roi']} (filters out parked cars and cross street)")
     
     try:

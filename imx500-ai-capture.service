@@ -21,6 +21,11 @@ Environment=AI_CONFIDENCE_THRESHOLD=0.5
 Environment=REDIS_HOST=localhost
 Environment=REDIS_PORT=6379
 
+# Radar-triggered mode configuration
+Environment=RADAR_TRIGGERED_MODE=true
+Environment=RADAR_TRIGGER_CHANNEL=traffic_events
+Environment=RADAR_MIN_SPEED_TRIGGER=2.0
+
 # Centralized logging configuration
 Environment=LOG_LEVEL=INFO
 Environment=LOG_DIR=/mnt/storage/logs
