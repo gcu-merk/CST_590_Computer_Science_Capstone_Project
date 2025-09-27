@@ -14,7 +14,7 @@ def check_maintenance_status():
     try:
         # Run the maintenance status command
         result = subprocess.run([
-            'python3', '/app/scripts/container-maintenance.py', '--status'
+            'python3', '/app/scripts/operations/container-maintenance.py', '--status'
         ], capture_output=True, text=True, timeout=30)
         
         if result.returncode != 0:

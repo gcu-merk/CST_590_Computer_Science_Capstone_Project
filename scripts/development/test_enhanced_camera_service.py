@@ -154,7 +154,7 @@ def test_camera_service_import():
         import importlib.util
         spec = importlib.util.spec_from_file_location(
             "imx500_enhanced", 
-            Path(__file__).parent / "scripts" / "imx500_ai_host_capture_enhanced.py"
+            Path(__file__).parent.parent / "scripts" / "camera" / "imx500_ai_host_capture_enhanced.py"
         )
         
         if spec and spec.loader:

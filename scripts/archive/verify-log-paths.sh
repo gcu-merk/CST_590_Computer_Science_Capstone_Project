@@ -86,15 +86,15 @@ fi
 echo ""
 info "Checking Python script logging configuration..."
 
-if [ -f "scripts/host-camera-capture.py" ]; then
-    if grep -q "/mnt/storage/logs" scripts/host-camera-capture.py; then
+if [ -f "scripts/hardware/host-camera-capture.py" ]; then
+    if grep -q "/mnt/storage/logs" scripts/hardware/host-camera-capture.py; then
         success "Host camera capture script logs to SSD"
     else
         error "Host camera capture script not configured for SSD logging"
     fi
     
     # Check for any /var/log references
-    if grep -q "/var/log" scripts/host-camera-capture.py; then
+    if grep -q "/var/log" scripts/hardware/host-camera-capture.py; then
         warning "Host camera capture script still has /var/log references"
     else
         success "Host camera capture script has no /var/log references"
