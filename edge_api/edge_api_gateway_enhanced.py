@@ -355,6 +355,9 @@ class EnhancedSwaggerAPIGateway:
     def _setup_enhanced_routes(self):
         """Setup API routes with enhanced logging and correlation tracking"""
         
+        # Capture gateway instance for Resource classes
+        gateway = self
+        
         # Simple health check endpoint for Docker healthcheck
         @self.app.route('/health')
         def simple_health_check():
@@ -372,11 +375,11 @@ class EnhancedSwaggerAPIGateway:
         @health_ns.route('/system')
         class SystemHealth(Resource):
             @with_correlation_tracking
-            @health_ns.marshal_with(self.api.models['SystemHealth'])
+            @health_ns.marshal_with(gateway.api.models['SystemHealth'])
             def get(self):
                 """Get comprehensive system health status"""
                 try:
-                    health_data = self._get_system_health()
+                    health_data = gateway._get_system_health()
                     
                     logger.debug("System health check completed", extra={
                         "business_event": "system_health_check",
@@ -425,11 +428,11 @@ class EnhancedSwaggerAPIGateway:
         @vehicle_ns.route('/detections')
         class VehicleDetections(Resource):
             @with_correlation_tracking
-            @vehicle_ns.marshal_with(self.api.models['VehicleDetectionsResponse'])
+            @vehicle_ns.marshal_with(gateway.api.models['VehicleDetectionsResponse'])
             def get(self):
                 """Get recent vehicle detections"""
                 try:
-                    detections = self._get_vehicle_detections()
+                    detections = gateway._get_vehicle_detections()
                     
                     logger.debug("Vehicle detections retrieved", extra={
                         "business_event": "vehicle_detections_retrieved",
@@ -449,11 +452,11 @@ class EnhancedSwaggerAPIGateway:
         @weather_ns.route('/current')
         class CurrentWeather(Resource):
             @with_correlation_tracking
-            @weather_ns.marshal_with(self.api.models['WeatherData'])
+            @weather_ns.marshal_with(gateway.api.models['WeatherData'])
             def get(self):
                 """Get current weather conditions"""
                 try:
-                    weather_data = self._get_current_weather()
+                    weather_data = gateway._get_current_weather()
                     
                     logger.debug("Current weather retrieved", extra={
                         "business_event": "weather_data_retrieved",
@@ -483,7 +486,8 @@ class EnhancedSwaggerAPIGateway:
                     parser.add_argument('limit', type=int, default=50, help='Number of recent events to return')
                     args = parser.parse_args()
                     
-                    events = self._get_recent_events(limit=args['limit'])
+                    # Access the gateway instance method correctly
+                    events = gateway._get_recent_events(limit=args['limit'])
                     
                     logger.debug("Recent events retrieved via REST", extra={
                         "business_event": "events_rest_retrieval",
@@ -500,6 +504,43 @@ class EnhancedSwaggerAPIGateway:
                 except Exception as e:
                     logger.error("Failed to retrieve recent events via REST", extra={
                         "business_event": "events_rest_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        # New realtime events endpoint for GitHub Pages compatibility
+        @events_ns.route('/realtime')
+        class RealtimeEvents(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get realtime events - alias for recent events for GitHub Pages compatibility"""
+                try:
+                    # Get query parameters
+                    parser = reqparse.RequestParser()
+                    parser.add_argument('limit', type=int, default=20, help='Number of realtime events to return')
+                    args = parser.parse_args()
+                    
+                    # Access the gateway instance method correctly  
+                    events = gateway._get_recent_events(limit=args['limit'])
+                    
+                    logger.debug("Realtime events retrieved via REST", extra={
+                        "business_event": "realtime_events_retrieval",
+                        "event_count": len(events),
+                        "limit": args['limit']
+                    })
+                    
+                    # Format for GitHub Pages compatibility
+                    return {
+                        "status": "success",
+                        "events": events,
+                        "count": len(events),
+                        "timestamp": datetime.now().isoformat(),
+                        "realtime": True
+                    }
+                    
+                except Exception as e:
+                    logger.error("Failed to retrieve realtime events", extra={
+                        "business_event": "realtime_events_failure",
                         "error": str(e)
                     })
                     return {"error": str(e)}, 500
