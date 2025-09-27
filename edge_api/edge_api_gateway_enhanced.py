@@ -859,7 +859,7 @@ class EnhancedSwaggerAPIGateway:
         
         try:
             # Get database path from environment
-            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_monitoring.db')
+            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
             
             # Check if database file exists
             if not os.path.exists(db_path):
