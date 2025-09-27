@@ -1177,6 +1177,11 @@ class VehicleEventsManager {
     connect() {
         if (this.isPaused || this.websocket) return;
 
+        // Skip WebSocket connection for now and use REST polling
+        this.addSystemMessage('🔄 Using REST API polling for real-time events...');
+        this.startPolling();
+        return;
+
         try {
             // Convert HTTP API URL to WebSocket URL
             let wsUrl = this.apiBaseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
