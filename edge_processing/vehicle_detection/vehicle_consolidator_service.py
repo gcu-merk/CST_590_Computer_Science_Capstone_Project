@@ -113,10 +113,17 @@ class VehicleDetectionConsolidatorEnhanced:
         self.consumer_group = "consolidator-group"
         self.consumer_name = f"consolidator-{uuid.uuid4().hex[:8]}"
         
+        # Camera integration configuration
+        self.camera_channel = "camera_detections"
+        self.camera_pubsub = None
+        self.recent_camera_detections = deque(maxlen=100)  # Last 100 camera detections
+        self.camera_correlation_window = 10.0  # seconds - time window to correlate radar and camera events
+        
         # Service state
         self.running = False
         self.stats_thread = None
         self.cleanup_thread = None
+        self.camera_thread = None
         
         # Statistics tracking
         self.hourly_stats = defaultdict(lambda: {
@@ -177,6 +184,9 @@ class VehicleDetectionConsolidatorEnhanced:
                     
                     # Setup Redis stream consumer group for radar data
                     self._setup_stream_consumer_group()
+                    
+                    # Setup camera detections subscription
+                    self._setup_camera_subscription()
                 
                 self.logger.log_service_event(
                     event_type="redis_connection_success",
@@ -229,6 +239,25 @@ class VehicleDetectionConsolidatorEnhanced:
             )
             raise e
     
+    def _setup_camera_subscription(self):
+        """Setup camera detections Redis pub/sub subscription"""
+        try:
+            self.camera_pubsub = self.redis_client.pubsub()
+            self.camera_pubsub.subscribe(self.camera_channel)
+            
+            self.logger.log_service_event(
+                event_type="camera_subscription_created",
+                message=f"✅ Subscribed to camera detections channel '{self.camera_channel}'"
+            )
+            
+        except Exception as e:
+            self.logger.log_error(
+                error_type="camera_subscription_setup_failed",
+                message=f"Failed to setup camera subscription: {str(e)}",
+                error=str(e)
+            )
+            raise e
+    
     def start(self) -> bool:
         """Start the consolidation service with full correlation tracking"""
         
@@ -253,16 +282,19 @@ class VehicleDetectionConsolidatorEnhanced:
             try:
                 self.stats_thread = threading.Thread(target=self._stats_update_loop_enhanced, daemon=True)
                 self.cleanup_thread = threading.Thread(target=self._cleanup_loop_enhanced, daemon=True)
+                self.camera_thread = threading.Thread(target=self._camera_processing_loop, daemon=True)
                 
                 self.stats_thread.start()
                 self.cleanup_thread.start()
+                self.camera_thread.start()
                 
                 self.logger.log_service_event(
                     event_type="background_threads_started",
                     message="Background processing threads started successfully",
                     details={
                         "stats_thread_id": self.stats_thread.ident,
-                        "cleanup_thread_id": self.cleanup_thread.ident
+                        "cleanup_thread_id": self.cleanup_thread.ident,
+                        "camera_thread_id": self.camera_thread.ident
                     }
                 )
                 
@@ -477,6 +509,178 @@ class VehicleDetectionConsolidatorEnhanced:
         
         return None  # New vehicle - proceed with creating consolidated record
     
+    def _camera_processing_loop(self):
+        """Process camera detections from Redis pub/sub"""
+        
+        with CorrelationContext.create("camera_processing_session") as ctx:
+            self.logger.log_service_event(
+                event_type="camera_processing_started",
+                message=f"🎥 Starting camera detections processing from channel '{self.camera_channel}'"
+            )
+            
+            camera_events_processed = 0
+            
+            try:
+                while self.running:
+                    try:
+                        # Get message from camera subscription
+                        message = self.camera_pubsub.get_message(timeout=1.0)
+                        
+                        if message and message['type'] == 'message':
+                            # Parse camera detection data
+                            camera_data = json.loads(message['data'])
+                            
+                            # Add to recent detections cache with timestamp
+                            camera_entry = {
+                                'timestamp': time.time(),
+                                'detection_timestamp': camera_data.get('timestamp'),
+                                'data': camera_data
+                            }
+                            
+                            self.recent_camera_detections.append(camera_entry)
+                            camera_events_processed += 1
+                            
+                            self.logger.debug(
+                                "🎥 Camera detection cached",
+                                details={
+                                    "image_id": camera_data.get('image_id'),
+                                    "vehicle_count": camera_data.get('ai_results', {}).get('detection_count', 0),
+                                    "image_path": camera_data.get('image_path'),
+                                    "cache_size": len(self.recent_camera_detections)
+                                }
+                            )
+                            
+                    except json.JSONDecodeError as e:
+                        self.logger.log_error(
+                            error_type="camera_data_parse_error",
+                            message=f"Failed to parse camera data: {str(e)}",
+                            error=str(e)
+                        )
+                    except Exception as e:
+                        self.logger.log_error(
+                            error_type="camera_processing_error",
+                            message=f"Error processing camera message: {str(e)}",
+                            error=str(e)
+                        )
+                        time.sleep(0.1)
+                        
+            except Exception as e:
+                self.logger.log_error(
+                    error_type="camera_processing_loop_error",
+                    message=f"Camera processing loop failed: {str(e)}",
+                    error=str(e)
+                )
+            
+            self.logger.log_service_event(
+                event_type="camera_processing_stopped",
+                message="Camera processing stopped",
+                details={"total_camera_events_processed": camera_events_processed}
+            )
+    
+    def _find_matching_camera_data(self, radar_timestamp: float, correlation_id: str) -> Optional[Dict[str, Any]]:
+        """Find camera detection that matches radar detection by timestamp"""
+        
+        best_match = None
+        min_time_diff = float('inf')
+        
+        for camera_entry in reversed(self.recent_camera_detections):  # Check most recent first
+            camera_timestamp = camera_entry['timestamp']
+            time_diff = abs(radar_timestamp - camera_timestamp)
+            
+            # Check if within correlation window
+            if time_diff <= self.camera_correlation_window and time_diff < min_time_diff:
+                camera_data = camera_entry['data']
+                ai_results = camera_data.get('ai_results', {})
+                
+                # Only match if camera detected vehicles
+                if ai_results.get('detection_count', 0) > 0:
+                    best_match = camera_data
+                    min_time_diff = time_diff
+        
+        if best_match:
+            self.logger.debug(
+                "🎯 Matched radar detection with camera data",
+                details={
+                    "correlation_id": correlation_id,
+                    "time_difference_seconds": min_time_diff,
+                    "camera_image_id": best_match.get('image_id'),
+                    "camera_vehicle_count": best_match.get('ai_results', {}).get('detection_count', 0)
+                }
+            )
+        
+        return best_match
+    
+    def _get_correlated_camera_data(self, radar_timestamp: float, correlation_id: str) -> Dict[str, Any]:
+        """Get camera data correlated with radar detection, or fallback data"""
+        
+        # Try to find matching camera detection
+        matched_camera = self._find_matching_camera_data(radar_timestamp, correlation_id)
+        
+        if matched_camera:
+            # Extract camera data from IMX500 detection
+            ai_results = matched_camera.get('ai_results', {})
+            detections = ai_results.get('detections', [])
+            
+            # Extract vehicle types from detections
+            vehicle_types = []
+            max_confidence = 0.0
+            
+            for detection in detections:
+                if detection.get('class_name'):
+                    vehicle_types.append(detection['class_name'])
+                confidence = detection.get('confidence', 0.0)
+                if confidence > max_confidence:
+                    max_confidence = confidence
+            
+            return {
+                "vehicle_count": ai_results.get('detection_count', 0),
+                "detection_confidence": max_confidence if max_confidence > 0 else None,
+                "vehicle_types": list(set(vehicle_types)) if vehicle_types else None,  # Remove duplicates
+                "image_path": matched_camera.get('image_path'),
+                "image_id": matched_camera.get('image_id'),
+                "inference_time_ms": ai_results.get('inference_time_ms'),
+                "recent_summary": {"count": ai_results.get('detection_count', 0)},
+                "correlation_time_diff": abs(radar_timestamp - matched_camera.get('timestamp', 0))
+            }
+        else:
+            # Fallback to radar-based estimation
+            return {
+                "vehicle_count": 1,  # Radar detected something
+                "detection_confidence": None,
+                "vehicle_types": None,
+                "image_path": None,
+                "image_id": None,
+                "inference_time_ms": None,
+                "recent_summary": {"count": 1},
+                "correlation_time_diff": None,
+                "fallback_reason": "no_camera_correlation"
+            }
+    
+    def _get_consolidation_sources(self, consolidated_data: Dict[str, Any]) -> List[str]:
+        """Determine data sources used in consolidation"""
+        sources = ["radar"]
+        
+        camera_data = consolidated_data.get('camera_data', {})
+        if camera_data.get('image_path') and camera_data.get('correlation_time_diff') is not None:
+            sources.append("camera")
+        
+        weather_data = consolidated_data.get('weather_data', {})
+        if weather_data:
+            sources.append("weather")
+        
+        return sources
+    
+    def _get_consolidation_method(self, consolidated_data: Dict[str, Any]) -> str:
+        """Determine consolidation method used"""
+        sources = self._get_consolidation_sources(consolidated_data)
+        
+        if len(sources) == 1:
+            return "radar_only"
+        elif "camera" in sources:
+            return "radar_camera_correlated"
+        else:
+            return "radar_weather_only"
+    
     def _process_radar_data_enhanced(self, message_id: str, fields: Dict[str, Any]):
         """Process radar stream data and create consolidated traffic event"""
         
@@ -526,20 +730,15 @@ class VehicleDetectionConsolidatorEnhanced:
                     # Weather data (fetch current conditions)
                     "weather_data": self._get_current_weather_data(),
                     
-                    # Camera data placeholder (no IMX500 correlation yet)
-                    "camera_data": {
-                        "vehicle_count": 1 if abs(speed) >= 2.0 else 0,  # Use absolute speed for vehicle detection
-                        "detection_confidence": None,
-                        "vehicle_types": None,
-                        "recent_summary": {"count": 1 if abs(speed) >= 2.0 else 0}
-                    },
+                    # Camera data (correlate with IMX500 detections)
+                    "camera_data": self._get_correlated_camera_data(timestamp, correlation_id),
                     
-                    # Processing metadata
+                    # Processing metadata  
                     "processing_metadata": {
                         "processor_version": "consolidator_v2.1.0",
                         "processing_time": datetime.now().isoformat(),
-                        "data_sources": ["radar"],
-                        "consolidation_method": "radar_only"
+                        "data_sources": self._get_consolidation_sources(consolidated_data),
+                        "consolidation_method": self._get_consolidation_method(consolidated_data)
                     }
                 }
                 
@@ -1075,6 +1274,30 @@ class VehicleDetectionConsolidatorEnhanced:
             if self.cleanup_thread and self.cleanup_thread.is_alive():
                 self.cleanup_thread.join(timeout=5)
                 self.logger.debug("Cleanup thread stopped")
+            
+            if self.camera_thread and self.camera_thread.is_alive():
+                self.camera_thread.join(timeout=5)
+                self.logger.debug("Camera processing thread stopped")
+            
+            # Close camera subscription
+            if self.camera_pubsub:
+                try:
+                    self.camera_pubsub.close()
+                    self.logger.debug("Camera Redis subscription closed")
+                except Exception as e:
+                    self.logger.debug(f"Error closing camera subscription: {e}")
+            
+            # Close camera subscription
+            if self.camera_pubsub:
+                try:
+                    self.camera_pubsub.close()
+                    self.logger.debug("Camera subscription closed")
+                except Exception as e:
+                    self.logger.log_error(
+                        error_type="camera_pubsub_close_error",
+                        message="Error closing camera subscription",
+                        error=str(e)
+                    )
             
             # Close Redis connections
             if self.redis_client:
