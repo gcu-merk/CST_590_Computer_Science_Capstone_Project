@@ -237,6 +237,55 @@ class SimplifiedEnhancedDatabasePersistenceService:
                     )
                 """)
                 
+                # Weather analysis tables (consolidated from weather_data_storage)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS weather_analysis (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        condition TEXT NOT NULL,
+                        confidence REAL NOT NULL,
+                        visibility_estimate TEXT,
+                        analysis_methods TEXT,
+                        system_temperature REAL,
+                        frame_info TEXT,
+                        created_at REAL NOT NULL
+                    )
+                """)
+                
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS weather_traffic_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        event_type TEXT NOT NULL,
+                        event_data TEXT,
+                        weather_id INTEGER,
+                        created_at REAL NOT NULL,
+                        FOREIGN KEY (weather_id) REFERENCES weather_analysis (id)
+                    )
+                """)
+                
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS weather_summaries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        period_start TEXT NOT NULL,
+                        period_end TEXT NOT NULL,
+                        period_type TEXT NOT NULL,
+                        clear_count INTEGER DEFAULT 0,
+                        partly_cloudy_count INTEGER DEFAULT 0,
+                        cloudy_count INTEGER DEFAULT 0,
+                        unknown_count INTEGER DEFAULT 0,
+                        avg_confidence REAL,
+                        total_analyses INTEGER DEFAULT 0,
+                        created_at REAL NOT NULL
+                    )
+                """)
+                
+                # Create weather analysis indexes for performance
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_analysis_timestamp ON weather_analysis(timestamp)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_traffic_events_timestamp ON weather_traffic_events(timestamp)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_traffic_events_weather_id ON weather_traffic_events(weather_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_weather_summaries_period ON weather_summaries(period_start, period_type)")
+                
                 self.db_connection.commit()
                 cursor.close()
                 

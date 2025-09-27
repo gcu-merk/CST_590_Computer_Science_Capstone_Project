@@ -94,11 +94,26 @@
                 <div class="metric-trend negative">↑ 8% vs last month</div>
             </div>
             
-            <div class="metric-card">
-                <div class="metric-icon weather">🌡️</div>
-                <div class="metric-value" id="temperature">72°F</div>
-                <div class="metric-label">Current Weather</div>
-                <div class="metric-trend neutral">Clear conditions</div>
+            <div class="metric-card weather-card">
+                <div class="metric-icon weather">�️</div>
+                <div class="weather-details">
+                    <div class="weather-main">
+                        <div class="metric-label">Current Weather</div>
+                        <div class="weather-grid">
+                            <div class="weather-item">
+                                <span class="weather-source">🏢 Airport</span>
+                                <span class="weather-value" id="airport-temp">--°F</span>
+                            </div>
+                            <div class="weather-item">
+                                <span class="weather-source">🏠 Local (DHT22)</span>
+                                <div class="local-readings">
+                                    <span class="weather-value" id="local-temp">--°F</span>
+                                    <span class="weather-humidity" id="local-humidity">--%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 

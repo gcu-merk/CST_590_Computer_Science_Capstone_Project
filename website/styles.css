@@ -214,6 +214,70 @@ body {
     color: #4a5568;
 }
 
+/* Weather Card Specific Styles */
+.weather-card {
+    min-height: 180px;
+}
+
+.weather-details {
+    width: 100%;
+}
+
+.weather-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.weather-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.weather-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.weather-source {
+    font-size: 13px;
+    font-weight: 500;
+    color: #4a5568;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.weather-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.local-readings {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.weather-humidity {
+    font-size: 14px;
+    font-weight: 600;
+    color: #805ad5;
+}
+
+.weather-card .weather-value#airport-temp {
+    color: #3182ce;
+}
+
+.weather-card .weather-value#local-temp {
+    color: #38a169;
+}
+
 /* Charts Section */
 .charts-section {
     display: grid;

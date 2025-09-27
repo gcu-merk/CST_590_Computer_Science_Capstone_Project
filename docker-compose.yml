@@ -100,6 +100,7 @@ services:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
       # Centralized logging configuration
       - LOG_LEVEL=INFO
       - LOG_DIR=/app/logs
@@ -128,6 +129,7 @@ services:
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
       - DHT22_GPIO_PIN=4
       - DHT22_UPDATE_INTERVAL=600
       # Docker entrypoint configuration

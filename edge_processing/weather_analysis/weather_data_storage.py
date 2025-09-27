@@ -20,18 +20,15 @@ class WeatherDataStorage:
     
     def __init__(self, db_path: str = None, max_records: int = 10000):
         """
-        Initialize weather data storage
+        Initialize weather data storage - now using consolidated main traffic database
         
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file (defaults to main traffic database)
             max_records: Maximum number of records to keep (for cleanup)
         """
         if db_path is None:
-            # Default to data directory in project
-            project_root = Path(__file__).parent.parent.parent
-            data_dir = project_root / "data"
-            data_dir.mkdir(exist_ok=True)
-            db_path = str(data_dir / "weather_data.db")
+            # Use main traffic database path instead of separate weather database
+            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
         
         self.db_path = db_path
         self.max_records = max_records
@@ -43,7 +40,10 @@ class WeatherDataStorage:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                # Weather analysis table
+                # Note: Weather analysis tables are now created by the main database persistence service
+                # This method now ensures the tables exist but doesn't recreate them
+                
+                # Verify weather analysis tables exist (they should be created by main persistence service)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS weather_analysis (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,20 +51,20 @@ class WeatherDataStorage:
                         condition TEXT NOT NULL,
                         confidence REAL NOT NULL,
                         visibility_estimate TEXT,
-                        analysis_methods TEXT,  -- JSON blob
+                        analysis_methods TEXT,
                         system_temperature REAL,
-                        frame_info TEXT,        -- JSON blob
+                        frame_info TEXT,
                         created_at REAL NOT NULL
                     )
                 ''')
                 
-                # Traffic events table (simplified for weather correlation)
+                # Weather traffic events table (renamed to avoid conflict with main traffic_records)
                 cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS traffic_events (
+                    CREATE TABLE IF NOT EXISTS weather_traffic_events (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
-                        event_type TEXT NOT NULL,  -- 'detection', 'speed', 'track'
-                        event_data TEXT,           -- JSON blob
+                        event_type TEXT NOT NULL,
+                        event_data TEXT,
                         weather_id INTEGER,
                         created_at REAL NOT NULL,
                         FOREIGN KEY (weather_id) REFERENCES weather_analysis (id)
@@ -77,7 +77,7 @@ class WeatherDataStorage:
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         period_start TEXT NOT NULL,
                         period_end TEXT NOT NULL,
-                        period_type TEXT NOT NULL,  -- 'hourly', 'daily'
+                        period_type TEXT NOT NULL,
                         clear_count INTEGER DEFAULT 0,
                         partly_cloudy_count INTEGER DEFAULT 0,
                         cloudy_count INTEGER DEFAULT 0,
@@ -88,11 +88,11 @@ class WeatherDataStorage:
                     )
                 ''')
                 
-                # Create indexes for performance
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_weather_timestamp ON weather_analysis(timestamp)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_traffic_timestamp ON traffic_events(timestamp)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_traffic_weather ON traffic_events(weather_id)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_summary_period ON weather_summaries(period_start, period_type)')
+                # Create indexes for performance (matching main database schema)
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_weather_analysis_timestamp ON weather_analysis(timestamp)')
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_weather_traffic_events_timestamp ON weather_traffic_events(timestamp)')
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_weather_traffic_events_weather_id ON weather_traffic_events(weather_id)')
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_weather_summaries_period ON weather_summaries(period_start, period_type)')
                 
                 conn.commit()
                 logger.info(f"Weather database initialized: {self.db_path}")
@@ -171,7 +171,7 @@ class WeatherDataStorage:
                     weather_id = result[0] if result else None
                 
                 cursor.execute('''
-                    INSERT INTO traffic_events (
+                    INSERT INTO weather_traffic_events (
                         timestamp, event_type, event_data, weather_id, created_at
                     ) VALUES (?, ?, ?, ?, ?)
                 ''', (
@@ -270,7 +270,7 @@ class WeatherDataStorage:
                 # Get traffic events by weather condition
                 cursor.execute('''
                     SELECT w.condition, t.event_type, COUNT(*) as count
-                    FROM traffic_events t
+                    FROM weather_traffic_events t
                     JOIN weather_analysis w ON t.weather_id = w.id
                     WHERE t.created_at > ?
                     GROUP BY w.condition, t.event_type
@@ -397,7 +397,7 @@ class WeatherDataStorage:
                 cursor.execute('SELECT COUNT(*) FROM weather_analysis')
                 weather_count = cursor.fetchone()[0]
                 
-                cursor.execute('SELECT COUNT(*) FROM traffic_events')
+                cursor.execute('SELECT COUNT(*) FROM weather_traffic_events')
                 traffic_count = cursor.fetchone()[0]
                 
                 cursor.execute('SELECT COUNT(*) FROM weather_summaries')
@@ -410,7 +410,7 @@ class WeatherDataStorage:
                 return {
                     'database_path': self.db_path,
                     'weather_records': weather_count,
-                    'traffic_events': traffic_count,
+                    'weather_traffic_events': traffic_count,
                     'summaries': summary_count,
                     'date_range': {
                         'earliest': datetime.fromtimestamp(date_range[0]).isoformat() if date_range[0] else None,
