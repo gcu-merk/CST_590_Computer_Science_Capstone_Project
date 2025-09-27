@@ -797,16 +797,28 @@ class SimplifiedEnhancedDatabasePersistenceService:
                     weather_conditions = record['weather_conditions']
                     
                     # 1. Insert core traffic detection
+                    # Debug: Check data types before insert
+                    debug_data = {
+                        "id_type": type(traffic_detection.id).__name__,
+                        "id_value": traffic_detection.id,
+                        "correlation_id_type": type(traffic_detection.correlation_id).__name__,
+                        "timestamp_type": type(traffic_detection.timestamp).__name__,
+                        "timestamp_value": traffic_detection.timestamp,
+                        "trigger_source_type": type(traffic_detection.trigger_source).__name__,
+                        "location_id_type": type(traffic_detection.location_id).__name__
+                    }
+                    print(f"DEBUG TRAFFIC DETECTION DATA TYPES: {debug_data}")
+                    
                     cursor.execute("""
                         INSERT OR REPLACE INTO traffic_detections 
                         (id, correlation_id, timestamp, trigger_source, location_id, processing_metadata)
                         VALUES (?, ?, ?, ?, ?, ?)
                     """, (
-                        traffic_detection.id,
-                        traffic_detection.correlation_id,
-                        traffic_detection.timestamp,
-                        traffic_detection.trigger_source,
-                        traffic_detection.location_id,
+                        str(traffic_detection.id),
+                        str(traffic_detection.correlation_id),
+                        float(traffic_detection.timestamp) if traffic_detection.timestamp else None,
+                        str(traffic_detection.trigger_source),
+                        str(traffic_detection.location_id) if traffic_detection.location_id else 'default',
                         json.dumps(traffic_detection.processing_metadata) if traffic_detection.processing_metadata else None
                     ))
                     
