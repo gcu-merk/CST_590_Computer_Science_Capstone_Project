@@ -26,5 +26,5 @@ ENV PYTHONPATH=/app:/app/edge_processing
 # Expose port
 EXPOSE 8080
 
-# Run API service
-CMD ["python", "consolidated_data_api.py"]
+# Run enhanced API gateway with Socket.IO support
+CMD ["python", "edge_api/edge_api_gateway_enhanced.py"]
