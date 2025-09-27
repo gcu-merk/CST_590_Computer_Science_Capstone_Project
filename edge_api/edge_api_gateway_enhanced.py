@@ -474,6 +474,141 @@ class EnhancedSwaggerAPIGateway:
                     })
                     return {"error": str(e)}, 500
         
+        # Analytics endpoints
+        @analytics_ns.route('/summary')
+        class AnalyticsSummary(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get analytics summary data"""
+                try:
+                    # Placeholder analytics data
+                    return {
+                        "total_vehicles": 0,
+                        "avg_speed": 0,
+                        "peak_hours": [],
+                        "vehicle_types": {},
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get analytics summary", extra={
+                        "business_event": "analytics_summary_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/speeds')
+        class AnalyticsSpeeds(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get speed analytics data"""
+                try:
+                    # Placeholder speed data
+                    return {
+                        "speeds": [],
+                        "avg_speed": 0,
+                        "max_speed": 0,
+                        "min_speed": 0,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get speed analytics", extra={
+                        "business_event": "speed_analytics_failure", 
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/patterns')
+        class AnalyticsPatterns(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get traffic pattern analytics"""
+                try:
+                    return {
+                        "patterns": [],
+                        "peak_times": [],
+                        "trends": {},
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get pattern analytics", extra={
+                        "business_event": "pattern_analytics_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/safety')
+        class AnalyticsSafety(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get safety analytics"""
+                try:
+                    return {
+                        "safety_score": 0,
+                        "violations": [],
+                        "incidents": [],
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get safety analytics", extra={
+                        "business_event": "safety_analytics_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/reports/summary')
+        class ReportsSummary(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get reports summary"""
+                try:
+                    return {
+                        "reports": [],
+                        "summary": {},
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get reports summary", extra={
+                        "business_event": "reports_summary_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/reports/violations')
+        class ReportsViolations(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get violation reports"""
+                try:
+                    return {
+                        "violations": [],
+                        "count": 0,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get violation reports", extra={
+                        "business_event": "violation_reports_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/reports/monthly')
+        class ReportsMonthly(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get monthly reports"""
+                try:
+                    return {
+                        "monthly_data": [],
+                        "trends": {},
+                        "timestamp": datetime.now().isoformat()
+                    }
+                except Exception as e:
+                    logger.error("Failed to get monthly reports", extra={
+                        "business_event": "monthly_reports_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+        
         # Events endpoints for real-time dashboard
         @events_ns.route('/recent')
         class RecentEvents(Resource):

@@ -348,7 +348,7 @@ class TrafficDashboard {
         try {
             // Load recent vehicle detections (last 24 hours = 86400 seconds)
             try {
-                const detectionsResponse = await fetch(`${this.apiBaseUrl}/detections?seconds=86400`);
+                const detectionsResponse = await fetch(`${this.apiBaseUrl}/vehicles/detections?seconds=86400`);
                 if (detectionsResponse.ok) {
                     const detectionsData = await detectionsResponse.json();
                     this.updateMetricsFromDetections(detectionsData);
@@ -364,7 +364,7 @@ class TrafficDashboard {
             
             // Load recent speed data (last 24 hours)
             try {
-                const speedsResponse = await fetch(`${this.apiBaseUrl}/speeds?seconds=86400`);
+                const speedsResponse = await fetch(`${this.apiBaseUrl}/analytics/speeds?seconds=86400`);
                 if (speedsResponse.ok) {
                     const speedsData = await speedsResponse.json();
                     this.updateSpeedMetrics(speedsData);
@@ -382,7 +382,7 @@ class TrafficDashboard {
             
             // Load analytics data
             try {
-                const analyticsResponse = await fetch(`${this.apiBaseUrl}/analytics`);
+                const analyticsResponse = await fetch(`${this.apiBaseUrl}/analytics/summary`);
                 if (analyticsResponse.ok) {
                     const analyticsData = await analyticsResponse.json();
                     this.updateAnalyticsFromData(analyticsData);
@@ -397,8 +397,8 @@ class TrafficDashboard {
             // Load weather data from individual endpoints
             try {
                 const [dht22Response, airportResponse] = await Promise.all([
-                    fetch(`${this.apiBaseUrl}/weather/dht22`),
-                    fetch(`${this.apiBaseUrl}/weather/airport`)
+                    fetch(`${this.apiBaseUrl}/weather/current`),
+                    fetch(`${this.apiBaseUrl}/weather/current`)
                 ]);
 
                 let combinedWeatherData = {};
@@ -1036,7 +1036,7 @@ class TrafficDashboard {
         
         try {
             // Load summary report
-            const summaryResponse = await fetch(`${this.apiBaseUrl}/reports/summary`);
+            const summaryResponse = await fetch(`${this.apiBaseUrl}/analytics/reports/summary`);
             if (summaryResponse.ok) {
                 const summaryData = await summaryResponse.json();
                 this.updateReportsSummary(summaryData);
@@ -1046,7 +1046,7 @@ class TrafficDashboard {
             }
             
             // Load violations report
-            const violationsResponse = await fetch(`${this.apiBaseUrl}/reports/violations`);
+            const violationsResponse = await fetch(`${this.apiBaseUrl}/analytics/reports/violations`);
             if (violationsResponse.ok) {
                 const violationsData = await violationsResponse.json();
                 this.updateViolationsReport(violationsData);
@@ -1056,7 +1056,7 @@ class TrafficDashboard {
             }
             
             // Load monthly report
-            const monthlyResponse = await fetch(`${this.apiBaseUrl}/reports/monthly`);
+            const monthlyResponse = await fetch(`${this.apiBaseUrl}/analytics/reports/monthly`);
             if (monthlyResponse.ok) {
                 const monthlyData = await monthlyResponse.json();
                 this.updateMonthlyReport(monthlyData);
@@ -1241,9 +1241,10 @@ class VehicleEventsManager {
             if (this.isPaused) return;
 
             try {
-                const response = await fetch(`${this.apiBaseUrl}/recent-events?limit=10`);
+                const response = await fetch(`${this.apiBaseUrl}/events/realtime?limit=10`);
                 if (response.ok) {
-                    const events = await response.json();
+                    const data = await response.json();
+                    const events = data.events || [];
                     events.forEach(event => this.handleRealtimeEvent(event));
                 }
             } catch (error) {
