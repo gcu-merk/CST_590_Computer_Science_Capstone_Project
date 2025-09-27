@@ -1114,7 +1114,7 @@ class VehicleEventsManager {
         this.lineNumber = 5;
         this.autoScroll = true;
         this.isPaused = false;
-        this.websocket = null;
+        this.socket = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.stats = {
@@ -1124,6 +1124,22 @@ class VehicleEventsManager {
             motorcycles: 0,
             totalConfidence: 0
         };
+        
+        // Health monitoring properties
+        this.connectionHealth = {
+            isConnected: false,
+            connectionType: 'none', // 'socket.io', 'polling', 'none'
+            lastPing: null,
+            latency: null,
+            reconnectCount: 0,
+            uptime: 0,
+            startTime: Date.now()
+        };
+        
+        // Event deduplication properties
+        this.eventCache = new Map(); // eventId -> timestamp
+        this.lastEventSequence = 0;
+        this.cacheCleanupInterval = 60000; // Clean old events every minute
 
         this.initializeEventListeners();
     }
@@ -1167,6 +1183,146 @@ class VehicleEventsManager {
                 this.filterLog(e.target.value);
             });
         }
+        
+        // Start health monitoring and event cleanup
+        this.startHealthMonitoring();
+        this.startEventCacheCleanup();
+    }
+
+    // Health Monitoring Methods
+    startHealthMonitoring() {
+        // Update connection uptime every second
+        setInterval(() => {
+            if (this.connectionHealth.isConnected) {
+                this.connectionHealth.uptime = Date.now() - this.connectionHealth.startTime;
+            }
+            this.updateConnectionStatus();
+        }, 1000);
+
+        // Ping health check every 30 seconds for Socket.IO connections
+        setInterval(() => {
+            if (this.socket && this.connectionHealth.connectionType === 'socket.io') {
+                this.pingHealthCheck();
+            }
+        }, 30000);
+    }
+
+    pingHealthCheck() {
+        const pingStart = Date.now();
+        this.socket.emit('ping', pingStart, (ack) => {
+            const latency = Date.now() - pingStart;
+            this.connectionHealth.latency = latency;
+            this.connectionHealth.lastPing = new Date().toISOString();
+            console.log(`Socket.IO ping: ${latency}ms`);
+        });
+    }
+
+    updateConnectionHealth(connectionType, isConnected = false) {
+        this.connectionHealth.isConnected = isConnected;
+        this.connectionHealth.connectionType = connectionType;
+        
+        if (isConnected) {
+            this.connectionHealth.startTime = Date.now();
+            this.connectionHealth.uptime = 0;
+        } else {
+            this.connectionHealth.uptime = 0;
+            this.connectionHealth.latency = null;
+            this.connectionHealth.lastPing = null;
+        }
+    }
+
+    updateConnectionStatus() {
+        const statusElement = document.getElementById('last-detection');
+        if (!statusElement) return;
+
+        const health = this.connectionHealth;
+        let statusText = '';
+        
+        if (health.isConnected) {
+            const uptimeSeconds = Math.floor(health.uptime / 1000);
+            statusText = `✅ Connected via ${health.connectionType} (${uptimeSeconds}s)`;
+            
+            if (health.latency !== null) {
+                statusText += ` - Latency: ${health.latency}ms`;
+            }
+        } else {
+            statusText = `❌ Disconnected (${health.reconnectCount} reconnects)`;
+        }
+        
+        // Only update if text has changed to prevent flashing
+        if (statusElement.textContent !== statusText) {
+            statusElement.textContent = statusText;
+        }
+    }
+
+    // Event Deduplication Methods
+    startEventCacheCleanup() {
+        setInterval(() => {
+            this.cleanupEventCache();
+        }, this.cacheCleanupInterval);
+    }
+
+    cleanupEventCache() {
+        const now = Date.now();
+        const maxAge = 300000; // 5 minutes
+        
+        for (const [eventId, timestamp] of this.eventCache.entries()) {
+            if (now - timestamp > maxAge) {
+                this.eventCache.delete(eventId);
+            }
+        }
+        
+        console.log(`Event cache cleaned: ${this.eventCache.size} events remaining`);
+    }
+
+    generateEventId(eventData) {
+        // Generate a unique ID based on event content and timestamp
+        const content = JSON.stringify({
+            timestamp: eventData.timestamp,
+            type: eventData.type,
+            detection_type: eventData.detection_type,
+            confidence: eventData.confidence,
+            speed: eventData.speed
+        });
+        
+        // Simple hash function for event ID
+        let hash = 0;
+        for (let i = 0; i < content.length; i++) {
+            const char = content.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        
+        return `evt_${Math.abs(hash)}_${Date.now()}`;
+    }
+
+    isDuplicateEvent(eventData) {
+        // Generate or extract event ID
+        let eventId = eventData.id || eventData.event_id;
+        
+        if (!eventId) {
+            eventId = this.generateEventId(eventData);
+        }
+        
+        // Check if we've seen this event recently
+        if (this.eventCache.has(eventId)) {
+            console.log(`Duplicate event detected and skipped: ${eventId}`);
+            return true;
+        }
+        
+        // Add to cache
+        this.eventCache.set(eventId, Date.now());
+        
+        // Check sequence number if available
+        if (eventData.sequence) {
+            if (eventData.sequence <= this.lastEventSequence) {
+                console.log(`Out-of-order event detected and skipped: seq ${eventData.sequence}`);
+                return true;
+            }
+            this.lastEventSequence = eventData.sequence;
+        }
+        
+        return false;
     }
 
     start() {
@@ -1175,64 +1331,93 @@ class VehicleEventsManager {
     }
 
     connect() {
-        if (this.isPaused || this.websocket) return;
-
-        // Skip WebSocket connection for now and use REST polling
-        this.addSystemMessage('🔄 Using REST API polling for real-time events...');
-        this.startPolling();
-        return;
+        if (this.isPaused || this.socket) return;
 
         try {
-            // Convert HTTP API URL to WebSocket URL
-            let wsUrl = this.apiBaseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
-            wsUrl = wsUrl + '/events';  // WebSocket endpoint for events
+            this.addSystemMessage('🔄 Connecting to real-time event stream...');
             
-            this.addSystemMessage(`🔗 Attempting connection to ${wsUrl}`);
-            this.websocket = new WebSocket(wsUrl);
+            // Initialize Socket.IO connection with proper configuration
+            this.socket = io(this.apiBaseUrl.replace('/api', ''), {
+                transports: ['websocket', 'polling'],
+                timeout: 5000,
+                forceNew: true,
+                reconnection: false // We'll handle reconnection manually
+            });
 
-            this.websocket.onopen = () => {
+            // Connection successful
+            this.socket.on('connect', () => {
                 this.reconnectAttempts = 0;
+                this.connectionHealth.reconnectCount = this.reconnectAttempts;
+                this.updateConnectionHealth('socket.io', true);
+                
                 this.addSystemMessage('✅ Connected to real-time event stream');
-                document.getElementById('last-detection').textContent = 'Last detection: Connected, waiting for events...';
-            };
+                this.addSystemMessage('📡 Subscribing to vehicle detection events...');
+                
+                // Subscribe to events
+                this.socket.emit('subscribe_events');
+            });
 
-            this.websocket.onmessage = (event) => {
+            // Handle real-time events from Socket.IO
+            this.socket.on('real_time_event', (data) => {
                 try {
-                    const data = JSON.parse(event.data);
+                    // Check for duplicate events
+                    if (this.isDuplicateEvent(data)) {
+                        return; // Skip duplicate
+                    }
+                    
                     this.handleRealtimeEvent(data);
                 } catch (error) {
-                    console.error('Error parsing WebSocket message:', error);
+                    console.error('Error processing Socket.IO event:', error);
                 }
-            };
+            });
 
-            this.websocket.onclose = () => {
-                this.websocket = null;
-                if (!this.isPaused && this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    this.addSystemMessage(`🔄 Connection lost. Reconnecting... (attempt ${this.reconnectAttempts})`);
-                    setTimeout(() => this.connect(), 2000 * this.reconnectAttempts);
-                } else {
-                    this.addSystemMessage('❌ WebSocket connection failed. Using fallback polling...');
-                    this.startPolling();
+            // Handle connection status updates
+            this.socket.on('events_status', (status) => {
+                console.log('Events subscription status:', status);
+                if (status.status === 'subscribed') {
+                    this.addSystemMessage('✅ Successfully subscribed to vehicle detection events');
                 }
-            };
+            });
 
-            this.websocket.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                this.addSystemMessage('⚠️ WebSocket connection error');
-            };
+            // Handle disconnection
+            this.socket.on('disconnect', (reason) => {
+                console.log('Socket.IO disconnected:', reason);
+                this.socket = null;
+                this.updateConnectionHealth('none', false);
+                this.handleDisconnect();
+            });
+
+            // Handle connection errors
+            this.socket.on('connect_error', (error) => {
+                console.error('Socket.IO connection error:', error);
+                this.addSystemMessage('⚠️ Socket.IO connection error');
+                this.handleDisconnect();
+            });
 
         } catch (error) {
-            console.error('Failed to create WebSocket:', error);
-            this.addSystemMessage('❌ Failed to establish WebSocket connection. Using fallback...');
+            console.error('Failed to create Socket.IO connection:', error);
+            this.addSystemMessage('❌ Failed to establish Socket.IO connection. Using fallback...');
+            this.startPolling();
+        }
+    }
+
+    handleDisconnect() {
+        if (!this.isPaused && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            this.connectionHealth.reconnectCount = this.reconnectAttempts;
+            this.addSystemMessage(`🔄 Connection lost. Reconnecting... (attempt ${this.reconnectAttempts})`);
+            setTimeout(() => this.connect(), 2000 * this.reconnectAttempts);
+        } else {
+            this.addSystemMessage('❌ Socket.IO connection failed. Using fallback polling...');
+            this.updateConnectionHealth('polling', true);
             this.startPolling();
         }
     }
 
     disconnect() {
-        if (this.websocket) {
-            this.websocket.close();
-            this.websocket = null;
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
         }
         if (this.pollInterval) {
             clearInterval(this.pollInterval);
@@ -1250,7 +1435,12 @@ class VehicleEventsManager {
                 if (response.ok) {
                     const data = await response.json();
                     const events = data.events || [];
-                    events.forEach(event => this.handleRealtimeEvent(event));
+                    events.forEach(event => {
+                        // Check for duplicate events in polling mode too
+                        if (!this.isDuplicateEvent(event)) {
+                            this.handleRealtimeEvent(event);
+                        }
+                    });
                 }
             } catch (error) {
                 console.error('Polling failed:', error);

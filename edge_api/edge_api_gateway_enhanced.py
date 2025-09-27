@@ -145,6 +145,15 @@ class EnhancedSwaggerAPIGateway:
             "start_time": datetime.now().isoformat()
         }
         
+        # Connection health tracking
+        self.connection_health = {
+            "socket_connections": set(),
+            "connection_history": [],
+            "total_connections": 0,
+            "ping_responses": 0,
+            "last_activity": datetime.now().isoformat()
+        }
+        
         # Initialize Flask app
         self.app = Flask(__name__)
         self.app.config['SECRET_KEY'] = 'traffic_monitoring_edge_api_enhanced'
@@ -247,14 +256,21 @@ class EnhancedSwaggerAPIGateway:
             correlation_id = str(uuid.uuid4())[:8]
             
             with CorrelationContext.set_correlation_id(correlation_id):
+                # Update connection health tracking
+                self.connection_health["socket_connections"].add(request.sid)
+                self.connection_health["total_connections"] += 1
+                self.connection_health["last_activity"] = datetime.now().isoformat()
+                
+                # Update legacy client count
                 self.client_count += 1
-                self.stats["active_connections"] = self.client_count
+                self.stats["active_connections"] = len(self.connection_health["socket_connections"])
                 
                 logger.info("WebSocket client connected", extra={
                     "business_event": "websocket_connection",
                     "correlation_id": correlation_id,
                     "client_id": request.sid,
-                    "active_connections": self.client_count
+                    "active_connections": self.stats["active_connections"],
+                    "total_connections": self.connection_health["total_connections"]
                 })
                 
                 # Send connection confirmation with correlation ID
@@ -268,14 +284,19 @@ class EnhancedSwaggerAPIGateway:
             correlation_id = str(uuid.uuid4())[:8]
             
             with CorrelationContext.set_correlation_id(correlation_id):
+                # Update connection health tracking
+                self.connection_health["socket_connections"].discard(request.sid)
+                self.connection_health["last_activity"] = datetime.now().isoformat()
+                
+                # Update legacy client count
                 self.client_count = max(0, self.client_count - 1)
-                self.stats["active_connections"] = self.client_count
+                self.stats["active_connections"] = len(self.connection_health["socket_connections"])
                 
                 logger.info("WebSocket client disconnected", extra={
                     "business_event": "websocket_disconnection",
                     "correlation_id": correlation_id,
                     "client_id": request.sid,
-                    "active_connections": self.client_count
+                    "active_connections": self.stats["active_connections"]
                 })
         
         @self.socketio.on('subscribe_events')
@@ -299,6 +320,32 @@ class EnhancedSwaggerAPIGateway:
                     'correlation_id': correlation_id,
                     'timestamp': datetime.now().isoformat()
                 })
+        
+        @self.socketio.on('ping')
+        def handle_ping(timestamp, callback=None):
+            """Handle ping requests for connection health monitoring"""
+            correlation_id = str(uuid.uuid4())[:8]
+            
+            with CorrelationContext.set_correlation_id(correlation_id):
+                # Update ping statistics
+                self.connection_health["ping_responses"] += 1
+                self.connection_health["last_activity"] = datetime.now().isoformat()
+                
+                logger.debug("Ping received from client", extra={
+                    "business_event": "socket_ping",
+                    "correlation_id": correlation_id,
+                    "client_id": request.sid,
+                    "client_timestamp": timestamp,
+                    "total_pings": self.connection_health["ping_responses"]
+                })
+                
+                # Respond with pong
+                if callback:
+                    callback({
+                        'pong': True,
+                        'server_timestamp': datetime.now().isoformat(),
+                        'client_timestamp': timestamp
+                    })
     
     def _setup_middleware(self):
         """Setup request/response middleware for logging and stats"""
