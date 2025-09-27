@@ -329,6 +329,20 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 """)
                 
                 # ============================================================
+                # CONSOLIDATED EVENTS TABLE - JSON SOURCE OF TRUTH
+                # ============================================================
+                
+                # Original consolidated JSON data for API efficiency
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS consolidated_events (
+                        consolidation_id TEXT PRIMARY KEY,
+                        event_json TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (consolidation_id) REFERENCES traffic_detections(consolidation_id) ON DELETE CASCADE
+                    )
+                """)
+                
+                # ============================================================
                 # PERFORMANCE INDEXES FOR NORMALIZED SCHEMA
                 # ============================================================
                 
@@ -355,6 +369,10 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 # Correlation indexes
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_detection ON traffic_weather_correlation(traffic_detection_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_correlation_weather ON traffic_weather_correlation(weather_condition_id)")
+                
+                # Consolidated events indexes
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_consolidated_created_at ON consolidated_events(created_at)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_consolidated_id_time ON consolidated_events(consolidation_id, created_at)")
                 
                 # Daily summaries table for reporting
                 cursor.execute("""
@@ -558,6 +576,14 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 
                 # Use consolidation_id as record ID if available
                 record_id = record_data.get('consolidation_id', record_data.get('id', str(uuid.uuid4())))
+                
+                # ============================================================ 
+                # STORE ORIGINAL JSON (SOURCE OF TRUTH)
+                # ============================================================
+                
+                # Store original consolidated JSON for API efficiency
+                original_json = json.dumps(record_data, ensure_ascii=False)
+                self._store_consolidated_json(record_id, original_json)
                 
                 # ============================================================ 
                 # CREATE NORMALIZED ENTITIES
@@ -961,6 +987,29 @@ class SimplifiedEnhancedDatabasePersistenceService:
             self.stats["database_errors"] += 1
             # Don't clear batch on error - will retry
             return False
+    
+    def _store_consolidated_json(self, consolidation_id: str, event_json: str):
+        """Store original consolidated JSON for API efficiency"""
+        try:
+            cursor = self.db_connection.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO consolidated_events 
+                (consolidation_id, event_json)
+                VALUES (?, ?)
+            """, (consolidation_id, event_json))
+            
+            logger.debug("Stored consolidated JSON", extra={
+                "business_event": "consolidated_json_stored",
+                "consolidation_id": consolidation_id,
+                "json_size_bytes": len(event_json)
+            })
+            
+        except Exception as e:
+            logger.error("Failed to store consolidated JSON", extra={
+                "business_event": "consolidated_json_storage_failed",
+                "consolidation_id": consolidation_id,
+                "error": str(e)
+            })
     
     def _get_database_stats(self) -> Dict[str, Any]:
         """Get comprehensive database statistics for normalized 3NF schema"""

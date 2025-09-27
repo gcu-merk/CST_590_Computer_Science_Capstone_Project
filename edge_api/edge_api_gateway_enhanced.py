@@ -494,6 +494,37 @@ class EnhancedSwaggerAPIGateway:
                         "error": str(e)
                     })
                     return {"error": str(e)}, 500
+
+        @vehicle_ns.route('/consolidated')
+        class ConsolidatedEvents(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Get consolidated vehicle events (JSON format from dual storage)"""
+                try:
+                    # Parse query parameters
+                    parser = reqparse.RequestParser()
+                    parser.add_argument('limit', type=int, default=20, help='Number of events to retrieve')
+                    parser.add_argument('since', type=str, help='Get events since timestamp (ISO format)')
+                    args = parser.parse_args()
+                    
+                    consolidated_events = gateway._get_consolidated_events(
+                        limit=args['limit'],
+                        since=args['since']
+                    )
+                    
+                    logger.debug("Consolidated events retrieved", extra={
+                        "business_event": "consolidated_events_retrieved",
+                        "event_count": len(consolidated_events.get("events", []))
+                    })
+                    
+                    return consolidated_events
+                    
+                except Exception as e:
+                    logger.error("Failed to retrieve consolidated events", extra={
+                        "business_event": "consolidated_events_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
         
         # Weather endpoints
         @weather_ns.route('/current')
@@ -819,6 +850,96 @@ class EnhancedSwaggerAPIGateway:
             "detections": detections,
             "total_count": len(detections),
             "timestamp": datetime.now().isoformat()
+        }
+
+    @logger.monitor_performance("consolidated_events_query")
+    def _get_consolidated_events(self, limit: int = 20, since: Optional[str] = None) -> Dict[str, Any]:
+        """Get consolidated vehicle events from dual storage JSON table with monitoring"""
+        events = []
+        
+        try:
+            # Get database path from environment
+            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_monitoring.db')
+            
+            # Check if database file exists
+            if not os.path.exists(db_path):
+                logger.warning("Database file not found", extra={
+                    "db_path": db_path
+                })
+                return {
+                    "events": [],
+                    "total_count": 0,
+                    "timestamp": datetime.now().isoformat(),
+                    "message": "Database not found"
+                }
+            
+            # Connect to the SQLite database
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row  # Enable dict-like access
+            
+            # Build query with optional time filter
+            query = """
+                SELECT consolidation_id, event_json, created_at 
+                FROM consolidated_events 
+            """
+            params = []
+            
+            if since:
+                query += "WHERE created_at >= ? "
+                params.append(since)
+            
+            query += "ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+            
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            # Process each row
+            for row in rows:
+                try:
+                    # Parse the JSON data
+                    event_data = json.loads(row['event_json'])
+                    
+                    # Add metadata
+                    event_record = {
+                        "consolidation_id": row['consolidation_id'],
+                        "created_at": row['created_at'],
+                        **event_data  # Merge the JSON data
+                    }
+                    events.append(event_record)
+                    
+                except json.JSONDecodeError as e:
+                    logger.warning("Invalid JSON in consolidated event", extra={
+                        "consolidation_id": row['consolidation_id'],
+                        "error": str(e)
+                    })
+            
+            conn.close()
+            
+            logger.info("Consolidated events retrieved successfully", extra={
+                "business_event": "consolidated_events_query_success",
+                "event_count": len(events),
+                "limit": limit,
+                "since_filter": since is not None
+            })
+            
+        except Exception as e:
+            logger.error("Failed to retrieve consolidated events", extra={
+                "business_event": "consolidated_events_query_failure",
+                "error": str(e),
+                "db_path": db_path
+            })
+        
+        return {
+            "events": events,
+            "total_count": len(events),
+            "timestamp": datetime.now().isoformat(),
+            "query_params": {
+                "limit": limit,
+                "since": since
+            }
         }
     
     @logger.monitor_performance("weather_data_query") 
