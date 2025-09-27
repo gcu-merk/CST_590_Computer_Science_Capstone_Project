@@ -931,12 +931,23 @@ class SimplifiedEnhancedDatabasePersistenceService:
             except:
                 pass
                 
-            logger.error("Failed to commit normalized batch to database", extra={
+            # Enhanced error logging with full exception details
+            import traceback
+            error_details = {
                 "business_event": "normalized_batch_commit_failure", 
                 "correlation_id": correlation_id,
                 "batch_size": batch_size,
-                "error": str(e)
-            })
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "full_traceback": traceback.format_exc()
+            }
+            
+            logger.error("Failed to commit normalized batch to database", extra=error_details)
+            
+            # Also log to console for debugging
+            print(f"DATABASE COMMIT ERROR: {type(e).__name__}: {str(e)}")
+            print(f"Full traceback: {traceback.format_exc()}")
+            print(f"Batch size: {batch_size}, Correlation ID: {correlation_id}")
             self.stats["database_errors"] += 1
             # Don't clear batch on error - will retry
             return False
