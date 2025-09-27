@@ -99,8 +99,12 @@ class VehicleDetectionConsolidatorEnhanced:
         
         # Redis connection
         self.redis_client = None
-        self.pubsub = None
         self.data_manager = None
+        
+        # Stream consumption configuration
+        self.radar_stream = "traffic:radar"
+        self.consumer_group = "consolidator-group"
+        self.consumer_name = f"consolidator-{uuid.uuid4().hex[:8]}"
         
         # Service state
         self.running = False
@@ -158,9 +162,8 @@ class VehicleDetectionConsolidatorEnhanced:
                     # Initialize data manager
                     self.data_manager = RedisDataManager(self.redis_client)
                     
-                    # Setup pub/sub for real-time events
-                    self.pubsub = self.redis_client.pubsub()
-                    self.pubsub.subscribe("traffic_events")
+                    # Setup Redis stream consumer group for radar data
+                    self._setup_stream_consumer_group()
                 
                 self.logger.log_service_event(
                     event_type="redis_connection_success",
@@ -180,6 +183,38 @@ class VehicleDetectionConsolidatorEnhanced:
                     }
                 )
                 return False
+    
+    def _setup_stream_consumer_group(self):
+        """Setup Redis stream consumer group for reliable FIFO consumption"""
+        try:
+            # Create consumer group if it doesn't exist
+            try:
+                self.redis_client.xgroup_create(
+                    self.radar_stream, 
+                    self.consumer_group, 
+                    id='0', 
+                    mkstream=True
+                )
+                self.logger.log_service_event(
+                    event_type="consumer_group_created",
+                    message=f"✅ Created consumer group '{self.consumer_group}' for stream '{self.radar_stream}'"
+                )
+            except redis.exceptions.ResponseError as e:
+                if "BUSYGROUP" in str(e):
+                    self.logger.log_service_event(
+                        event_type="consumer_group_exists",
+                        message=f"Consumer group '{self.consumer_group}' already exists"
+                    )
+                else:
+                    raise e
+                    
+        except Exception as e:
+            self.logger.log_error(
+                error_type="consumer_group_setup_failed",
+                message=f"Failed to setup consumer group: {str(e)}",
+                error=str(e)
+            )
+            raise e
     
     def start(self) -> bool:
         """Start the consolidation service with full correlation tracking"""
@@ -218,8 +253,8 @@ class VehicleDetectionConsolidatorEnhanced:
                     }
                 )
                 
-                # Main event processing loop
-                self._process_vehicle_events_enhanced()
+                # Main stream processing loop
+                self._process_radar_stream_enhanced()
                 
             except KeyboardInterrupt:
                 self.logger.log_service_event(
@@ -237,13 +272,13 @@ class VehicleDetectionConsolidatorEnhanced:
             
             return True
     
-    def _process_vehicle_events_enhanced(self):
-        """Enhanced event processing with correlation tracking and performance monitoring"""
+    def _process_radar_stream_enhanced(self):
+        """Enhanced radar stream processing with FIFO consumption and correlation tracking"""
         
-        with CorrelationContext.create("event_processing_session") as ctx:
+        with CorrelationContext.create("stream_processing_session") as ctx:
             self.logger.log_service_event(
-                event_type="event_processing_started",
-                message="Starting enhanced vehicle detection event processing from IMX500 and radar"
+                event_type="stream_processing_started",
+                message=f"🎯 Starting radar stream consumption from '{self.radar_stream}' using consumer group '{self.consumer_group}'"
             )
             
             events_processed = 0
@@ -253,23 +288,37 @@ class VehicleDetectionConsolidatorEnhanced:
                 try:
                     processing_start = time.time()
                     
-                    # Listen for Redis pub/sub messages
-                    message = self.pubsub.get_message(timeout=1.0)
+                    # Read from radar stream using consumer group (FIFO with acknowledgment)
+                    messages = self.redis_client.xreadgroup(
+                        self.consumer_group,
+                        self.consumer_name,
+                        {self.radar_stream: '>'},  # Read only new messages
+                        count=10,  # Process up to 10 messages at once
+                        block=1000  # Block for 1 second if no messages
+                    )
                     
-                    if message and message['type'] == 'message':
-                        # Process message without excessive performance logging
-                        processing_start = time.time()
-                        self._handle_redis_message_enhanced(message)
-                        events_processed += 1
-                        self.event_count += 1
-                        
-                        # Only log performance for slower operations (>10ms)
-                        processing_time = (time.time() - processing_start) * 1000
-                        if processing_time > 10.0:
-                            self.logger.debug(f"Slow message processing: {processing_time:.1f}ms")
-                    
-                    # Check for new vehicle detections directly
-                    self._check_new_vehicle_detections_enhanced()
+                    if messages:
+                        for stream_name, stream_messages in messages:
+                            for message_id, fields in stream_messages:
+                                try:
+                                    # Process radar data and create consolidated event
+                                    self._process_radar_data_enhanced(message_id, fields)
+                                    
+                                    # Acknowledge successful processing (removes from stream)
+                                    self.redis_client.xack(self.radar_stream, self.consumer_group, message_id)
+                                    
+                                    events_processed += 1
+                                    self.event_count += 1
+                                    
+                                except Exception as e:
+                                    self.logger.log_error(
+                                        error_type="radar_data_processing_error",
+                                        message=f"Error processing radar message {message_id}: {str(e)}",
+                                        error=str(e),
+                                        details={"message_id": message_id, "fields": fields}
+                                    )
+                                    # Still acknowledge to prevent reprocessing
+                                    self.redis_client.xack(self.radar_stream, self.consumer_group, message_id)
                     
                     # Log periodic statistics (every 5 minutes)
                     if time.time() - last_stats_log > 300:
@@ -285,61 +334,103 @@ class VehicleDetectionConsolidatorEnhanced:
                     if len(self.processing_times) > 1000:
                         self.processing_times = self.processing_times[-1000:]
                     
-                    time.sleep(0.1)  # Small delay to prevent CPU spinning
-                    
                 except Exception as e:
                     self.logger.log_error(
-                        message=f"Error in event processing loop: {str(e)}",
+                        message=f"Error in radar stream processing loop: {str(e)}",
                         error=str(e),
-                        error_type="event_processing_error",
+                        error_type="stream_processing_error",
                         details={"events_processed": events_processed}
                     )
                     time.sleep(1)
             
             self.logger.log_service_event(
-                event_type="event_processing_stopped",
-                message="Vehicle detection event processing stopped",
+                event_type="stream_processing_stopped",
+                message="Radar stream processing stopped",
                 details={"total_events_processed": events_processed}
             )
     
-    def _handle_redis_message_enhanced(self, message):
-        """Enhanced Redis message handling with correlation tracking"""
+    def _process_radar_data_enhanced(self, message_id: str, fields: Dict[str, Any]):
+        """Process radar stream data and create consolidated traffic event"""
         
         try:
-            event_data = json.loads(message['data'])
-            
-            # Extract or create correlation ID
-            correlation_id = event_data.get('correlation_id', str(uuid.uuid4())[:8])
+            # Extract radar data from stream fields
+            speed = float(fields.get('speed', 0))
+            speed_mps = float(fields.get('speed_mps', 0))
+            correlation_id = fields.get('correlation_id', str(uuid.uuid4())[:8])
+            detection_id = fields.get('detection_id', correlation_id)
+            alert_level = fields.get('alert_level', 'normal')
+            timestamp = float(fields.get('_timestamp', time.time()))
             
             with CorrelationContext.create(correlation_id) as ctx:
-                event_type = event_data.get('event_type')
+                # Log radar detection business event
+                self.logger.log_business_event(
+                    event_type="radar_detection_processed",
+                    business_context="traffic_monitoring",
+                    message=f"🎯 Radar detected vehicle at {speed:.1f} mph ({speed_mps:.1f} m/s)",
+                    details={
+                        "correlation_id": correlation_id,
+                        "detection_id": detection_id,
+                        "speed_mph": speed,
+                        "speed_mps": speed_mps,
+                        "alert_level": alert_level,
+                        "message_id": message_id,
+                        "source": "radar_stream"
+                    }
+                )
                 
-                self.logger.debug(f"Processing event: {event_type}")
-                
-                if event_type == 'imx500_ai_capture':
-                    self._process_imx500_capture_event_enhanced(event_data, correlation_id)
-                elif event_type == 'radar_motion_detected':
-                    self._process_radar_motion_event_enhanced(event_data, correlation_id)
-                else:
-                    self.logger.debug(f"Unknown event type: {event_type}")
+                # Create consolidated event data
+                consolidated_data = {
+                    "consolidation_id": f"consolidated_{detection_id}_{int(timestamp)}",
+                    "correlation_id": correlation_id,
+                    "timestamp": timestamp,
+                    "trigger_source": "radar",
                     
-        except json.JSONDecodeError:
-            self.logger.log_service_event(
-                event_type="invalid_json_message",
-                message="Invalid JSON in Redis message",
-                details={"raw_message": str(message.get('data', '')[:100])}
-            )
+                    # Radar data
+                    "radar_data": {
+                        "speed": speed,
+                        "speed_mps": speed_mps,
+                        "alert_level": alert_level,
+                        "detection_id": detection_id,
+                        "confidence": 0.85,  # Radar generally reliable
+                        "direction": "approaching" if speed > 0 else "receding"
+                    },
+                    
+                    # Weather data (fetch current conditions)
+                    "weather_data": self._get_current_weather_data(),
+                    
+                    # Camera data placeholder (no IMX500 correlation yet)
+                    "camera_data": {
+                        "vehicle_count": 1 if speed > 2.0 else 0,  # Assume vehicle if significant speed
+                        "detection_confidence": None,
+                        "vehicle_types": None,
+                        "recent_summary": {"count": 1 if speed > 2.0 else 0}
+                    },
+                    
+                    # Processing metadata
+                    "processing_metadata": {
+                        "processor_version": "consolidator_v2.1.0",
+                        "processing_time": datetime.now().isoformat(),
+                        "data_sources": ["radar"],
+                        "consolidation_method": "radar_only"
+                    }
+                }
+                
+                # Store consolidated data for database persistence
+                self._store_consolidated_data(consolidated_data)
+                
+                # Update statistics
+                self._update_radar_statistics(speed, alert_level)
+                
         except Exception as e:
             self.logger.log_error(
-                error_type="message_handling_error",
-                message=f"Error handling Redis message: {str(e)}",
+                error_type="radar_data_processing_failed",
+                message=f"Failed to process radar data: {str(e)}",
                 error=str(e),
-                details={
-                    "message_type": message.get('type'),
-                    "exception_type": type(e).__name__,
-                    "message_data": str(message.get('data', ''))[:200]
-                }
+                details={"message_id": message_id, "fields": fields}
             )
+            raise e
+    
+    # Legacy pub/sub message handling removed - now using stream consumption
     
     def _process_imx500_capture_event_enhanced(self, event_data: Dict[str, Any], correlation_id: str):
         """Enhanced IMX500 capture event processing with correlation tracking"""
@@ -609,14 +700,66 @@ class VehicleDetectionConsolidatorEnhanced:
                 details={'correlation_id': consolidated_data.get('correlation_id')}
             )
     
-    def _check_new_vehicle_detections_enhanced(self):
-        """Enhanced detection polling with performance monitoring"""
+    def _get_current_weather_data(self) -> Dict[str, Any]:
+        """Get current weather conditions from available sources"""
         try:
-            # This would poll for new detections in Redis
-            # Implementation depends on specific Redis key patterns
-            pass
+            weather_data = {}
+            
+            # Try to get DHT22 sensor data
+            try:
+                dht22_data = self.redis_client.hgetall("weather:dht22")
+                if dht22_data:
+                    weather_data["dht22"] = {
+                        "temperature": float(dht22_data.get("temperature", 0)),
+                        "humidity": float(dht22_data.get("humidity", 0)),
+                        "timestamp": dht22_data.get("timestamp")
+                    }
+            except (ValueError, TypeError):
+                pass
+            
+            # Try to get airport weather data
+            try:
+                airport_data = self.redis_client.hgetall("weather:airport:latest")
+                if airport_data:
+                    weather_data["airport"] = airport_data
+            except Exception:
+                pass
+            
+            return weather_data
+            
         except Exception as e:
-            self.logger.debug(f"Error checking new detections: {e}")
+            self.logger.debug(f"Error collecting weather data: {e}")
+            return {}
+    
+    def _update_radar_statistics(self, speed: float, alert_level: str):
+        """Update radar detection statistics"""
+        try:
+            hour_key = datetime.now().strftime('%Y-%m-%d_%H')
+            
+            # Update hourly stats
+            self.hourly_stats[hour_key]['total_vehicles'] += 1
+            self.hourly_stats[hour_key]['detection_count'] += 1
+            
+            # Track speed statistics
+            if 'speed_sum' not in self.hourly_stats[hour_key]:
+                self.hourly_stats[hour_key]['speed_sum'] = 0
+                self.hourly_stats[hour_key]['speed_count'] = 0
+                
+            self.hourly_stats[hour_key]['speed_sum'] += speed
+            self.hourly_stats[hour_key]['speed_count'] += 1
+            
+            # Track alert levels
+            if 'alert_levels' not in self.hourly_stats[hour_key]:
+                self.hourly_stats[hour_key]['alert_levels'] = defaultdict(int)
+                
+            self.hourly_stats[hour_key]['alert_levels'][alert_level] += 1
+            
+        except Exception as e:
+            self.logger.debug(f"Error updating radar statistics: {e}")
+    
+    def _check_new_vehicle_detections_enhanced(self):
+        """Legacy method - no longer needed with stream consumption"""
+        pass
     
     def _stats_update_loop_enhanced(self):
         """Enhanced statistics update loop with correlation tracking"""
@@ -773,14 +916,14 @@ class VehicleDetectionConsolidatorEnhanced:
                 self.logger.debug("Cleanup thread stopped")
             
             # Close Redis connections
-            if self.pubsub:
+            if self.redis_client:
                 try:
-                    self.pubsub.close()
-                    self.logger.debug("Redis pub/sub closed")
+                    self.redis_client.close()
+                    self.logger.debug("Redis connection closed")
                 except Exception as e:
                     self.logger.log_error(
-                        error_type="pubsub_close_error",
-                        message="Error closing Redis pub/sub",
+                        error_type="redis_close_error",
+                        message="Error closing Redis connection",
                         error=str(e)
                     )
             
