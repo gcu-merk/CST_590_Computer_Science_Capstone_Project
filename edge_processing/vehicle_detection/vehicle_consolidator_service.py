@@ -56,6 +56,13 @@ except ImportError:
     except ImportError:
         RedisDataManager = None
 
+# Vehicle Grouping Configuration
+VEHICLE_GROUPING_WINDOW = 3.0      # seconds - time window to group detections as same vehicle
+SPEED_VARIATION_THRESHOLD = 5.0    # mph - max speed difference for same vehicle grouping
+DIRECTION_CONSISTENCY_THRESHOLD = 0.8  # ratio for consistent direction (approaching/departing)
+GROUP_CLEANUP_INTERVAL = 30.0      # seconds - how often to cleanup expired groups
+MAX_VEHICLE_GROUPS = 100           # maximum number of active vehicle groups to track
+
 class VehicleDetectionConsolidatorEnhanced:
     """
     Enhanced Vehicle Detection Consolidator with centralized logging and correlation tracking
@@ -120,6 +127,12 @@ class VehicleDetectionConsolidatorEnhanced:
         })
         
         self.recent_detections = deque(maxlen=1000)  # Last 1000 detections
+        
+        # Vehicle Grouping for Multi-Detection Filtering
+        self.recent_vehicle_groups = deque(maxlen=MAX_VEHICLE_GROUPS)  # Active vehicle groups
+        self.last_group_cleanup = time.time()  # Track cleanup timing
+        self.grouped_vehicles_count = 0  # Statistics tracking
+        self.single_detections_count = 0
         
         # Performance tracking
         self.processing_times = []
@@ -349,6 +362,121 @@ class VehicleDetectionConsolidatorEnhanced:
                 details={"total_events_processed": events_processed}
             )
     
+    def _cleanup_expired_vehicle_groups(self):
+        """Remove expired vehicle groups to prevent memory leaks"""
+        current_time = time.time()
+        
+        if current_time - self.last_group_cleanup < GROUP_CLEANUP_INTERVAL:
+            return  # Don't cleanup too frequently
+        
+        initial_count = len(self.recent_vehicle_groups)
+        
+        # Remove groups older than the grouping window + buffer
+        cutoff_time = current_time - (VEHICLE_GROUPING_WINDOW * 2)
+        
+        self.recent_vehicle_groups = deque([
+            group for group in self.recent_vehicle_groups 
+            if group['latest_timestamp'] > cutoff_time
+        ], maxlen=MAX_VEHICLE_GROUPS)
+        
+        cleaned_count = initial_count - len(self.recent_vehicle_groups)
+        
+        if cleaned_count > 0:
+            self.logger.debug(
+                f"Cleaned up {cleaned_count} expired vehicle groups",
+                details={
+                    "initial_groups": initial_count,
+                    "remaining_groups": len(self.recent_vehicle_groups),
+                    "cutoff_age_seconds": VEHICLE_GROUPING_WINDOW * 2
+                }
+            )
+        
+        self.last_group_cleanup = current_time
+    
+    def _group_vehicle_detections(self, detection_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Group radar detections that likely represent the same vehicle
+        
+        Returns:
+            str: Existing group_id if this detection should be grouped with previous detections
+            None: If this represents a new vehicle (create new consolidated record)
+        """
+        current_time = detection_data['timestamp']
+        speed_mph = abs(detection_data['radar_data']['speed'])  # Use absolute speed for comparison
+        speed_mps = detection_data['radar_data']['speed_mps']  # Keep sign for direction analysis
+        
+        # Cleanup expired groups periodically
+        self._cleanup_expired_vehicle_groups()
+        
+        # Check recent vehicle groups for potential matching
+        for existing_group in self.recent_vehicle_groups:
+            time_diff = current_time - existing_group['latest_timestamp']
+            speed_diff = abs(speed_mph - abs(existing_group['latest_speed_mph']))
+            
+            # Direction consistency check (both negative = approaching, both positive = departing)
+            same_direction = (speed_mps * existing_group['latest_speed_mps']) > 0
+            
+            # Group if within time window, similar speed, and same direction
+            if (time_diff <= VEHICLE_GROUPING_WINDOW and 
+                speed_diff <= SPEED_VARIATION_THRESHOLD and 
+                same_direction):
+                
+                # Same vehicle detected again - update existing group
+                existing_group['detections'].append(detection_data)
+                existing_group['latest_timestamp'] = current_time
+                existing_group['latest_speed_mph'] = speed_mph
+                existing_group['latest_speed_mps'] = speed_mps
+                existing_group['detection_count'] += 1
+                
+                # Update speed trend analysis
+                speeds = [abs(d['radar_data']['speed']) for d in existing_group['detections']]
+                existing_group['speed_trend'] = 'decreasing' if speeds[-1] < speeds[0] else 'increasing' if speeds[-1] > speeds[0] else 'steady'
+                
+                self.grouped_vehicles_count += 1
+                
+                self.logger.debug(
+                    f"🔗 Grouped detection with existing vehicle group {existing_group['group_id']}",
+                    details={
+                        "group_id": existing_group['group_id'],
+                        "detection_count": existing_group['detection_count'],
+                        "time_diff_ms": time_diff * 1000,
+                        "speed_diff_mph": speed_diff,
+                        "speed_trend": existing_group['speed_trend'],
+                        "same_direction": same_direction
+                    }
+                )
+                
+                return existing_group['group_id']  # Return existing group ID to skip creating new record
+        
+        # No matching group found - this is a new vehicle
+        group_id = f"vehicle_{int(current_time)}_{uuid.uuid4().hex[:4]}"
+        
+        new_group = {
+            'group_id': group_id,
+            'detections': [detection_data],
+            'latest_timestamp': current_time,
+            'latest_speed_mph': speed_mph,
+            'latest_speed_mps': speed_mps,
+            'created_at': current_time,
+            'detection_count': 1,
+            'speed_trend': 'initial'
+        }
+        
+        self.recent_vehicle_groups.append(new_group)
+        self.single_detections_count += 1
+        
+        self.logger.debug(
+            f"🚗 Created new vehicle group {group_id}",
+            details={
+                "group_id": group_id,
+                "speed_mph": speed_mph,
+                "direction": "approaching" if speed_mps < 0 else "departing",
+                "total_active_groups": len(self.recent_vehicle_groups)
+            }
+        )
+        
+        return None  # New vehicle - proceed with creating consolidated record
+    
     def _process_radar_data_enhanced(self, message_id: str, fields: Dict[str, Any]):
         """Process radar stream data and create consolidated traffic event"""
         
@@ -415,7 +543,27 @@ class VehicleDetectionConsolidatorEnhanced:
                     }
                 }
                 
-                # Store consolidated data for database persistence
+                # Check if this detection should be grouped with recent detections (same vehicle)
+                existing_group_id = self._group_vehicle_detections(consolidated_data)
+                
+                if existing_group_id is not None:
+                    # This is likely the same vehicle detected multiple times - skip storing duplicate
+                    self.logger.log_business_event(
+                        event_name="vehicle_detection_grouped",
+                        event_data={
+                            "business_context": "traffic_monitoring",
+                            "message": f"🔗 Grouped duplicate detection with existing vehicle {existing_group_id}",
+                            "correlation_id": correlation_id,
+                            "detection_id": detection_id,
+                            "existing_group_id": existing_group_id,
+                            "speed_mph": speed,
+                            "alert_level": alert_level,
+                            "action": "skip_database_storage"
+                        }
+                    )
+                    return  # Skip storing this detection - it's a duplicate of same vehicle
+                
+                # New vehicle - store consolidated data for database persistence
                 self._store_consolidated_data(consolidated_data)
                 
                 # Update statistics
@@ -881,6 +1029,10 @@ class VehicleDetectionConsolidatorEnhanced:
         uptime = time.time() - self.startup_time if self.startup_time else 0
         avg_processing = sum(self.processing_times) / len(self.processing_times) if self.processing_times else 0
         
+        # Calculate vehicle grouping efficiency
+        total_vehicle_detections = self.grouped_vehicles_count + self.single_detections_count
+        grouping_efficiency = (self.grouped_vehicles_count / total_vehicle_detections * 100) if total_vehicle_detections > 0 else 0
+        
         self.logger.log_service_event(
             event_type="periodic_processing_stats",
             message="📊 Vehicle consolidator processing statistics",
@@ -891,7 +1043,16 @@ class VehicleDetectionConsolidatorEnhanced:
                 "total_events": self.event_count,
                 "avg_processing_time_ms": avg_processing * 1000,
                 "recent_detections_count": len(self.recent_detections),
-                "hourly_stats_periods": len(self.hourly_stats)
+                "hourly_stats_periods": len(self.hourly_stats),
+                # Vehicle Grouping Statistics
+                "vehicle_grouping": {
+                    "active_groups": len(self.recent_vehicle_groups),
+                    "grouped_detections": self.grouped_vehicles_count,
+                    "unique_vehicles": self.single_detections_count,
+                    "total_radar_detections": total_vehicle_detections,
+                    "grouping_efficiency_percent": round(grouping_efficiency, 1),
+                    "duplicate_filter_rate": f"{self.grouped_vehicles_count}/{total_vehicle_detections}" if total_vehicle_detections > 0 else "0/0"
+                }
             }
         )
     
