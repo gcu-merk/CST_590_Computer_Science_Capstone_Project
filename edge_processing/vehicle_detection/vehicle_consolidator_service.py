@@ -364,10 +364,10 @@ class VehicleDetectionConsolidatorEnhanced:
             with CorrelationContext.create(correlation_id) as ctx:
                 # Log radar detection business event
                 self.logger.log_business_event(
-                    event_type="radar_detection_processed",
-                    business_context="traffic_monitoring",
-                    message=f"🎯 Radar detected vehicle at {speed:.1f} mph ({speed_mps:.1f} m/s)",
-                    details={
+                    event_name="radar_detection_processed",
+                    event_data={
+                        "business_context": "traffic_monitoring",
+                        "message": f"🎯 Radar detected vehicle at {speed:.1f} mph ({speed_mps:.1f} m/s)",
                         "correlation_id": correlation_id,
                         "detection_id": detection_id,
                         "speed_mph": speed,
@@ -445,10 +445,10 @@ class VehicleDetectionConsolidatorEnhanced:
             if vehicle_count > 0:
                 # Log business event with correlation
                 self.logger.log_business_event(
-                    event_type="imx500_vehicle_detected",
-                    business_context="traffic_monitoring",
-                    message=f"🚗 IMX500 AI detected {vehicle_count} vehicles (primary: {primary_vehicle})",
-                    details={
+                    event_name="imx500_vehicle_detected",
+                    event_data={
+                        "business_context": "traffic_monitoring",
+                        "message": f"🚗 IMX500 AI detected {vehicle_count} vehicles (primary: {primary_vehicle})",
                         "correlation_id": correlation_id,
                         "vehicle_count": vehicle_count,
                         "primary_vehicle": primary_vehicle,
@@ -514,10 +514,10 @@ class VehicleDetectionConsolidatorEnhanced:
             
             # Log business event with correlation from radar service
             self.logger.log_business_event(
-                event_type="radar_motion_consolidation",
-                business_context="traffic_monitoring", 
-                message=f"🎯 Consolidating radar motion: {speed} mph (alert: {alert_level})",
-                details={
+                event_name="radar_motion_consolidation",
+                event_data={
+                    "business_context": "traffic_monitoring", 
+                    "message": f"🎯 Consolidating radar motion: {speed} mph (alert: {alert_level})",
                     "correlation_id": correlation_id,
                     "detection_id": detection_id,
                     "speed_mph": speed,
@@ -534,10 +534,10 @@ class VehicleDetectionConsolidatorEnhanced:
             
             if consolidated_data:
                 self.logger.log_business_event(
-                    event_type="data_consolidation_complete",
-                    business_context="traffic_monitoring",
-                    message="📊 Comprehensive vehicle data consolidation completed",
-                    details={
+                    event_name="data_consolidation_complete",
+                    event_data={
+                        "business_context": "traffic_monitoring",
+                        "message": "📊 Comprehensive vehicle data consolidation completed",
                         "correlation_id": correlation_id,
                         "consolidated_sources": consolidated_data.get('sources', []),
                         "total_data_points": len(consolidated_data.get('detections', [])),
@@ -681,10 +681,10 @@ class VehicleDetectionConsolidatorEnhanced:
             message_id = self.redis_client.xadd(stream_name, message_data)
             
             self.logger.log_business_event(
-                event_type="consolidated_data_queued", 
-                business_context="traffic_monitoring",
-                message=f"📦 Consolidated data queued for persistence (FIFO)",
-                details={
+                event_name="consolidated_data_queued", 
+                event_data={
+                    "business_context": "traffic_monitoring",
+                    "message": f"📦 Consolidated data queued for persistence (FIFO)",
                     'correlation_id': correlation_id,
                     'consolidation_id': consolidated_data.get('consolidation_id'),
                     'stream_message_id': message_id,
