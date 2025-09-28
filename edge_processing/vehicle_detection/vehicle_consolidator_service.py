@@ -610,6 +610,25 @@ class VehicleDetectionConsolidatorEnhanced:
         
         return best_match
     
+    def _get_correlated_camera_data_strict(self, radar_timestamp: float, correlation_id: str) -> Dict[str, Any]:
+        """Get camera data correlated with radar detection - STRICT MODE (no fallbacks)"""
+        try:
+            return self._get_correlated_camera_data(radar_timestamp, correlation_id)
+        except RuntimeError as camera_error:
+            # Re-raise with context to crash the consolidation process
+            self.logger.log_error(
+                error_type="consolidation_failed_camera_required",
+                message="❌ Consolidation failed due to missing camera integration",
+                error=str(camera_error),
+                details={
+                    "correlation_id": correlation_id,
+                    "radar_timestamp": radar_timestamp,
+                    "strict_mode": True,
+                    "action": "failing_consolidation_to_force_debugging"
+                }
+            )
+            raise RuntimeError(f"STRICT MODE: Consolidation failed for {correlation_id} - {str(camera_error)}")
+    
     def _get_correlated_camera_data(self, radar_timestamp: float, correlation_id: str) -> Dict[str, Any]:
         """Get camera data correlated with radar detection, or fallback data"""
         
@@ -643,18 +662,36 @@ class VehicleDetectionConsolidatorEnhanced:
                 "correlation_time_diff": abs(radar_timestamp - matched_camera.get('timestamp', 0))
             }
         else:
-            # Fallback to radar-based estimation
-            return {
-                "vehicle_count": 1,  # Radar detected something
-                "detection_confidence": None,
-                "vehicle_types": None,
-                "image_path": None,
-                "image_id": None,
-                "inference_time_ms": None,
-                "recent_summary": {"count": 1},
-                "correlation_time_diff": None,
-                "fallback_reason": "no_camera_correlation"
+            # NO FALLBACKS - Raise error to identify integration issues
+            recent_timestamps = [entry.get('timestamp', 0) for entry in list(self.recent_camera_detections)[-5:]]
+            camera_status = {
+                "recent_camera_detections_count": len(self.recent_camera_detections),
+                "camera_pubsub_status": "connected" if self.camera_pubsub else "disconnected",
+                "correlation_window_seconds": self.camera_correlation_window,
+                "radar_timestamp": radar_timestamp,
+                "recent_camera_timestamps": recent_timestamps,
+                "time_differences": [abs(radar_timestamp - ts) for ts in recent_timestamps],
+                "camera_channel": self.camera_channel
             }
+            
+            # Log detailed error for debugging
+            self.logger.log_error(
+                error_type="camera_correlation_failed",
+                message=f"❌ STRICT MODE: No camera correlation found for radar detection",
+                error="Camera integration failure - no matching camera data within correlation window",
+                details={
+                    "correlation_id": correlation_id,
+                    "radar_timestamp": radar_timestamp,
+                    **camera_status
+                }
+            )
+            
+            # Raise exception to force debugging of integration
+            raise RuntimeError(
+                f"Camera integration failure: No camera data correlated with radar detection {correlation_id}. "
+                f"Camera cache: {len(self.recent_camera_detections)} entries, "
+                f"PubSub: {'connected' if self.camera_pubsub else 'disconnected'}"
+            )
     
     def _get_consolidation_sources(self, consolidated_data: Dict[str, Any]) -> List[str]:
         """Determine data sources used in consolidation"""
@@ -730,8 +767,8 @@ class VehicleDetectionConsolidatorEnhanced:
                     # Weather data (fetch current conditions)
                     "weather_data": self._get_current_weather_data(),
                     
-                    # Camera data (correlate with IMX500 detections)
-                    "camera_data": self._get_correlated_camera_data(timestamp, correlation_id),
+                    # Camera data (correlate with IMX500 detections) - STRICT MODE
+                    "camera_data": self._get_correlated_camera_data_strict(timestamp, correlation_id),
                     
                     # Processing metadata  
                     "processing_metadata": {
