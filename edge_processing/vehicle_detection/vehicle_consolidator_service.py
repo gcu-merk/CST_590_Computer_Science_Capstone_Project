@@ -1660,7 +1660,7 @@ class VehicleDetectionConsolidatorEnhanced:
                 
                 if message and message['type'] == 'message':
                     try:
-                        response_data = json.loads(message['data'].decode('utf-8'))
+                        response_data = json.loads(message['data'])
                         correlation_id = response_data.get('correlation_id')
                         
                         if correlation_id:
