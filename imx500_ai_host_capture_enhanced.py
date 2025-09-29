@@ -30,6 +30,14 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import uuid
 
+# Computer vision imports
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    print("WARNING: opencv-python not available. Install with: pip install opencv-python")
+
 # IMX500 AI Camera imports
 try:
     from picamera2 import Picamera2
@@ -216,6 +224,9 @@ class IMX500AIHostCapture:
             image_array = self.camera.capture_array("main")
             metadata = self.camera.capture_metadata()
             
+            # Analyze image brightness for lighting conditions
+            brightness_analysis = self._analyze_image_brightness(image_array)
+            
             # Get AI inference results from camera
             ai_outputs = self.imx500.get_outputs(metadata)
             
@@ -255,6 +266,7 @@ class IMX500AIHostCapture:
                     "detections": detections,
                     "primary_vehicle": self._find_primary_vehicle(detections) if detections else None
                 },
+                "brightness_analysis": brightness_analysis,
                 "redis_keys": {
                     "vehicle_keys": [f"vehicle:detection:{det['detection_id']}" for det in detections]
                 }
@@ -281,6 +293,70 @@ class IMX500AIHostCapture:
         except Exception as e:
             logger.error(f"IMX500 AI capture failed: {e}")
             return None
+    
+    def _analyze_image_brightness(self, image_array: np.ndarray) -> Dict[str, Any]:
+        """Analyze image brightness to determine lighting conditions"""
+        try:
+            # Convert RGB to grayscale for brightness analysis
+            if CV2_AVAILABLE and len(image_array.shape) == 3:
+                gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+            elif len(image_array.shape) == 3:
+                # Fallback: simple RGB to grayscale conversion
+                gray = np.dot(image_array[...,:3], [0.299, 0.587, 0.114])
+            else:
+                gray = image_array
+            
+            # Calculate brightness metrics
+            mean_brightness = np.mean(gray)
+            std_brightness = np.std(gray)
+            histogram = np.histogram(gray, bins=32, range=(0, 256))[0]
+            
+            # Calculate percentage of dark pixels (< 32)
+            dark_pixels = np.sum(gray < 32) / gray.size * 100
+            
+            # Calculate percentage of bright pixels (> 224)
+            bright_pixels = np.sum(gray > 224) / gray.size * 100
+            
+            # Determine lighting condition
+            if mean_brightness < 30:
+                lighting_condition = "very_dark"
+            elif mean_brightness < 60:
+                lighting_condition = "dark"
+            elif mean_brightness < 120:
+                lighting_condition = "low_light"
+            elif mean_brightness < 180:
+                lighting_condition = "normal"
+            else:
+                lighting_condition = "bright"
+            
+            # Determine night vision classification
+            if mean_brightness < 40 or dark_pixels > 70:
+                visibility_status = "low_visibility"
+            elif mean_brightness < 60 or dark_pixels > 50:
+                visibility_status = "poor_lighting"
+            elif std_brightness < 15:  # Very uniform, possibly overexposed or underexposed
+                visibility_status = "poor_contrast"
+            else:
+                visibility_status = "good"
+            
+            return {
+                "mean_brightness": float(mean_brightness),
+                "std_brightness": float(std_brightness),
+                "dark_pixels_percent": float(dark_pixels),
+                "bright_pixels_percent": float(bright_pixels),
+                "lighting_condition": lighting_condition,
+                "visibility_status": visibility_status,
+                "analysis_timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Brightness analysis failed: {e}")
+            return {
+                "mean_brightness": 0.0,
+                "lighting_condition": "unknown",
+                "visibility_status": "analysis_failed",
+                "error": str(e)
+            }
     
     def _process_ai_detections(self, ai_outputs: List, image_shape: tuple) -> List[Dict[str, Any]]:
         """Process raw AI detection outputs from IMX500"""
@@ -422,8 +498,9 @@ class IMX500AIHostCapture:
         if self.radar_triggered_mode and self.redis_client:
             logger.info(f"🎯 Starting RADAR-TRIGGERED IMX500 AI capture service")
             logger.info(f"   Listening on Redis channel: {self.radar_trigger_channel}")
+            logger.info(f"   Camera requests channel: camera_requests")
             logger.info(f"   Minimum speed trigger: {self.radar_min_speed_trigger} mph")
-            return self._run_radar_triggered_mode()
+            return self._run_radar_triggered_mode_with_handshake()
         else:
             logger.info(f"🚗 Starting IMX500 AI capture service (continuous mode, interval: {self.capture_interval}s)")
             return self._run_continuous_mode()
@@ -464,12 +541,16 @@ class IMX500AIHostCapture:
         
         return True
     
-    def _run_radar_triggered_mode(self):
-        """Radar-triggered capture mode using Redis subscription"""
+    def _run_radar_triggered_mode_with_handshake(self):
+        """Enhanced radar-triggered capture mode with camera request handshake"""
         try:
+            # Setup dual channel subscription for radar triggers AND camera requests
             pubsub = self.redis_client.pubsub()
             pubsub.subscribe(self.radar_trigger_channel)
+            pubsub.subscribe("camera_requests")  # New handshake channel
+            
             logger.info(f"✅ Subscribed to radar triggers on '{self.radar_trigger_channel}'")
+            logger.info(f"✅ Subscribed to camera requests on 'camera_requests'")
             
             for message in pubsub.listen():
                 if not self.running:
@@ -477,54 +558,160 @@ class IMX500AIHostCapture:
                     
                 if message['type'] == 'message':
                     try:
-                        # Parse radar trigger message
                         data = json.loads(message['data'])
+                        channel = message['channel']
                         
-                        # Check if this is a vehicle detection with sufficient speed
-                        if (data.get('event_type') == 'vehicle_detection' and 
-                            data.get('speed_mph', 0) >= self.radar_min_speed_trigger):
+                        if channel == self.radar_trigger_channel:
+                            # Handle radar trigger (legacy mode)
+                            self._handle_radar_trigger(data)
                             
-                            speed = data.get('speed_mph', 0)
-                            detection_id = data.get('detection_id', 'unknown')
+                        elif channel == "camera_requests":
+                            # Handle camera processing request (new handshake mode)
+                            self._handle_camera_request(data)
                             
-                            logger.info(f"🎯 Radar trigger: {speed:.1f} mph vehicle detected (ID: {detection_id})")
-                            
-                            # Trigger immediate IMX500 capture
-                            result = self.capture_with_ai_analysis()
-                            if result:
-                                # Add radar correlation data
-                                result["trigger_source"] = "radar"
-                                result["radar_speed_mph"] = speed
-                                result["radar_detection_id"] = detection_id
-                                result["correlation_id"] = data.get('correlation_id')
-                                
-                                # Log results
-                                vehicle_count = result["ai_results"]["detection_count"]
-                                inference_time = result["ai_results"]["inference_time_ms"]
-                                
-                                if vehicle_count > 0:
-                                    primary = result["ai_results"]["primary_vehicle"]
-                                    logger.info(f"📸 Radar-triggered capture: {vehicle_count} vehicles detected (primary: {primary['vehicle_type'] if primary else 'none'}, {inference_time:.1f}ms)")
-                                else:
-                                    logger.info(f"📸 Radar-triggered capture: No vehicles in camera view ({inference_time:.1f}ms)")
-                                
-                                # Publish correlation results
-                                self._publish_ai_results(result)
-                            
-                            # Cleanup periodically
-                            self._cleanup_old_files()
-                            
-                    except (json.JSONDecodeError, KeyError) as e:
-                        logger.debug(f"Ignoring non-vehicle radar message: {e}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse message from {message['channel']}: {e}")
+                    except Exception as e:
+                        logger.error(f"Error processing message from {message['channel']}: {e}")
                         
-        except KeyboardInterrupt:
-            logger.info("Radar-triggered capture service interrupted by user")
         except Exception as e:
-            logger.error(f"Radar-triggered capture service error: {e}")
+            logger.error(f"Radar triggered mode error: {e}")
         finally:
             self.stop()
-        
+            
         return True
+    
+    def _handle_radar_trigger(self, data: Dict[str, Any]):
+        """Handle legacy radar trigger messages"""
+        # Check if this is a vehicle detection with sufficient speed
+        if (data.get('event_type') == 'vehicle_detection' and 
+            data.get('speed_mph', 0) >= self.radar_min_speed_trigger):
+            
+            speed = data.get('speed_mph', 0)
+            detection_id = data.get('detection_id', 'unknown')
+            
+            logger.info(f"🎯 Radar trigger: {speed:.1f} mph vehicle detected (ID: {detection_id})")
+            
+            # Trigger immediate IMX500 capture
+            result = self.capture_with_ai_analysis()
+            if result:
+                # Add radar correlation data
+                result["trigger_source"] = "radar"
+                result["radar_speed_mph"] = speed
+                result["radar_detection_id"] = detection_id
+                result["correlation_id"] = data.get('correlation_id')
+                
+                # Log capture completion
+                vehicle_count = result["ai_results"]["detection_count"]
+                inference_time = result["ai_results"]["inference_time_ms"]
+                primary = result["ai_results"]["primary_vehicle"]
+                primary_type = primary["vehicle_type"] if primary else "none"
+                
+                logger.info(f"📸 Radar-triggered capture: {vehicle_count} vehicles detected (primary: {primary_type}, {inference_time:.1f}ms)")
+                
+                # Also publish to general camera channel for real-time processing
+                self.redis_client.publish("camera_detections", json.dumps(result))
+    
+    def _handle_camera_request(self, request_data: Dict[str, Any]):
+        """Handle camera processing request from consolidator (handshake protocol)"""
+        
+        correlation_id = request_data.get('correlation_id')
+        radar_data = request_data.get('radar_data', {})
+        request_time = request_data.get('request_timestamp', time.time())
+        
+        logger.info(f"📨 Camera processing request received for detection {correlation_id}")
+        
+        try:
+            # Trigger immediate IMX500 capture for this specific detection
+            result = self.capture_with_ai_analysis()
+            
+            if result:
+                # Extract AI detection results
+                ai_results = result.get("ai_results", {})
+                vehicle_count = ai_results.get("detection_count", 0)
+                inference_time = ai_results.get("inference_time_ms", 0)
+                primary = ai_results.get("primary_vehicle")
+                
+                # Determine vehicle types and handle special cases
+                vehicle_types = []
+                detection_confidence = 0.0
+                
+                if vehicle_count > 0 and primary:
+                    vehicle_types = [primary.get("vehicle_type", "unknown")]
+                    detection_confidence = primary.get("confidence", 0.0)
+                    logger.info(f"📸 Camera captured: {vehicle_count} vehicles (primary: {vehicle_types[0]}, confidence: {detection_confidence:.2f})")
+                else:
+                    # Check for night/poor visibility conditions using brightness analysis
+                    brightness_analysis = result.get("brightness_analysis", {})
+                    visibility_status = brightness_analysis.get("visibility_status", "unknown")
+                    lighting_condition = brightness_analysis.get("lighting_condition", "unknown")
+                    mean_brightness = brightness_analysis.get("mean_brightness", 128)
+                    
+                    if visibility_status == "low_visibility":
+                        vehicle_types = ["low_visibility"]
+                        logger.info(f"📸 Camera captured: Low visibility detected (brightness: {mean_brightness:.1f}, condition: {lighting_condition})")
+                    elif visibility_status == "poor_lighting":
+                        vehicle_types = ["poor_lighting"]
+                        logger.info(f"📸 Camera captured: Poor lighting conditions (brightness: {mean_brightness:.1f}, condition: {lighting_condition})")
+                    elif visibility_status == "poor_contrast":
+                        vehicle_types = ["poor_contrast"]
+                        logger.info(f"📸 Camera captured: Poor contrast detected (brightness: {mean_brightness:.1f}, condition: {lighting_condition})")
+                    else:
+                        vehicle_types = ["no_detection"]
+                        logger.info(f"📸 Camera captured: No vehicles detected in {lighting_condition} conditions")
+                
+                # Create response data
+                camera_response = {
+                    "correlation_id": correlation_id,
+                    "status": "completed",
+                    "camera_data": {
+                        "vehicle_count": vehicle_count,
+                        "vehicle_types": vehicle_types,
+                        "detection_confidence": detection_confidence,
+                        "processing_time": inference_time,
+                        "image_metadata": result.get("capture_info", {}),
+                        "brightness_analysis": result.get("brightness_analysis", {}),
+                        "capture_timestamp": time.time(),
+                        "brightness_level": result.get("brightness_analysis", {}).get("mean_brightness", 128)
+                    },
+                    "response_timestamp": time.time(),
+                    "request_processing_time": time.time() - request_time
+                }
+                
+                # Send response back to consolidator
+                self.redis_client.publish("camera_responses", json.dumps(camera_response))
+                
+                logger.info(f"📤 Camera response sent for detection {correlation_id} (vehicles: {vehicle_types})")
+                
+            else:
+                # Capture failed - send error response
+                self._send_camera_error_response(correlation_id, "capture_failed", request_time)
+                
+        except Exception as e:
+            logger.error(f"Camera processing failed for {correlation_id}: {e}")
+            self._send_camera_error_response(correlation_id, "processing_error", request_time)
+    
+    def _send_camera_error_response(self, correlation_id: str, error_type: str, request_time: float):
+        """Send error response when camera processing fails"""
+        
+        error_response = {
+            "correlation_id": correlation_id,
+            "status": "error",
+            "camera_data": {
+                "vehicle_count": 0,
+                "vehicle_types": [f"error_{error_type}"],
+                "detection_confidence": 0.0,
+                "processing_time": 0.0,
+                "image_metadata": {"error": error_type},
+                "capture_timestamp": time.time()
+            },
+            "response_timestamp": time.time(),
+            "request_processing_time": time.time() - request_time,
+            "error": error_type
+        }
+        
+        self.redis_client.publish("camera_responses", json.dumps(error_response))
+        logger.error(f"📤 Camera error response sent for detection {correlation_id}: {error_type}")
     
     def _cleanup_old_files(self):
         """Remove old images to prevent disk space issues"""

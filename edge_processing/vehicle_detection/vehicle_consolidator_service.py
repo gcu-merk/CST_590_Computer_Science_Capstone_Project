@@ -287,6 +287,9 @@ class VehicleDetectionConsolidatorEnhanced:
                 self.cleanup_thread = threading.Thread(target=self._cleanup_loop_enhanced, daemon=True)
                 self.camera_thread = threading.Thread(target=self._camera_processing_loop, daemon=True)
                 
+                # Setup camera response channel
+                self._setup_camera_response_channel()
+                
                 self.stats_thread.start()
                 self.cleanup_thread.start()
                 self.camera_thread.start()
@@ -767,8 +770,9 @@ class VehicleDetectionConsolidatorEnhanced:
                     # Weather data (fetch current conditions)
                     "weather_data": self._get_current_weather_data(),
                     
-                    # Camera data (correlate with IMX500 detections) - configurable strict mode
-                    "camera_data": self._get_correlated_camera_data_strict(timestamp, correlation_id) if self.camera_strict_mode else self._get_correlated_camera_data(timestamp, correlation_id),
+                    # Camera data - will be filled by handshake response
+                    "camera_data": None,
+                    "camera_request_sent": False,
                     
                     # Processing metadata  
                     "processing_metadata": {
@@ -800,6 +804,9 @@ class VehicleDetectionConsolidatorEnhanced:
                         }
                     )
                     return  # Skip storing this detection - it's a duplicate of same vehicle
+                
+                # Send camera processing request and wait for response
+                self._request_camera_processing(consolidated_data)
                 
                 # New vehicle - store consolidated data for database persistence
                 self._store_consolidated_data(consolidated_data)
@@ -1374,6 +1381,174 @@ class VehicleDetectionConsolidatorEnhanced:
                         "final_detection_count": len(self.recent_detections)
                     }
                 )
+
+    def _request_camera_processing(self, consolidated_data: Dict[str, Any]):
+        """Send camera processing request and wait for response with handshake protocol"""
+        
+        correlation_id = consolidated_data.get('correlation_id')
+        radar_data = consolidated_data.get('radar_data', {})
+        
+        try:
+            # Create camera processing request
+            camera_request = {
+                "correlation_id": correlation_id,
+                "radar_data": {
+                    "speed": radar_data.get('speed', 0),
+                    "direction": radar_data.get('direction', 'unknown'),
+                    "timestamp": consolidated_data.get('timestamp'),
+                    "detection_id": radar_data.get('detection_id')
+                },
+                "request_timestamp": time.time(),
+                "timeout_seconds": 5.0  # Camera has 5 seconds to respond
+            }
+            
+            # Send request to camera
+            self.redis_client.publish("camera_requests", json.dumps(camera_request))
+            consolidated_data["camera_request_sent"] = True
+            
+            self.logger.log_service_event(
+                event_type="camera_request_sent",
+                message=f"📤 Sent camera processing request for detection {correlation_id}",
+                details={"correlation_id": correlation_id, "timeout": 5.0}
+            )
+            
+            # Wait for camera response (blocking with timeout)
+            camera_response = self._wait_for_camera_response(correlation_id, timeout=5.0)
+            
+            if camera_response:
+                consolidated_data["camera_data"] = camera_response
+                self.logger.log_service_event(
+                    event_type="camera_handshake_success",
+                    message=f"✅ Received camera response for detection {correlation_id}",
+                    details={"correlation_id": correlation_id, "vehicle_types": camera_response.get('vehicle_types', [])}
+                )
+            else:
+                # Camera timeout - use fallback data
+                consolidated_data["camera_data"] = self._create_camera_fallback_data("timeout")
+                self.logger.log_service_event(
+                    event_type="camera_handshake_timeout", 
+                    message=f"⏰ Camera processing timeout for detection {correlation_id}",
+                    details={"correlation_id": correlation_id, "timeout_seconds": 5.0}
+                )
+                
+        except Exception as e:
+            # Camera request failed - use fallback data
+            consolidated_data["camera_data"] = self._create_camera_fallback_data("error")
+            self.logger.log_error(
+                error_type="camera_request_failed",
+                message=f"Failed to request camera processing: {str(e)}",
+                error=str(e),
+                details={"correlation_id": correlation_id}
+            )
+    
+    def _wait_for_camera_response(self, correlation_id: str, timeout: float = 5.0) -> Optional[Dict[str, Any]]:
+        """Wait for camera response with timeout"""
+        
+        # Store request time for timeout tracking
+        self.pending_camera_requests[correlation_id] = time.time()
+        
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            # Check if response received
+            if correlation_id in self.camera_responses:
+                response = self.camera_responses.pop(correlation_id)
+                self.pending_camera_requests.pop(correlation_id, None)
+                return response
+            
+            # Short sleep to avoid busy waiting
+            time.sleep(0.1)
+        
+        # Timeout reached
+        self.pending_camera_requests.pop(correlation_id, None)
+        return None
+    
+    def _create_camera_fallback_data(self, reason: str) -> Dict[str, Any]:
+        """Create fallback camera data when camera processing fails"""
+        
+        fallback_reasons = {
+            "timeout": "no_response",
+            "error": "processing_error", 
+            "night": "low_visibility",
+            "poor_quality": "image_quality_insufficient"
+        }
+        
+        return {
+            "vehicle_count": 0,
+            "vehicle_types": [fallback_reasons.get(reason, "unknown")],
+            "detection_confidence": 0.0,
+            "processing_time": 0.0,
+            "image_metadata": {
+                "fallback_reason": reason,
+                "timestamp": time.time()
+            }
+        }
+    
+    def _setup_camera_response_channel(self):
+        """Setup camera response channel subscription"""
+        
+        try:
+            # Add response tracking
+            self.camera_responses = {}
+            self.pending_camera_requests = {}
+            
+            # Subscribe to camera responses
+            camera_response_pubsub = self.redis_client.pubsub()
+            camera_response_pubsub.subscribe("camera_responses")
+            
+            # Start response processing thread
+            self.camera_response_thread = threading.Thread(
+                target=self._camera_response_processing_loop, 
+                args=(camera_response_pubsub,),
+                daemon=True
+            )
+            self.camera_response_thread.start()
+            
+            self.logger.log_service_event(
+                event_type="camera_response_subscription_created",
+                message="✅ Subscribed to camera responses channel 'camera_responses'"
+            )
+            
+        except Exception as e:
+            self.logger.log_error(
+                error_type="camera_response_subscription_failed",
+                message=f"Failed to setup camera response subscription: {str(e)}",
+                error=str(e)
+            )
+            raise e
+    
+    def _camera_response_processing_loop(self, pubsub):
+        """Process camera responses in background thread"""
+        
+        try:
+            for message in pubsub.listen():
+                if message['type'] == 'message':
+                    try:
+                        response_data = json.loads(message['data'].decode('utf-8'))
+                        correlation_id = response_data.get('correlation_id')
+                        
+                        if correlation_id:
+                            # Store response for waiting consolidator
+                            self.camera_responses[correlation_id] = response_data.get('camera_data', {})
+                            
+                            self.logger.log_service_event(
+                                event_type="camera_response_received",
+                                message=f"📥 Received camera response for {correlation_id}",
+                                details={"correlation_id": correlation_id}
+                            )
+                            
+                    except json.JSONDecodeError as e:
+                        self.logger.log_error(
+                            error_type="camera_response_parse_failed",
+                            message=f"Failed to parse camera response: {str(e)}",
+                            error=str(e)
+                        )
+                        
+        except Exception as e:
+            self.logger.log_error(
+                error_type="camera_response_processing_failed", 
+                message=f"Camera response processing failed: {str(e)}",
+                error=str(e)
+            )
 
 
 def main():
