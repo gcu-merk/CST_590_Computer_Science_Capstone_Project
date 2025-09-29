@@ -1099,8 +1099,11 @@ class VehicleDetectionConsolidatorEnhanced:
             try:
                 dht22_data = self.redis_client.hgetall("weather:dht22")
                 if dht22_data:
+                    temp_c = float(dht22_data.get("temperature", 0))
+                    temp_f = (temp_c * 9/5) + 32  # Convert Celsius to Fahrenheit
                     weather_data["dht22"] = {
-                        "temperature": float(dht22_data.get("temperature", 0)),
+                        "temperature_c": temp_c,          # Original Celsius value
+                        "temperature_f": temp_f,          # Converted Fahrenheit value
                         "humidity": float(dht22_data.get("humidity", 0)),
                         "timestamp": dht22_data.get("timestamp")
                     }

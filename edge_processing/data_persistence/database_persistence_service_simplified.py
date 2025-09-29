@@ -641,11 +641,11 @@ class SimplifiedEnhancedDatabasePersistenceService:
                 
                 # DHT22 sensor data
                 dht22_data = weather_data.get('dht22', {})
-                if dht22_data and (dht22_data.get('temperature') is not None or dht22_data.get('humidity') is not None):
+                if dht22_data and (dht22_data.get('temperature_c') is not None or dht22_data.get('humidity') is not None):
                     weather_conditions.append(WeatherCondition(
                         timestamp=timestamp,
                         source='dht22',
-                        temperature=dht22_data.get('temperature'),
+                        temperature=dht22_data.get('temperature_c'),  # Store raw Celsius value only
                         humidity=dht22_data.get('humidity'),
                         raw_data=dht22_data
                     ))

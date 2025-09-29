@@ -394,53 +394,58 @@ class TrafficDashboard {
                 console.error('❌ Analytics API error:', error.message);
             }
             
-            // Load weather data from the combined endpoint
+            // Load weather data from the consolidated endpoint (latest detection)
             try {
-                const weatherResponse = await fetch(`${this.apiBaseUrl}/weather/current`);
+                const weatherResponse = await fetch(`${this.apiBaseUrl}/vehicles/consolidated?limit=1`);
 
                 if (weatherResponse.ok) {
-                    const weatherData = await weatherResponse.json();
+                    const consolidatedData = await weatherResponse.json();
                     let combinedWeatherData = {};
                     let hasValidData = false;
 
-                    // Process DHT22 sensor data
-                    if (weatherData.sources && weatherData.sources.dht22) {
-                        const dht22Data = weatherData.sources.dht22;
-                        combinedWeatherData.temperature_f = dht22Data.temperature;
-                        combinedWeatherData.temperature_c = dht22Data.temperature_c;
-                        combinedWeatherData.humidity = dht22Data.humidity;
-                        hasValidData = true;
-                        console.log('✅ DHT22 weather data loaded successfully');
-                    }
+                    // Extract weather data from the most recent vehicle detection
+                    if (consolidatedData.events && consolidatedData.events.length > 0) {
+                        const latestEvent = consolidatedData.events[0];
+                        
+                        // Process local weather data (DHT22 sensor)
+                        if (latestEvent.weather_data && latestEvent.weather_data.dht22) {
+                            const dht22Data = latestEvent.weather_data.dht22;
+                            combinedWeatherData.temperature_c = dht22Data.temperature_c; // Server provides Celsius
+                            combinedWeatherData.temperature_f = dht22Data.temperature_f; // Server provides Fahrenheit
+                            combinedWeatherData.humidity = dht22Data.humidity;
+                            hasValidData = true;
+                            console.log('✅ Local weather data (DHT22) loaded from consolidated endpoint');
+                            console.log(`📊 Temperature: ${dht22Data.temperature_c}°C (${Math.round(dht22Data.temperature_f)}°F)`);
+                        }
 
-                    // Process airport weather data
-                    if (weatherData.sources && weatherData.sources.airport) {
-                        const airportData = weatherData.sources.airport;
-                        combinedWeatherData.airport_temperature_f = airportData.temperature;
-                        combinedWeatherData.airport_temperature_c = airportData.temperature_c;
-                        combinedWeatherData.weather_description = airportData.textDescription;
-                        combinedWeatherData.sky_condition = airportData.cloudLayers;
-                        hasValidData = true;
-                        console.log('✅ Airport weather data loaded successfully');
+                        // Process airport weather data (if available in future)
+                        if (latestEvent.weather_data && latestEvent.weather_data.airport) {
+                            const airportData = latestEvent.weather_data.airport;
+                            combinedWeatherData.airport_temperature_f = airportData.temperature || airportData.temperature_f;
+                            combinedWeatherData.weather_description = airportData.textDescription;
+                            combinedWeatherData.sky_condition = airportData.cloudLayers;
+                            hasValidData = true;
+                            console.log('✅ Airport weather data loaded from consolidated endpoint');
+                        }
                     }
 
                     if (hasValidData) {
                         this.updateWeatherData(combinedWeatherData);
-                        console.log('✅ Combined weather data processed successfully');
+                        console.log('✅ Weather data processed successfully from consolidated endpoint');
                     } else {
-                        console.error('❌ No valid weather data from weather sources');
+                        console.error('❌ No valid weather data in consolidated endpoint');
                         document.getElementById('airport-temp').textContent = 'No Data';
                         document.getElementById('local-temp').textContent = 'No Data';
                         document.getElementById('local-humidity').textContent = 'No Data';
                     }
                 } else {
-                    console.error(`❌ Weather API failed: ${weatherResponse.status}`);
+                    console.error(`❌ Consolidated API failed: ${weatherResponse.status}`);
                     document.getElementById('airport-temp').textContent = 'API Error';
                     document.getElementById('local-temp').textContent = 'API Error';
                     document.getElementById('local-humidity').textContent = 'API Error';
                 }
             } catch (error) {
-                console.error('❌ Weather API error:', error.message);
+                console.error('❌ Consolidated API error:', error.message);
                 document.getElementById('airport-temp').textContent = 'API Error';
                 document.getElementById('local-temp').textContent = 'API Error';
                 document.getElementById('local-humidity').textContent = 'API Error';
