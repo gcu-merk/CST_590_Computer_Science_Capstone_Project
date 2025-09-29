@@ -2,9 +2,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis
-    # SECURITY: Removed external port exposure - Redis only accessible internally
-    # ports:
-    #   - "6379:6379"  # REMOVED: External access creates security vulnerability
+    # REQUIRED: Localhost-only port exposure for host IMX500 service connectivity  
+    ports:
+      - "127.0.0.1:6379:6379"  # Bind only to localhost for IMX500 host service
     volumes:
       - ${REDIS_DATA_PATH:-/mnt/storage/redis_data}:/data
     command: redis-server --appendonly yes
