@@ -399,6 +399,60 @@ jobs:
           
           echo "Deployment completed successfully"
           
+      - name: Update camera service script
+        run: |
+          echo "Updating camera service script on SSD..."
+          set -e
+          
+          # Copy updated camera script to the location where systemd service loads it
+          if [ -f "imx500_ai_host_capture_enhanced.py" ]; then
+            echo "Copying updated camera script to /mnt/storage/traffic-monitor-deploy/scripts/"
+            
+            # Ensure the scripts directory exists
+            sudo mkdir -p /mnt/storage/traffic-monitor-deploy/scripts
+            sudo chown merk:merk /mnt/storage/traffic-monitor-deploy/scripts
+            
+            # Copy the updated script
+            cp imx500_ai_host_capture_enhanced.py /mnt/storage/traffic-monitor-deploy/scripts/
+            
+            # Set proper permissions
+            chmod +x /mnt/storage/traffic-monitor-deploy/scripts/imx500_ai_host_capture_enhanced.py
+            
+            echo "✓ Camera script updated successfully"
+            
+            # Restart the camera service to load the new code
+            echo "Restarting camera service to load updated code..."
+            sudo systemctl restart imx500-ai-capture.service
+            
+            # Wait a moment for service to start
+            sleep 3
+            
+            # Check if service started successfully
+            if sudo systemctl is-active imx500-ai-capture.service >/dev/null 2>&1; then
+              echo "✓ Camera service restarted successfully"
+              
+              # Verify the service is using the new handshake protocol
+              echo "Checking if camera service loaded handshake protocol..."
+              sleep 2
+              if sudo journalctl -u imx500-ai-capture.service --since '10 seconds ago' --no-pager | grep -q "camera_requests"; then
+                echo "✓ Camera service is using handshake protocol"
+              else
+                echo "⚠ Camera service may still be loading or using old code"
+                echo "Recent camera service logs:"
+                sudo journalctl -u imx500-ai-capture.service --since '10 seconds ago' --no-pager | tail -5
+              fi
+            else
+              echo "✗ Camera service failed to restart"
+              echo "Service status:"
+              sudo systemctl status imx500-ai-capture.service --no-pager || true
+              echo "Recent logs:"
+              sudo journalctl -u imx500-ai-capture.service --since '30 seconds ago' --no-pager | tail -10
+            fi
+          else
+            echo "✗ Camera script file not found in deployment"
+            ls -la *.py | grep -i imx500 || echo "No IMX500 scripts found"
+          fi
+          
       - name: Validate deployment
         run: |
           echo "Running deployment validation..."
