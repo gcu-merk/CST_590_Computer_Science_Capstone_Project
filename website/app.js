@@ -29,6 +29,12 @@ class TrafficDashboard {
         }
     }
     
+    degreesToCompass(degrees) {
+        const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+        const index = Math.round(degrees / 22.5) % 16;
+        return directions[index];
+    }
+    
     setupEventListeners() {
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -435,9 +441,24 @@ class TrafficDashboard {
                             combinedWeatherData.airport_temperature_c = airportData.temperature_c || airportData.temperature; // Celsius fallback
                             combinedWeatherData.weather_description = airportData.textDescription;
                             combinedWeatherData.sky_condition = airportData.cloudLayers;
+                            
+                            // Add wind data processing
+                            if (airportData.windSpeed !== undefined && airportData.windSpeed !== null) {
+                                // Convert from km/h to mph
+                                combinedWeatherData.wind_speed_mph = Math.round(airportData.windSpeed * 0.621371 * 10) / 10; // Round to 1 decimal
+                                combinedWeatherData.wind_speed_kmh = airportData.windSpeed;
+                            }
+                            if (airportData.windDirection !== undefined && airportData.windDirection !== null) {
+                                combinedWeatherData.wind_direction = airportData.windDirection;
+                                combinedWeatherData.wind_direction_compass = this.degreesToCompass(airportData.windDirection);
+                            }
+                            
                             hasValidData = true;
                             console.log('✅ Airport weather data loaded from consolidated endpoint');
                             console.log(`📊 Airport temperature: ${airportData.temperature_c}°C (${Math.round(airportData.temperature_f)}°F)`);
+                            if (combinedWeatherData.wind_speed_mph) {
+                                console.log(`🌬️ Wind: ${combinedWeatherData.wind_speed_mph} mph from ${combinedWeatherData.wind_direction_compass} (${combinedWeatherData.wind_direction}°)`);
+                            }
                         }
                     }
 
@@ -638,6 +659,27 @@ class TrafficDashboard {
             }
         }
         
+        // Update wind speed
+        const windSpeedElement = document.getElementById('wind-speed');
+        if (weatherData.wind_speed_mph !== undefined && weatherData.wind_speed_mph !== null) {
+            windSpeedElement.textContent = `${weatherData.wind_speed_mph} mph`;
+            console.log(`🌬️ Updated wind speed: ${weatherData.wind_speed_mph} mph`);
+        } else {
+            windSpeedElement.textContent = 'No Data';
+            console.log('🌬️ No wind speed data available');
+        }
+        
+        // Update wind direction
+        const windDirectionElement = document.getElementById('wind-direction');
+        if (weatherData.wind_direction !== undefined && weatherData.wind_direction !== null) {
+            const compass = weatherData.wind_direction_compass || this.degreesToCompass(weatherData.wind_direction);
+            windDirectionElement.textContent = `${compass} (${weatherData.wind_direction}°)`;
+            console.log(`🧭 Updated wind direction: ${compass} (${weatherData.wind_direction}°)`);
+        } else {
+            windDirectionElement.textContent = 'No Data';
+            console.log('🧭 No wind direction data available');
+        }
+
         // Update additional weather info in the metric trend if available
         const weatherTrend = document.querySelector('.metric-card.weather .metric-trend');
         if (weatherTrend) {
@@ -645,6 +687,8 @@ class TrafficDashboard {
             
             if (weatherData.weather_description) {
                 trendText = weatherData.weather_description;
+            } else if (weatherData.wind_speed_mph && weatherData.wind_direction_compass) {
+                trendText = `Wind: ${weatherData.wind_speed_mph} mph ${weatherData.wind_direction_compass}`;
             } else if (weatherData.humidity) {
                 trendText = `Humidity: ${Math.round(weatherData.humidity)}%`;
             }

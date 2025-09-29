@@ -133,6 +133,7 @@ class WeatherCondition:
     humidity: Optional[float] = None
     conditions: Optional[str] = None
     wind_speed: Optional[float] = None
+    wind_direction: Optional[float] = None
     pressure: Optional[float] = None
     visibility: Optional[float] = None
     raw_data: Optional[Dict] = None
@@ -145,6 +146,7 @@ class WeatherCondition:
             'humidity': self.humidity,
             'conditions': self.conditions,
             'wind_speed': self.wind_speed,
+            'wind_direction': self.wind_direction,
             'pressure': self.pressure,
             'visibility': self.visibility,
             'raw_data': json.dumps(self.raw_data) if self.raw_data else None
@@ -651,14 +653,19 @@ class SimplifiedEnhancedDatabasePersistenceService:
                     ))
                 
                 # Airport weather data
-                airport_weather = weather_data.get('airport_weather', {})
+                airport_weather = weather_data.get('airport', {})  # Fixed key name to match API structure
                 if airport_weather and airport_weather.get('temperature') is not None:
+                    # Convert wind speed from km/h to mph
+                    wind_speed_kmh = airport_weather.get('windSpeed')
+                    wind_speed_mph = (wind_speed_kmh * 0.621371) if wind_speed_kmh is not None else None
+                    
                     weather_conditions.append(WeatherCondition(
                         timestamp=timestamp,
                         source='airport',
-                        temperature=airport_weather.get('temperature'),
-                        conditions=airport_weather.get('conditions'),
-                        wind_speed=airport_weather.get('wind_speed'),
+                        temperature=airport_weather.get('temperature_c', airport_weather.get('temperature')),  # Use Celsius
+                        conditions=airport_weather.get('textDescription'),
+                        wind_speed=wind_speed_mph,  # Store in mph
+                        wind_direction=airport_weather.get('windDirection'),  # Store wind direction in degrees
                         pressure=airport_weather.get('pressure'),
                         visibility=airport_weather.get('visibility'),
                         raw_data=airport_weather
