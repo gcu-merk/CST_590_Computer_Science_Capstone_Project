@@ -80,6 +80,87 @@ body {
     min-width: 160px;
 }
 
+/* Project Documentation Header */
+.project-docs-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.docs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+.docs-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.docs-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+}
+
+.docs-icon {
+    font-size: 20px;
+}
+
+.docs-links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.docs-links a {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 4px 0;
+    border-bottom: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.docs-links a:hover {
+    color: #764ba2;
+    border-bottom-color: #764ba2;
+}
+
+.project-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.info-item {
+    font-size: 14px;
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.tech-stack {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.tech-stack small {
+    color: #718096;
+    font-style: italic;
+}
+
 /* Navigation Tabs */
 .nav-tabs {
     display: flex;
