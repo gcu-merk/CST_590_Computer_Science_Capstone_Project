@@ -773,11 +773,13 @@ class VehicleDetectionConsolidatorEnhanced:
                     # Processing metadata  
                     "processing_metadata": {
                         "processor_version": "consolidator_v2.1.0",
-                        "processing_time": datetime.now().isoformat(),
-                        "data_sources": self._get_consolidation_sources(consolidated_data),
-                        "consolidation_method": self._get_consolidation_method(consolidated_data)
+                        "processing_time": datetime.now().isoformat()
                     }
                 }
+                
+                # Add data sources and consolidation method after consolidated_data is defined
+                consolidated_data["processing_metadata"]["data_sources"] = self._get_consolidation_sources(consolidated_data)
+                consolidated_data["processing_metadata"]["consolidation_method"] = self._get_consolidation_method(consolidated_data)
                 
                 # Check if this detection should be grouped with recent detections (same vehicle)
                 existing_group_id = self._group_vehicle_detections(consolidated_data)
