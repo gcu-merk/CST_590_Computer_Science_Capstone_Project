@@ -584,6 +584,24 @@ class TrafficDashboard {
         document.getElementById('total-vehicles').textContent = totalVehicles24h.toLocaleString();
         console.log(`📊 Updated 24h vehicle count: ${totalVehicles24h}`);
         
+        // Calculate average speed for last 24 hours
+        const speedEvents = events.filter(event => 
+            event.radar_data && 
+            event.radar_data.speed !== undefined && 
+            event.radar_data.speed !== null && 
+            event.radar_data.speed > 0
+        );
+        
+        if (speedEvents.length > 0) {
+            const totalSpeed = speedEvents.reduce((sum, event) => sum + event.radar_data.speed, 0);
+            const avgSpeed24h = totalSpeed / speedEvents.length;
+            document.getElementById('avg-speed').textContent = avgSpeed24h.toFixed(1);
+            console.log(`📊 Updated 24h average speed: ${avgSpeed24h.toFixed(1)} mph (from ${speedEvents.length} speed readings)`);
+        } else {
+            document.getElementById('avg-speed').textContent = 'No Data';
+            console.log('📊 No speed data available for 24h average');
+        }
+        
         // Calculate trend vs previous 24 hours (if we have enough data)
         const now = new Date();
         const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -619,6 +637,53 @@ class TrafficDashboard {
         } else if (trendElement) {
             trendElement.textContent = 'No comparison data';
             trendElement.className = 'metric-trend neutral';
+        }
+        
+        // Calculate speed trend between periods
+        if (currentPeriodEvents.length > 0 && previousPeriodEvents.length > 0) {
+            const currentSpeedEvents = currentPeriodEvents.filter(event => 
+                event.radar_data && 
+                event.radar_data.speed !== undefined && 
+                event.radar_data.speed !== null && 
+                event.radar_data.speed > 0
+            );
+            
+            const previousSpeedEvents = previousPeriodEvents.filter(event => 
+                event.radar_data && 
+                event.radar_data.speed !== undefined && 
+                event.radar_data.speed !== null && 
+                event.radar_data.speed > 0
+            );
+            
+            const speedTrendElement = document.getElementById('speed-trend');
+            
+            if (speedTrendElement && currentSpeedEvents.length > 0 && previousSpeedEvents.length > 0) {
+                const currentAvgSpeed = currentSpeedEvents.reduce((sum, event) => sum + event.radar_data.speed, 0) / currentSpeedEvents.length;
+                const previousAvgSpeed = previousSpeedEvents.reduce((sum, event) => sum + event.radar_data.speed, 0) / previousSpeedEvents.length;
+                
+                const speedChangePercent = Math.round(((currentAvgSpeed - previousAvgSpeed) / previousAvgSpeed) * 100);
+                
+                if (speedChangePercent > 0) {
+                    speedTrendElement.textContent = `↑ ${speedChangePercent}% vs yesterday`;
+                    speedTrendElement.className = 'metric-trend positive';
+                } else if (speedChangePercent < 0) {
+                    speedTrendElement.textContent = `↓ ${Math.abs(speedChangePercent)}% vs yesterday`;
+                    speedTrendElement.className = 'metric-trend negative';
+                } else {
+                    speedTrendElement.textContent = '→ Same as yesterday';
+                    speedTrendElement.className = 'metric-trend neutral';
+                }
+                console.log(`📊 Speed trend: ${speedChangePercent}% (current: ${currentAvgSpeed.toFixed(1)}, previous: ${previousAvgSpeed.toFixed(1)})`);
+            } else if (speedTrendElement) {
+                speedTrendElement.textContent = 'No comparison data';
+                speedTrendElement.className = 'metric-trend neutral';
+            }
+        } else {
+            const speedTrendElement = document.getElementById('speed-trend');
+            if (speedTrendElement) {
+                speedTrendElement.textContent = 'No comparison data';
+                speedTrendElement.className = 'metric-trend neutral';
+            }
         }
         
         // Update chart with hourly detection data from last 24 hours
