@@ -405,6 +405,44 @@ class EnhancedSwaggerAPIGateway:
         # Capture gateway instance for Resource classes
         gateway = self
         
+        # Image serving endpoint for camera captures
+        @self.app.route('/api/images/<filename>')
+        def serve_camera_image(filename):
+            """Serve camera capture images from storage"""
+            try:
+                # Validate filename to prevent directory traversal
+                if not filename or '..' in filename or '/' in filename or '\\' in filename:
+                    logger.warning("Invalid image filename requested", extra={
+                        "business_event": "invalid_image_request",
+                        "filename": filename
+                    })
+                    return {"error": "Invalid filename"}, 400
+                
+                # Check if file exists in camera capture directory
+                image_path = f"/mnt/storage/camera_capture/live/{filename}"
+                if not os.path.exists(image_path):
+                    logger.warning("Requested image not found", extra={
+                        "business_event": "image_not_found",
+                        "filename": filename,
+                        "path": image_path
+                    })
+                    return {"error": "Image not found"}, 404
+                
+                logger.info("Serving camera image", extra={
+                    "business_event": "image_served",
+                    "filename": filename
+                })
+                
+                return send_file(image_path, mimetype='image/jpeg')
+                
+            except Exception as e:
+                logger.error("Failed to serve camera image", extra={
+                    "business_event": "image_serving_error",
+                    "filename": filename,
+                    "error": str(e)
+                })
+                return {"error": "Failed to serve image"}, 500
+        
         # Simple health check endpoint for Docker healthcheck
         @self.app.route('/health')
         def simple_health_check():
