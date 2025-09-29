@@ -722,6 +722,15 @@ class VehicleDetectionConsolidatorEnhanced:
         """Process radar stream data and create consolidated traffic event"""
         
         try:
+            # Safety check for None fields
+            if fields is None:
+                self.logger.log_error(
+                    error_type="radar_data_invalid",
+                    message="Received None fields from radar stream",
+                    details={"message_id": message_id}
+                )
+                return
+            
             # Extract radar data from stream fields
             speed = float(fields.get('speed', 0))
             speed_mps = float(fields.get('speed_mps', 0))
