@@ -266,23 +266,11 @@ services:
       - "80:80"
       - "8443:443"
     volumes:
-      - type: bind
-        source: ./nginx/nginx.conf
-        target: /etc/nginx/nginx.conf
-        read_only: true
-        bind:
-          create_host_path: false  # Prevents Docker from creating missing paths
-      - type: bind
-        source: ./ssl
-        target: /etc/nginx/ssl
-        read_only: true
-        bind:
-          create_host_path: false
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       traffic-monitor:
         condition: service_healthy
-      nginx-config-validator:
-        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - app-network
@@ -392,32 +380,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
-  nginx-config-validator:
-    image: nginx:alpine
-    container_name: nginx-config-validator
-    environment:
-      - SERVICE_NAME=nginx-config-validator
-    volumes:
-      - type: bind
-        source: ./nginx_funnel_final.conf
-        target: /etc/nginx/conf.d/default.conf
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${SSL_CERT_PATH:-./ssl/}
-        target: /etc/ssl/certs/local/
-        bind:
-          create_host_path: false
-    command: >
-      sh -c "
-        echo 'Validating nginx configuration...' &&
-        nginx -t &&
-        echo 'Nginx configuration valid' &&
-        exit 0
-      "
-    networks:
-      - app-network
 
 networks:
   app-network:
