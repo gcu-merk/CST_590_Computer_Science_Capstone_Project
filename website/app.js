@@ -352,13 +352,17 @@ class TrafficDashboard {
         console.log('Loading real data from API...');
         
         try {
-            // Load recent vehicle detections (last 24 hours = 86400 seconds)
+            // Load recent vehicle detections (last 24 hours using consolidated endpoint)
             try {
-                const detectionsResponse = await fetch(`${this.apiBaseUrl}/vehicles/detections?seconds=86400`);
+                const since24HoursAgo = new Date();
+                since24HoursAgo.setHours(since24HoursAgo.getHours() - 24);
+                const sinceTimestamp = since24HoursAgo.toISOString();
+                
+                const detectionsResponse = await fetch(`${this.apiBaseUrl}/vehicles/consolidated?since=${sinceTimestamp}&limit=1000`);
                 if (detectionsResponse.ok) {
                     const detectionsData = await detectionsResponse.json();
-                    this.updateMetricsFromDetections(detectionsData);
-                    console.log('✅ Vehicle detections loaded successfully');
+                    this.updateVehicleCountFrom24Hours(detectionsData);
+                    console.log('✅ Vehicle detections (24h) loaded successfully');
                 } else {
                     console.error(`❌ Detections API failed: ${detectionsResponse.status}`);
                     document.getElementById('total-vehicles').textContent = `Error ${detectionsResponse.status}`;
@@ -564,6 +568,61 @@ class TrafficDashboard {
         
         // Update chart with hourly detection data
         this.updateTrafficChartFromDetections(detections);
+    }
+    
+    updateVehicleCountFrom24Hours(consolidatedData) {
+        if (!consolidatedData || !consolidatedData.events) {
+            console.error('❌ No consolidated data received for 24h vehicle count');
+            document.getElementById('total-vehicles').textContent = 'No Data';
+            return;
+        }
+        
+        const events = consolidatedData.events;
+        const totalVehicles24h = events.length;
+        
+        // Update vehicle count for last 24 hours
+        document.getElementById('total-vehicles').textContent = totalVehicles24h.toLocaleString();
+        console.log(`📊 Updated 24h vehicle count: ${totalVehicles24h}`);
+        
+        // Calculate trend vs previous 24 hours (if we have enough data)
+        const now = new Date();
+        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const previous24h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+        
+        const currentPeriodEvents = events.filter(event => {
+            const eventTime = new Date(event.created_at || event.timestamp);
+            return eventTime >= last24h && eventTime <= now;
+        });
+        
+        const previousPeriodEvents = events.filter(event => {
+            const eventTime = new Date(event.created_at || event.timestamp);
+            return eventTime >= previous24h && eventTime < last24h;
+        });
+        
+        const currentCount = currentPeriodEvents.length;
+        const previousCount = previousPeriodEvents.length;
+        
+        // Update trend indicator
+        const trendElement = document.getElementById('vehicles-trend');
+        if (trendElement && previousCount > 0) {
+            const changePercent = Math.round(((currentCount - previousCount) / previousCount) * 100);
+            if (changePercent > 0) {
+                trendElement.textContent = `↑ ${changePercent}% vs yesterday`;
+                trendElement.className = 'metric-trend positive';
+            } else if (changePercent < 0) {
+                trendElement.textContent = `↓ ${Math.abs(changePercent)}% vs yesterday`;
+                trendElement.className = 'metric-trend negative';
+            } else {
+                trendElement.textContent = '→ Same as yesterday';
+                trendElement.className = 'metric-trend neutral';
+            }
+        } else if (trendElement) {
+            trendElement.textContent = 'No comparison data';
+            trendElement.className = 'metric-trend neutral';
+        }
+        
+        // Update chart with hourly detection data from last 24 hours
+        this.updateTrafficChartFromDetections(currentPeriodEvents);
     }
     
     updateSpeedMetrics(speedsData) {
