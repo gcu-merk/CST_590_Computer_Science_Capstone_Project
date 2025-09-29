@@ -448,9 +448,9 @@ class RadarServiceEnhanced:
             if csv_match:
                 magnitude = csv_match.group(1)
                 speed_raw = float(csv_match.group(2))
-                speed = abs(speed_raw)
+                speed = speed_raw  # Preserve sign for direction detection
                 
-                self.logger.debug(f"Parsed CSV format: magnitude={magnitude}, speed={speed}")
+                self.logger.debug(f"Parsed CSV format: magnitude={magnitude}, speed={speed} (raw: {speed_raw})")
                 
                 return {
                     'speed': speed,
@@ -471,11 +471,11 @@ class RadarServiceEnhanced:
                     if 'speed' in data:
                         speed_raw = data['speed']
                         
-                        # Handle different units
+                        # Handle different units - preserve sign for direction detection
                         if data.get('unit') == 'mps':
-                            speed_mph = abs(float(speed_raw) * 2.237)  # Convert m/s to mph
+                            speed_mph = float(speed_raw) * 2.237  # Convert m/s to mph, preserve sign
                         else:
-                            speed_mph = abs(float(speed_raw))  # Assume mph
+                            speed_mph = float(speed_raw)  # Assume mph, preserve sign
                         
                         return {
                             'speed': speed_mph,
@@ -496,9 +496,9 @@ class RadarServiceEnhanced:
                     self.logger.debug(f"JSON parse error: {e}")
             
             # Try simple numeric formats
-            # Format: "12.3" (just speed)
+            # Format: "12.3" (just speed) - preserve sign for direction detection
             try:
-                speed = abs(float(line))
+                speed = float(line)  # Preserve sign for direction detection
                 self.logger.debug(f"Parsed simple numeric: {speed}")
                 return {
                     'speed': speed,
@@ -511,11 +511,11 @@ class RadarServiceEnhanced:
             except ValueError:
                 pass
             
-            # Try space-separated format: "12.3 mph"
+            # Try space-separated format: "12.3 mph" - preserve sign for direction detection
             parts = line.split()
             if len(parts) >= 2:
                 try:
-                    speed = abs(float(parts[0]))
+                    speed = float(parts[0])  # Preserve sign for direction detection
                     unit = parts[1]
                     self.logger.debug(f"Parsed space-separated: {speed} {unit}")
                     return {

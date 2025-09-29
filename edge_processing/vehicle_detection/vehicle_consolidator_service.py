@@ -756,12 +756,15 @@ class VehicleDetectionConsolidatorEnhanced:
                     
                     # Radar data
                     "radar_data": {
-                        "speed": speed,
-                        "speed_mps": speed_mps,
+                        "speed": abs(speed),  # Store positive speed for display
+                        "speed_mps": abs(speed_mps) if speed_mps else None,  # Store positive speed_mps for display
+                        "speed_signed": speed,  # Preserve signed speed for analysis
                         "alert_level": alert_level,
                         "detection_id": detection_id,
                         "confidence": 0.85,  # Radar generally reliable
-                        "direction": "approaching" if speed < 0 else "receding"  # Negative = approaching sensor
+                        "direction": "approaching" if speed < 0 else "receding",  # Negative = approaching sensor
+                        "geographical_direction": "southbound" if speed < 0 else "northbound",  # Waltz Way: approaching = south, receding = north
+                        "road_name": "Waltz Way"
                     },
                     
                     # Weather data (fetch current conditions)
