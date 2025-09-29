@@ -742,13 +742,48 @@ class VehicleDetectionConsolidatorEnhanced:
                 )
                 return
             
-            # Extract radar data from stream fields
-            speed = float(fields.get('speed', 0))
-            speed_mps = float(fields.get('speed_mps', 0))
-            correlation_id = fields.get('correlation_id', str(uuid.uuid4())[:8])
-            detection_id = fields.get('detection_id', correlation_id)
-            alert_level = fields.get('alert_level', 'normal')
-            timestamp = float(fields.get('_timestamp', time.time()))
+            # Debug log to check fields structure
+            self.logger.debug(
+                f"Processing radar data - message_id: {message_id}, fields type: {type(fields)}, fields: {fields}",
+                details={"message_id": message_id, "fields_type": str(type(fields)), "fields_keys": list(fields.keys()) if hasattr(fields, 'keys') else "no_keys"}
+            )
+            
+            # Extract radar data from stream fields with explicit error handling
+            try:
+                speed = float(fields.get('speed', 0))
+            except (TypeError, ValueError, AttributeError) as e:
+                self.logger.log_error(
+                    error_type="radar_data_speed_error",
+                    message=f"Failed to extract speed from fields: {str(e)}",
+                    error=str(e),
+                    details={"message_id": message_id, "fields": fields, "speed_value": fields.get('speed') if fields else "fields_is_none"}
+                )
+                raise
+            
+            try:
+                speed_mps = float(fields.get('speed_mps', 0))
+            except (TypeError, ValueError, AttributeError) as e:
+                self.logger.log_error(
+                    error_type="radar_data_speed_mps_error", 
+                    message=f"Failed to extract speed_mps from fields: {str(e)}",
+                    error=str(e),
+                    details={"message_id": message_id, "fields": fields, "speed_mps_value": fields.get('speed_mps') if fields else "fields_is_none"}
+                )
+                raise
+            
+            try:
+                correlation_id = fields.get('correlation_id', str(uuid.uuid4())[:8])
+                detection_id = fields.get('detection_id', correlation_id)
+                alert_level = fields.get('alert_level', 'normal')
+                timestamp = float(fields.get('_timestamp', time.time()))
+            except (TypeError, ValueError, AttributeError) as e:
+                self.logger.log_error(
+                    error_type="radar_data_metadata_error",
+                    message=f"Failed to extract metadata from fields: {str(e)}",
+                    error=str(e),
+                    details={"message_id": message_id, "fields": fields}
+                )
+                raise
             
             with CorrelationContext.create(correlation_id) as ctx:
                 # Log radar detection business event
