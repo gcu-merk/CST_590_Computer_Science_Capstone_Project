@@ -1275,17 +1275,4 @@ body {
     }
 }
 
-/* Simple Footer Styles */
-.simple-footer {
-    margin-top: 40px;
-}
-
-.footer-bottom {
-    text-align: center;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 16px;
-    color: #718096;
-    font-size: 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
+/* Footer removed to avoid duplication issues */
