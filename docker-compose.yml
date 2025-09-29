@@ -237,6 +237,8 @@ services:
       - STATS_UPDATE_INTERVAL=60
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
+      # Camera integration configuration - set to false for nighttime/radar-only operation
+      - CAMERA_STRICT_MODE=false
       # Centralized Logging Configuration
       - SERVICE_NAME=vehicle_consolidator_service
       - LOG_DIR=/app/logs

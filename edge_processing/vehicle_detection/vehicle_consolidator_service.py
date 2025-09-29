@@ -82,6 +82,9 @@ class VehicleDetectionConsolidatorEnhanced:
             environment=os.environ.get('ENVIRONMENT', 'production')
         )
         
+        # Camera strict mode configuration - allows disabling camera requirement for nighttime/dark conditions
+        self.camera_strict_mode = os.environ.get('CAMERA_STRICT_MODE', 'true').lower() == 'true'
+        
         if not REDIS_AVAILABLE:
             self.logger.log_error(
                 error_type="missing_dependency",
@@ -770,8 +773,8 @@ class VehicleDetectionConsolidatorEnhanced:
                     # Weather data (fetch current conditions)
                     "weather_data": self._get_current_weather_data(),
                     
-                    # Camera data (correlate with IMX500 detections) - STRICT MODE
-                    "camera_data": self._get_correlated_camera_data_strict(timestamp, correlation_id),
+                    # Camera data (correlate with IMX500 detections) - configurable strict mode
+                    "camera_data": self._get_correlated_camera_data_strict(timestamp, correlation_id) if self.camera_strict_mode else self._get_correlated_camera_data(timestamp, correlation_id),
                     
                     # Processing metadata  
                     "processing_metadata": {
