@@ -706,10 +706,19 @@ class VehicleDetectionConsolidatorEnhanced:
     
     def _get_consolidation_sources(self, consolidated_data: Dict[str, Any]) -> List[str]:
         """Determine data sources used in consolidation"""
+        # Safety check for None consolidated_data
+        if consolidated_data is None:
+            self.logger.log_error(
+                error_type="consolidation_sources_null_data",
+                message="consolidated_data is None in _get_consolidation_sources",
+                details={"consolidated_data": consolidated_data}
+            )
+            return ["radar"]  # Default to radar only
+        
         sources = ["radar"]
         
         camera_data = consolidated_data.get('camera_data', {})
-        if camera_data.get('image_path') and camera_data.get('correlation_time_diff') is not None:
+        if camera_data and camera_data.get('image_path') and camera_data.get('correlation_time_diff') is not None:
             sources.append("camera")
         
         weather_data = consolidated_data.get('weather_data', {})
@@ -720,6 +729,15 @@ class VehicleDetectionConsolidatorEnhanced:
     
     def _get_consolidation_method(self, consolidated_data: Dict[str, Any]) -> str:
         """Determine consolidation method used"""
+        # Safety check for None consolidated_data  
+        if consolidated_data is None:
+            self.logger.log_error(
+                error_type="consolidation_method_null_data",
+                message="consolidated_data is None in _get_consolidation_method",
+                details={"consolidated_data": consolidated_data}
+            )
+            return "radar_only"  # Default to radar only
+        
         sources = self._get_consolidation_sources(consolidated_data)
         
         if len(sources) == 1:
