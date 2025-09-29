@@ -1,0 +1,387 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    # REQUIRED: Localhost-only port exposure for host IMX500 service connectivity
+    ports:
+      - "127.0.0.1:6379:6379"  # Bind only to localhost for IMX500 host service
+    # SECURITY: Removed external port exposure - Redis only accessible internally
+    # ports:
+    #   - "6379:6379"  # REMOVED: External access creates security vulnerability
+    volumes:
+      - ${REDIS_DATA_PATH:-/mnt/storage/redis_data}:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  traffic-monitor:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: traffic-monitor
+    command: ['python', 'edge_api/edge_api_gateway_enhanced.py']
+    restart: unless-stopped
+    # SECURITY: Internal port only - accessible to nginx proxy but not externally
+    expose:
+      - "5000"  # Internal access only for nginx proxy
+    # External HTTP access removed - API only accessible via HTTPS nginx proxy
+    devices:
+      - /dev/gpiomem0:/dev/gpiomem  # GPIO access
+    privileged: false
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Enhanced API Gateway Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=5000
+      - API_DEBUG=false
+      # Centralized Logging Configuration
+      - SERVICE_NAME=api_gateway_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/camera_capture:/app/camera_capture
+      - ${STORAGE_ROOT:-/mnt/storage}/processed_data:/app/processed_data
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/ai_camera_images:/app/ai_camera_images
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+
+  data-maintenance:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: data-maintenance
+    command: ["python", "edge_processing/data_maintenance_service_enhanced.py"]
+    environment:
+      - SERVICE_TYPE=maintenance
+      - ENABLE_MAINTENANCE=true
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MAINTENANCE_IMAGE_MAX_AGE_HOURS=24
+      - MAINTENANCE_SNAPSHOT_MAX_AGE_HOURS=168
+      - MAINTENANCE_LOG_MAX_AGE_DAYS=30
+      - MAINTENANCE_EMERGENCY_THRESHOLD=90
+      - MAINTENANCE_WARNING_THRESHOLD=80
+      # Centralized Logging Configuration
+      - SERVICE_NAME=data_maintenance_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}:/mnt/storage
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis; r=redis.Redis(host='redis', port=6379); r.ping(); r.exists('maintenance:storage_stats')"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+  airport-weather:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: airport-weather
+    command: ["python", "edge_processing/airport_weather_service_enhanced.py"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Centralized logging configuration
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - SERVICE_NAME=airport_weather
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); data=r.get('weather:airport:latest'); exit(0 if data else 1)\""]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  dht22-weather:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: dht22-weather
+    entrypoint: ["python", "docker_entrypoint.py"]
+    environment:
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DHT22_GPIO_PIN=4
+      - DHT22_UPDATE_INTERVAL=600
+      # Docker entrypoint configuration
+      - APP_MODULE=edge_processing/dht_22_weather_service_enhanced
+      - SERVICE_TYPE=dht22
+      # Centralized logging configuration
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - SERVICE_NAME=dht22_weather
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - /sys:/sys:ro
+      - /dev:/dev
+    devices:
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access for DHT22 sensor
+      - /dev/gpiomem0:/dev/gpiomem0
+      - /dev/gpiomem1:/dev/gpiomem1
+      - /dev/gpiomem2:/dev/gpiomem2
+      - /dev/gpiomem3:/dev/gpiomem3
+      - /dev/gpiomem4:/dev/gpiomem4
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    privileged: true  # Required for lgpio GPIO access
+    group_add:
+      - gpio
+    cap_add:
+      - SYS_RAWIO
+      - SYS_ADMIN
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); data=r.hget('weather:dht22', 'timestamp'); exit(0 if data else 1)\""]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  radar-service:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: radar-service
+    command: ["python", "radar_service.py"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RADAR_UART_PORT=/dev/ttyAMA0
+      - RADAR_BAUD_RATE=19200
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      # Centralized Logging Configuration
+      - SERVICE_NAME=radar_service
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/radar-service:/app/logs/radar-service
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/correlation:/app/logs/correlation
+      - /dev:/dev
+    devices:
+      - /dev/ttyAMA0:/dev/ttyAMA0  # UART for OPS243-C radar
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/gpiochip4:/dev/gpiochip4  # Pi 5 GPIO access
+      - /dev/gpiomem0:/dev/gpiomem0
+      - /dev/gpiomem1:/dev/gpiomem1
+      - /dev/gpiomem2:/dev/gpiomem2
+      - /dev/gpiomem3:/dev/gpiomem3
+      - /dev/gpiomem4:/dev/gpiomem4
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    privileged: true  # Required for UART and GPIO access
+    group_add:
+      - dialout  # UART access
+      - gpio
+    cap_add:
+      - SYS_RAWIO
+      - SYS_ADMIN
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); length=r.xlen('radar_data'); exit(0 if length >= 0 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  vehicle-consolidator:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: vehicle-consolidator
+    command: ["python", "edge_processing/vehicle_detection/vehicle_consolidator_service.py"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATA_RETENTION_HOURS=24
+      - STATS_UPDATE_INTERVAL=60
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      # Centralized Logging Configuration
+      - SERVICE_NAME=vehicle_consolidator_service
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/vehicle-consolidator:/app/logs/vehicle-consolidator
+      - ${STORAGE_ROOT:-/mnt/storage}/logs/correlation:/app/logs/correlation
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f vehicle_consolidator_service > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  nginx-proxy:
+    image: nginx:1.25-alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      traffic-monitor:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  database-persistence:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: database-persistence
+    command: ["python", "edge_processing/data_persistence/database_persistence_service_simplified.py"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
+      # SQLite Database Configuration
+      - BATCH_SIZE=100
+      - COMMIT_INTERVAL_SEC=30
+      - RETENTION_DAYS=90
+      # Centralized Logging Configuration
+      - SERVICE_NAME=database_persistence_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f database_persistence_service_simplified > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  redis-optimization:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: redis
+    # REQUIRED: Localhost-only port exposure for host IMX500 service connectivity
+    ports:
+      - "127.0.0.1:6379:6379"  # Bind only to localhost for IMX500 host service-optimization
+    command: ["python", "edge_processing/data_persistence/redis_optimization_service_enhanced.py"]
+    environment:
+      - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Redis Optimization Configuration
+      - OPTIMIZATION_INTERVAL=3600
+      - MEMORY_THRESHOLD_MB=1000
+      # Centralized Logging Configuration
+      - SERVICE_NAME=redis_optimization_service
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import redis; r=redis.Redis(host='redis', port=6379); r.ping()\" && pgrep -f redis_optimization_service > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  realtime-events-broadcaster:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: realtime-events-broadcaster
+    command: ["python", "realtime_events_broadcaster.py"]
+    environment:
+      - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      # Broadcaster Configuration
+      - CENTRALIZED_DB_PATH=/app/data/centralized_logs.db
+      - API_GATEWAY_URL=http://traffic-monitor:5000
+      - POLL_INTERVAL=1.0
+      - BATCH_SIZE=50
+      # Centralized Logging Configuration
+      - SERVICE_NAME=realtime_events_broadcaster
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CORRELATION_HEADER=X-Correlation-ID
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - ${STORAGE_ROOT:-/mnt/storage}/data:/app/data
+    depends_on:
+      traffic-monitor:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f realtime_events_broadcaster > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  app-network:
+    driver: bridge
