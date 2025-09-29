@@ -352,6 +352,17 @@ class VehicleDetectionConsolidatorEnhanced:
                         for stream_name, stream_messages in messages:
                             for message_id, fields in stream_messages:
                                 try:
+                                    # Safety check for valid message data
+                                    if not fields:
+                                        self.logger.log_error(
+                                            error_type="radar_stream_invalid_data",
+                                            message=f"Received empty/invalid message from stream: {message_id}",
+                                            details={"message_id": message_id, "stream_name": stream_name}
+                                        )
+                                        # Acknowledge and skip invalid message
+                                        self.redis_client.xack(self.radar_stream, self.consumer_group, message_id)
+                                        continue
+                                    
                                     # Process radar data and create consolidated event
                                     self._process_radar_data_enhanced(message_id, fields)
                                     
