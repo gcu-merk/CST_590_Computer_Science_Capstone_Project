@@ -1406,7 +1406,16 @@ class VehicleDetectionConsolidatorEnhanced:
         """Send camera processing request and wait for response with handshake protocol"""
         
         correlation_id = consolidated_data.get('correlation_id')
-        radar_data = consolidated_data.get('radar_data', {})
+        radar_data = consolidated_data.get('radar_data') or {}
+        
+        # Safety check to ensure radar_data is a dict
+        if not isinstance(radar_data, dict):
+            self.logger.log_error(
+                error_type="invalid_radar_data_type",
+                message=f"radar_data is not a dict: {type(radar_data)}, value: {radar_data}",
+                details={"correlation_id": correlation_id, "radar_data_type": str(type(radar_data))}
+            )
+            radar_data = {}
         
         try:
             # Create camera processing request
