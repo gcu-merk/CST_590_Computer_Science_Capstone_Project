@@ -83,7 +83,6 @@ class IMX500AIHostCapture:
                  street_roi: dict = None,
                  enable_radar_gpio: bool = True,
                  radar_triggered_mode: bool = False,
-                 radar_trigger_channel: str = "traffic_events",
                  radar_min_speed_trigger: float = 2.0):
         
         if not PICAMERA2_AVAILABLE:
@@ -115,9 +114,8 @@ class IMX500AIHostCapture:
         }
         self.radar_gpio_initialized = False
         
-        # Radar-triggered capture mode
+        # Radar-triggered capture mode (now handshake mode only)
         self.radar_triggered_mode = radar_triggered_mode
-        self.radar_trigger_channel = radar_trigger_channel
         self.radar_min_speed_trigger = radar_min_speed_trigger
         self.radar_last_trigger = 0
         
@@ -470,19 +468,8 @@ class IMX500AIHostCapture:
                 }
                 self.redis_client.setex(detection_key, 300, json.dumps(detection_data))  # 5 min TTL
 
-            
-            # Publish real-time event
-            event_data = {
-                "event_type": "imx500_ai_capture",
-                "timestamp": time.time(),
-                "vehicle_detections": len(result_package["ai_results"]["detections"]),
-                "primary_vehicle": result_package["ai_results"]["primary_vehicle"]["vehicle_type"] if result_package["ai_results"]["primary_vehicle"] else None,
-                "inference_time_ms": result_package["ai_results"]["inference_time_ms"],
-                "image_id": result_package["capture_info"]["image_id"]
-            }
-            self.redis_client.publish("traffic_events", json.dumps(event_data))
-            
-            logger.debug(f"Published AI results to Redis: {len(result_package['ai_results']['detections'])} vehicles")
+            # NOTE: Removed old traffic_events publishing - now using handshake protocol only
+            logger.debug(f"Stored AI results in Redis: {len(result_package['ai_results']['detections'])} vehicles")
             
         except Exception as e:
             logger.error(f"Failed to publish AI results to Redis: {e}")
@@ -496,8 +483,7 @@ class IMX500AIHostCapture:
         self.running = True
         
         if self.radar_triggered_mode and self.redis_client:
-            logger.info(f"🎯 Starting RADAR-TRIGGERED IMX500 AI capture service")
-            logger.info(f"   Listening on Redis channel: {self.radar_trigger_channel}")
+            logger.info(f"🎯 Starting HANDSHAKE-MODE IMX500 AI capture service")
             logger.info(f"   Camera requests channel: camera_requests")
             logger.info(f"   Minimum speed trigger: {self.radar_min_speed_trigger} mph")
             return self._run_radar_triggered_mode_with_handshake()
@@ -542,15 +528,15 @@ class IMX500AIHostCapture:
         return True
     
     def _run_radar_triggered_mode_with_handshake(self):
-        """Enhanced radar-triggered capture mode with camera request handshake"""
+        """Camera request handshake mode - only listens to camera processing requests"""
         try:
-            # Setup dual channel subscription for radar triggers AND camera requests
+            # Setup subscription for camera requests only (removed old traffic_events)
             pubsub = self.redis_client.pubsub()
-            pubsub.subscribe(self.radar_trigger_channel)
-            pubsub.subscribe("camera_requests")  # New handshake channel
+            pubsub.subscribe("camera_requests")  # New handshake channel only
             
-            logger.info(f"✅ Subscribed to radar triggers on '{self.radar_trigger_channel}'")
+            logger.info(f"✅ Camera service running in handshake mode")
             logger.info(f"✅ Subscribed to camera requests on 'camera_requests'")
+            logger.info(f"✅ Removed legacy traffic_events trigger system")
             
             for message in pubsub.listen():
                 if not self.running:
@@ -561,56 +547,21 @@ class IMX500AIHostCapture:
                         data = json.loads(message['data'])
                         channel = message['channel']
                         
-                        if channel == self.radar_trigger_channel:
-                            # Handle radar trigger (legacy mode)
-                            self._handle_radar_trigger(data)
-                            
-                        elif channel == "camera_requests":
-                            # Handle camera processing request (new handshake mode)
+                        if channel == "camera_requests":
+                            # Handle camera processing request (handshake mode)
                             self._handle_camera_request(data)
                             
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse message from {message['channel']}: {e}")
+                        logger.error(f"Failed to parse camera request: {e}")
                     except Exception as e:
-                        logger.error(f"Error processing message from {message['channel']}: {e}")
+                        logger.error(f"Error processing camera request: {e}")
                         
         except Exception as e:
-            logger.error(f"Radar triggered mode error: {e}")
+            logger.error(f"Camera handshake mode error: {e}")
         finally:
             self.stop()
             
         return True
-    
-    def _handle_radar_trigger(self, data: Dict[str, Any]):
-        """Handle legacy radar trigger messages"""
-        # Check if this is a vehicle detection with sufficient speed
-        if (data.get('event_type') == 'vehicle_detection' and 
-            data.get('speed_mph', 0) >= self.radar_min_speed_trigger):
-            
-            speed = data.get('speed_mph', 0)
-            detection_id = data.get('detection_id', 'unknown')
-            
-            logger.info(f"🎯 Radar trigger: {speed:.1f} mph vehicle detected (ID: {detection_id})")
-            
-            # Trigger immediate IMX500 capture
-            result = self.capture_with_ai_analysis()
-            if result:
-                # Add radar correlation data
-                result["trigger_source"] = "radar"
-                result["radar_speed_mph"] = speed
-                result["radar_detection_id"] = detection_id
-                result["correlation_id"] = data.get('correlation_id')
-                
-                # Log capture completion
-                vehicle_count = result["ai_results"]["detection_count"]
-                inference_time = result["ai_results"]["inference_time_ms"]
-                primary = result["ai_results"]["primary_vehicle"]
-                primary_type = primary["vehicle_type"] if primary else "none"
-                
-                logger.info(f"📸 Radar-triggered capture: {vehicle_count} vehicles detected (primary: {primary_type}, {inference_time:.1f}ms)")
-                
-                # Also publish to general camera channel for real-time processing
-                self.redis_client.publish("camera_detections", json.dumps(result))
     
     def _handle_camera_request(self, request_data: Dict[str, Any]):
         """Handle camera processing request from consolidator (handshake protocol)"""
@@ -869,7 +820,6 @@ def main():
             'y_end': float(os.getenv('STREET_ROI_Y_END', '0.9'))        # 90% from top
         },
         'radar_triggered_mode': os.getenv('RADAR_TRIGGERED_MODE', 'false').lower() == 'true',
-        'radar_trigger_channel': os.getenv('RADAR_TRIGGER_CHANNEL', 'traffic_events'),
         'radar_min_speed_trigger': float(os.getenv('RADAR_MIN_SPEED_TRIGGER', '2.0'))
     }
     
@@ -878,7 +828,7 @@ def main():
     logger.info(f"AI model: {config['ai_model_path']}")
     logger.info(f"Confidence threshold: {config['confidence_threshold']}")
     if config['radar_triggered_mode']:
-        logger.info(f"Mode: RADAR-TRIGGERED (channel: {config['radar_trigger_channel']}, min speed: {config['radar_min_speed_trigger']} mph)")
+        logger.info(f"Mode: HANDSHAKE-TRIGGERED (camera_requests channel, min speed: {config['radar_min_speed_trigger']} mph)")
     else:
         logger.info(f"Mode: CONTINUOUS (interval: {config['capture_interval']}s)")
     logger.info(f"Street ROI: {config['street_roi']} (filters out parked cars and cross street)")
