@@ -1106,10 +1106,16 @@ class VehicleDetectionConsolidatorEnhanced:
             except (ValueError, TypeError):
                 pass
             
-            # Try to get airport weather data
+            # Try to get airport weather data (stored as JSON string)
             try:
-                airport_data = self.redis_client.hgetall("weather:airport:latest")
-                if airport_data:
+                airport_json = self.redis_client.get("weather:airport:latest")
+                if airport_json:
+                    airport_data = json.loads(airport_json)
+                    # Convert temperature from Celsius to Fahrenheit for consistency
+                    if "temperature" in airport_data and airport_data["temperature"] is not None:
+                        temp_c = float(airport_data["temperature"])
+                        airport_data["temperature_f"] = (temp_c * 9/5) + 32
+                        airport_data["temperature_c"] = temp_c
                     weather_data["airport"] = airport_data
             except Exception:
                 pass
