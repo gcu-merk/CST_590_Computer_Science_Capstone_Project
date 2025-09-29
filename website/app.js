@@ -410,12 +410,22 @@ class TrafficDashboard {
                         // Process local weather data (DHT22 sensor)
                         if (latestEvent.weather_data && latestEvent.weather_data.dht22) {
                             const dht22Data = latestEvent.weather_data.dht22;
-                            combinedWeatherData.temperature_c = dht22Data.temperature_c; // Server provides Celsius
-                            combinedWeatherData.temperature_f = dht22Data.temperature_f; // Server provides Fahrenheit
+                            
+                            // Handle both new format (temperature_c/temperature_f) and old format (temperature)
+                            if (dht22Data.temperature_c !== undefined && dht22Data.temperature_f !== undefined) {
+                                // New format - server provides both
+                                combinedWeatherData.temperature_c = dht22Data.temperature_c;
+                                combinedWeatherData.temperature_f = dht22Data.temperature_f;
+                            } else if (dht22Data.temperature !== undefined) {
+                                // Old format - temperature is in Celsius, convert to Fahrenheit
+                                combinedWeatherData.temperature_c = dht22Data.temperature;
+                                combinedWeatherData.temperature_f = (dht22Data.temperature * 9/5) + 32;
+                            }
+                            
                             combinedWeatherData.humidity = dht22Data.humidity;
                             hasValidData = true;
                             console.log('✅ Local weather data (DHT22) loaded from consolidated endpoint');
-                            console.log(`📊 Temperature: ${dht22Data.temperature_c}°C (${Math.round(dht22Data.temperature_f)}°F)`);
+                            console.log(`📊 Temperature: ${combinedWeatherData.temperature_c}°C (${Math.round(combinedWeatherData.temperature_f)}°F)`);
                         }
 
                         // Process airport weather data (if available in future)

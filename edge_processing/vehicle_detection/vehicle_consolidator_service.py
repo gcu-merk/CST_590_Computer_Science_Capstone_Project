@@ -665,36 +665,30 @@ class VehicleDetectionConsolidatorEnhanced:
                 "correlation_time_diff": abs(radar_timestamp - matched_camera.get('timestamp', 0))
             }
         else:
-            # NO FALLBACKS - Raise error to identify integration issues
-            recent_timestamps = [entry.get('timestamp', 0) for entry in list(self.recent_camera_detections)[-5:]]
-            camera_status = {
-                "recent_camera_detections_count": len(self.recent_camera_detections),
-                "camera_pubsub_status": "connected" if self.camera_pubsub else "disconnected",
-                "correlation_window_seconds": self.camera_correlation_window,
-                "radar_timestamp": radar_timestamp,
-                "recent_camera_timestamps": recent_timestamps,
-                "time_differences": [abs(radar_timestamp - ts) for ts in recent_timestamps],
-                "camera_channel": self.camera_channel
-            }
-            
-            # Log detailed error for debugging
-            self.logger.log_error(
-                error_type="camera_correlation_failed",
-                message=f"❌ STRICT MODE: No camera correlation found for radar detection",
-                error="Camera integration failure - no matching camera data within correlation window",
+            # Non-strict mode: Return fallback data instead of failing
+            self.logger.log_service_event(
+                event_type="camera_correlation_fallback",
+                message=f"⚠️  No camera correlation found for radar detection - using fallback data (non-strict mode)",
                 details={
                     "correlation_id": correlation_id,
                     "radar_timestamp": radar_timestamp,
-                    **camera_status
+                    "camera_cache_size": len(self.recent_camera_detections),
+                    "camera_pubsub_status": "connected" if self.camera_pubsub else "disconnected"
                 }
             )
             
-            # Raise exception to force debugging of integration
-            raise RuntimeError(
-                f"Camera integration failure: No camera data correlated with radar detection {correlation_id}. "
-                f"Camera cache: {len(self.recent_camera_detections)} entries, "
-                f"PubSub: {'connected' if self.camera_pubsub else 'disconnected'}"
-            )
+            # Return fallback camera data
+            return {
+                "vehicle_count": 1,  # Assume radar detected 1 vehicle
+                "detection_confidence": None,
+                "vehicle_types": ["unknown"],  # Unknown vehicle type without camera
+                "image_path": None,
+                "image_id": None,
+                "inference_time_ms": None,
+                "recent_summary": {"count": 1},
+                "correlation_time_diff": None,
+                "fallback_reason": "no_camera_correlation"
+            }
     
     def _get_consolidation_sources(self, consolidated_data: Dict[str, Any]) -> List[str]:
         """Determine data sources used in consolidation"""
