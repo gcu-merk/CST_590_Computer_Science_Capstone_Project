@@ -383,6 +383,52 @@ services:
       retries: 3
       start_period: 30s
 
+  camera-service-manager:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: camera-service-manager
+    restart: unless-stopped
+    privileged: true  # Required for systemctl access
+    environment:
+      - SERVICE_NAME=camera_service_manager
+      - LOG_LEVEL=INFO
+      - LOG_DIR=/app/logs
+      - CAMERA_SERVICE_NAME=imx500-ai-capture.service
+      - CHECK_INTERVAL=30
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /bin/systemctl:/bin/systemctl:ro
+      - /etc/systemd:/etc/systemd:ro
+      - /var/lib/systemd:/var/lib/systemd:ro
+    command: |
+      sh -c "
+        echo 'Camera Service Manager starting...'
+        echo 'Monitoring: $$CAMERA_SERVICE_NAME every $$CHECK_INTERVAL seconds'
+        
+        while true; do
+          if ! systemctl is-active --quiet $$CAMERA_SERVICE_NAME; then
+            echo '[MANAGER] Camera service is down, attempting to start...'
+            systemctl start $$CAMERA_SERVICE_NAME
+            sleep 10
+            if systemctl is-active --quiet $$CAMERA_SERVICE_NAME; then
+              echo '[MANAGER] ✅ Camera service started successfully'
+            else
+              echo '[MANAGER] ❌ Failed to start camera service'
+            fi
+          else
+            echo '[MANAGER] ✅ Camera service is running'
+          fi
+          sleep $$CHECK_INTERVAL
+        done
+      "
+    network_mode: "host"  # Required for systemctl access
+    healthcheck:
+      test: ["CMD-SHELL", "systemctl is-active --quiet imx500-ai-capture.service"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
   app-network:
     driver: bridge
