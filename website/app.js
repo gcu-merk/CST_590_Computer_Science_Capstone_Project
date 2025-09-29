@@ -597,8 +597,23 @@ class TrafficDashboard {
             const avgSpeed24h = totalSpeed / speedEvents.length;
             document.getElementById('avg-speed').textContent = avgSpeed24h.toFixed(1);
             console.log(`📊 Updated 24h average speed: ${avgSpeed24h.toFixed(1)} mph (from ${speedEvents.length} speed readings)`);
+            
+            // Count speed violations (25+ mph) in last 24 hours
+            const violations24h = speedEvents.filter(event => event.radar_data.speed > 25).length;
+            document.getElementById('speed-violations').textContent = violations24h;
+            
+            // Apply high alert styling if violations detected
+            const violationsCard = document.getElementById('violations-card');
+            if (violations24h > 0) {
+                violationsCard.classList.add('high-alert');
+            } else {
+                violationsCard.classList.remove('high-alert');
+            }
+            
+            console.log(`⚠️ Updated 24h speed violations: ${violations24h} (out of ${speedEvents.length} readings)`);
         } else {
             document.getElementById('avg-speed').textContent = 'No Data';
+            document.getElementById('speed-violations').textContent = '0';
             console.log('📊 No speed data available for 24h average');
         }
         
@@ -683,6 +698,58 @@ class TrafficDashboard {
             if (speedTrendElement) {
                 speedTrendElement.textContent = 'No comparison data';
                 speedTrendElement.className = 'metric-trend neutral';
+            }
+        }
+        
+        // Calculate violations trend between periods
+        if (currentPeriodEvents.length > 0 && previousPeriodEvents.length > 0) {
+            const currentViolationEvents = currentPeriodEvents.filter(event => 
+                event.radar_data && 
+                event.radar_data.speed !== undefined && 
+                event.radar_data.speed !== null && 
+                event.radar_data.speed > 25
+            );
+            
+            const previousViolationEvents = previousPeriodEvents.filter(event => 
+                event.radar_data && 
+                event.radar_data.speed !== undefined && 
+                event.radar_data.speed !== null && 
+                event.radar_data.speed > 25
+            );
+            
+            const violationsTrendElement = document.getElementById('violations-trend');
+            
+            if (violationsTrendElement) {
+                const currentViolations = currentViolationEvents.length;
+                const previousViolations = previousViolationEvents.length;
+                
+                if (previousViolations > 0) {
+                    const violationsChangePercent = Math.round(((currentViolations - previousViolations) / previousViolations) * 100);
+                    
+                    if (violationsChangePercent > 0) {
+                        violationsTrendElement.textContent = `↑ ${violationsChangePercent}% vs yesterday`;
+                        violationsTrendElement.className = 'metric-trend negative'; // More violations is negative
+                    } else if (violationsChangePercent < 0) {
+                        violationsTrendElement.textContent = `↓ ${Math.abs(violationsChangePercent)}% vs yesterday`;
+                        violationsTrendElement.className = 'metric-trend positive'; // Fewer violations is positive
+                    } else {
+                        violationsTrendElement.textContent = '→ Same as yesterday';
+                        violationsTrendElement.className = 'metric-trend neutral';
+                    }
+                    console.log(`⚠️ Violations trend: ${violationsChangePercent}% (current: ${currentViolations}, previous: ${previousViolations})`);
+                } else if (currentViolations > 0) {
+                    violationsTrendElement.textContent = '↑ New violations detected';
+                    violationsTrendElement.className = 'metric-trend negative';
+                } else {
+                    violationsTrendElement.textContent = '→ No violations';
+                    violationsTrendElement.className = 'metric-trend positive';
+                }
+            }
+        } else {
+            const violationsTrendElement = document.getElementById('violations-trend');
+            if (violationsTrendElement) {
+                violationsTrendElement.textContent = 'No comparison data';
+                violationsTrendElement.className = 'metric-trend neutral';
             }
         }
         
