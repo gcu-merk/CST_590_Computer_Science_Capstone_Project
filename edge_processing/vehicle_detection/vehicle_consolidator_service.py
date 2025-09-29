@@ -802,43 +802,95 @@ class VehicleDetectionConsolidatorEnhanced:
                     }
                 )
                 
-                # Create consolidated event data
-                consolidated_data = {
-                    "consolidation_id": f"consolidated_{detection_id}_{int(timestamp)}",
-                    "correlation_id": correlation_id,
-                    "timestamp": timestamp,
-                    "trigger_source": "radar",
-                    
-                    # Radar data
-                    "radar_data": {
-                        "speed": abs(speed),  # Store positive speed for display
-                        "speed_mps": abs(speed_mps) if speed_mps else None,  # Store positive speed_mps for display
-                        "speed_signed": speed,  # Preserve signed speed for analysis
-                        "alert_level": alert_level,
-                        "detection_id": detection_id,
-                        "confidence": 0.85,  # Radar generally reliable
-                        "direction": "approaching" if speed < 0 else "receding",  # Negative = approaching sensor
-                        "geographical_direction": "southbound" if speed < 0 else "northbound",  # Waltz Way: approaching = south, receding = north
-                        "road_name": "Waltz Way"
-                    },
-                    
-                    # Weather data (fetch current conditions)
-                    "weather_data": self._get_current_weather_data(),
-                    
-                    # Camera data - will be filled by handshake response
-                    "camera_data": None,
-                    "camera_request_sent": False,
-                    
-                    # Processing metadata  
-                    "processing_metadata": {
-                        "processor_version": "consolidator_v2.1.0",
-                        "processing_time": datetime.now().isoformat()
-                    }
-                }
+                # Debug: Step 1 - About to get weather data
+                self.logger.debug(f"Step 1: About to call _get_current_weather_data()")
                 
-                # Add data sources and consolidation method after consolidated_data is defined
-                consolidated_data["processing_metadata"]["data_sources"] = self._get_consolidation_sources(consolidated_data)
-                consolidated_data["processing_metadata"]["consolidation_method"] = self._get_consolidation_method(consolidated_data)
+                try:
+                    weather_data = self._get_current_weather_data()
+                    self.logger.debug(f"Step 1 SUCCESS: Weather data retrieved: {type(weather_data)}")
+                except Exception as e:
+                    self.logger.log_error(
+                        error_type="weather_data_error",
+                        message=f"Step 1 FAILED: Error getting weather data: {str(e)}",
+                        error=str(e)
+                    )
+                    weather_data = {}
+                
+                # Debug: Step 2 - Creating consolidated data structure
+                self.logger.debug(f"Step 2: Creating consolidated_data structure")
+                
+                try:
+                    # Create consolidated event data
+                    consolidated_data = {
+                        "consolidation_id": f"consolidated_{detection_id}_{int(timestamp)}",
+                        "correlation_id": correlation_id,
+                        "timestamp": timestamp,
+                        "trigger_source": "radar",
+                        
+                        # Radar data
+                        "radar_data": {
+                            "speed": abs(speed),  # Store positive speed for display
+                            "speed_mps": abs(speed_mps) if speed_mps else None,  # Store positive speed_mps for display
+                            "speed_signed": speed,  # Preserve signed speed for analysis
+                            "alert_level": alert_level,
+                            "detection_id": detection_id,
+                            "confidence": 0.85,  # Radar generally reliable
+                            "direction": "approaching" if speed < 0 else "receding",  # Negative = approaching sensor
+                            "geographical_direction": "southbound" if speed < 0 else "northbound",  # Waltz Way: approaching = south, receding = north
+                            "road_name": "Waltz Way"
+                        },
+                        
+                        # Weather data (fetch current conditions)
+                        "weather_data": weather_data,
+                        
+                        # Camera data - will be filled by handshake response
+                        "camera_data": None,
+                        "camera_request_sent": False,
+                        
+                        # Processing metadata  
+                        "processing_metadata": {
+                            "processor_version": "consolidator_v2.1.0",
+                            "processing_time": datetime.now().isoformat()
+                        }
+                    }
+                    self.logger.debug(f"Step 2 SUCCESS: consolidated_data created")
+                except Exception as e:
+                    self.logger.log_error(
+                        error_type="consolidated_data_creation_error",
+                        message=f"Step 2 FAILED: Error creating consolidated_data: {str(e)}",
+                        error=str(e)
+                    )
+                    raise
+                
+                # Debug: Step 3 - Adding data sources
+                self.logger.debug(f"Step 3: About to call _get_consolidation_sources")
+                
+                try:
+                    data_sources = self._get_consolidation_sources(consolidated_data)
+                    consolidated_data["processing_metadata"]["data_sources"] = data_sources
+                    self.logger.debug(f"Step 3 SUCCESS: data_sources added: {data_sources}")
+                except Exception as e:
+                    self.logger.log_error(
+                        error_type="consolidation_sources_error",
+                        message=f"Step 3 FAILED: Error getting consolidation sources: {str(e)}",
+                        error=str(e)
+                    )
+                    raise
+                
+                # Debug: Step 4 - Adding consolidation method
+                self.logger.debug(f"Step 4: About to call _get_consolidation_method")
+                
+                try:
+                    consolidation_method = self._get_consolidation_method(consolidated_data)
+                    consolidated_data["processing_metadata"]["consolidation_method"] = consolidation_method
+                    self.logger.debug(f"Step 4 SUCCESS: consolidation_method added: {consolidation_method}")
+                except Exception as e:
+                    self.logger.log_error(
+                        error_type="consolidation_method_error",
+                        message=f"Step 4 FAILED: Error getting consolidation method: {str(e)}",
+                        error=str(e)
+                    )
+                    raise
                 
                 # Check if this detection should be grouped with recent detections (same vehicle)
                 existing_group_id = self._group_vehicle_detections(consolidated_data)
