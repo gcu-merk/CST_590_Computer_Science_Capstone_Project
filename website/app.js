@@ -970,61 +970,6 @@ class TrafficDashboard {
         }
     }
     
-    updateSafetyDisplay(safetyData) {
-        if (!safetyData) {
-            console.log('❌ No safety data received');
-            return;
-        }
-        
-        // Update overall safety score
-        const safetyScoreElement = document.getElementById('safety-score');
-        if (safetyScoreElement) {
-            safetyScoreElement.textContent = `${safetyData.overall_safety_score || 0}/100`;
-        }
-        
-        // Update safety metrics
-        const complianceElement = document.getElementById('speed-compliance-rate');
-        if (complianceElement && safetyData.speed_compliance) {
-            complianceElement.textContent = `${safetyData.speed_compliance.compliance_rate || 0}%`;
-        }
-        
-        const violationsElement = document.getElementById('total-violations');
-        if (violationsElement && safetyData.speed_compliance) {
-            violationsElement.textContent = safetyData.speed_compliance.violations || 0;
-        }
-        
-        // Update safety summary if element exists
-        const safetySummaryElement = document.getElementById('safety-summary');
-        if (safetySummaryElement) {
-            const riskFactors = safetyData.risk_factors || {};
-            const incidents = safetyData.incidents || {};
-            
-            safetySummaryElement.innerHTML = `
-                <div class="safety-metrics">
-                    <h4>Risk Assessment</h4>
-                    <p><strong>Excessive Speed:</strong> ${riskFactors.excessive_speed || 'Unknown'}</p>
-                    <p><strong>Traffic Volume:</strong> ${riskFactors.traffic_volume || 'Unknown'}</p>
-                    <p><strong>Weather Impact:</strong> ${riskFactors.weather_impact || 'Unknown'}</p>
-                    <p><strong>Visibility:</strong> ${riskFactors.visibility || 'Unknown'}</p>
-                </div>
-                <div class="incident-summary">
-                    <h4>Recent Incidents</h4>
-                    <p><strong>Last 7 Days:</strong> ${incidents.last_7_days || 0}</p>
-                    <p><strong>Last 30 Days:</strong> ${incidents.last_30_days || 0}</p>
-                </div>
-            `;
-        }
-        
-        // Update recommendations if element exists
-        const recommendationsElement = document.getElementById('safety-recommendations');
-        if (recommendationsElement && safetyData.recommendations) {
-            const recommendationsList = safetyData.recommendations.map(rec => `<li>${rec}</li>`).join('');
-            recommendationsElement.innerHTML = `<ul>${recommendationsList}</ul>`;
-        }
-        
-        console.log('📊 Updated safety display with real data');
-    }
-    
     updateReportsSummary(summaryData) {
         if (!summaryData) {
             console.log('❌ No summary data received');
@@ -1209,14 +1154,6 @@ class TrafficDashboard {
                     console.log('❌ Cannot load patterns - API offline');
                 }
                 break;
-            case 'safety':
-                // Load safety-specific data from API
-                if (this.isOnline) {
-                    this.loadSafetyData();
-                } else {
-                    console.log('❌ Cannot load safety data - API offline');
-                }
-                break;
             case 'reports':
                 // Load reports from API
                 if (this.isOnline) {
@@ -1265,28 +1202,6 @@ class TrafficDashboard {
             }
         } catch (error) {
             console.error('❌ Weekly patterns API error:', error.message);
-        }
-    }
-    
-    async loadSafetyData() {
-        console.log('🔄 Loading safety data from API...');
-        
-        if (!this.isOnline) {
-            console.log('❌ Cannot load safety data - API offline');
-            return;
-        }
-        
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/analytics/safety`);
-            if (response.ok) {
-                const safetyData = await response.json();
-                this.updateSafetyDisplay(safetyData);
-                console.log('✅ Safety data loaded successfully');
-            } else {
-                console.error(`❌ Safety analysis API failed: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('❌ Safety analysis API error:', error.message);
         }
     }
     
