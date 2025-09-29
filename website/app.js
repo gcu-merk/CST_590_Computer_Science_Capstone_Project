@@ -765,6 +765,16 @@ class TrafficDashboard {
             return;
         }
         
+        // Use analytics data directly if available, otherwise calculate from speeds array
+        if (speedsData.avg_speed !== undefined && speedsData.violations !== undefined) {
+            // Use pre-calculated analytics data
+            document.getElementById('avg-speed').textContent = speedsData.avg_speed.toFixed(1);
+            document.getElementById('speed-violations').textContent = speedsData.violations;
+            
+            console.log(`📊 Updated speeds from analytics - Avg: ${speedsData.avg_speed.toFixed(1)} mph, Violations: ${speedsData.violations}, Total: ${speedsData.total_measurements || 0}`);
+            return;
+        }
+        
         if (!speedsData.speeds || !Array.isArray(speedsData.speeds)) {
             console.error('❌ Invalid speeds data format:', speedsData);
             document.getElementById('avg-speed').textContent = 'Invalid Data';

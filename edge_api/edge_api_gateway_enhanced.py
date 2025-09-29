@@ -618,14 +618,39 @@ class EnhancedSwaggerAPIGateway:
             def get(self):
                 """Get speed analytics data"""
                 try:
-                    # Placeholder speed data
-                    return {
-                        "speeds": [],
-                        "avg_speed": 0,
-                        "max_speed": 0,
-                        "min_speed": 0,
+                    # Get query parameters
+                    seconds = request.args.get('seconds', 3600, type=int)
+                    
+                    # Use the speed service to get real data
+                    from .services import get_speed_service
+                    speed_service = get_speed_service()
+                    result = speed_service.get_speeds(period_seconds=seconds, limit=1000)
+                    
+                    # Extract analytics data
+                    statistics = result.get('statistics', {})
+                    speeds_data = result.get('speeds', [])
+                    
+                    analytics_data = {
+                        "speeds": [{"speed": s.get('speed_mph', 0), "timestamp": s.get('timestamp')} for s in speeds_data],
+                        "avg_speed": statistics.get('average_mph', 0),
+                        "max_speed": statistics.get('max_mph', 0),
+                        "min_speed": statistics.get('min_mph', 0),
+                        "violations": statistics.get('violations', 0),
+                        "violation_rate": statistics.get('violation_rate', 0),
+                        "total_measurements": statistics.get('count', 0),
+                        "speed_limit": statistics.get('speed_limit_mph', 25),
                         "timestamp": datetime.now().isoformat()
                     }
+                    
+                    logger.info("Speed analytics retrieved successfully", extra={
+                        "business_event": "speed_analytics_success",
+                        "total_measurements": analytics_data["total_measurements"],
+                        "violations": analytics_data["violations"],
+                        "avg_speed": analytics_data["avg_speed"]
+                    })
+                    
+                    return analytics_data
+                    
                 except Exception as e:
                     logger.error("Failed to get speed analytics", extra={
                         "business_event": "speed_analytics_failure", 
