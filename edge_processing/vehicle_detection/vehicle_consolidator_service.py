@@ -1651,11 +1651,14 @@ class VehicleDetectionConsolidatorEnhanced:
             raise e
     
     def _camera_response_processing_loop(self, pubsub):
-        """Process camera responses in background thread"""
+        """Process camera responses in background thread with resilient error handling"""
         
-        try:
-            for message in pubsub.listen():
-                if message['type'] == 'message':
+        while self.running:
+            try:
+                # Use get_message with timeout instead of listen() to handle disconnections better
+                message = pubsub.get_message(timeout=1.0)
+                
+                if message and message['type'] == 'message':
                     try:
                         response_data = json.loads(message['data'].decode('utf-8'))
                         correlation_id = response_data.get('correlation_id')
@@ -1677,12 +1680,23 @@ class VehicleDetectionConsolidatorEnhanced:
                             error=str(e)
                         )
                         
-        except Exception as e:
-            self.logger.log_error(
-                error_type="camera_response_processing_failed", 
-                message=f"Camera response processing failed: {str(e)}",
-                error=str(e)
-            )
+            except (ConnectionError, redis.ConnectionError, redis.TimeoutError) as e:
+                # Redis connection issues - wait and retry
+                self.logger.log_error(
+                    error_type="camera_response_redis_connection_error", 
+                    message=f"Redis connection error in camera response processing, retrying: {str(e)}",
+                    error=str(e)
+                )
+                time.sleep(1.0)  # Wait before retry
+                
+            except Exception as e:
+                # Other errors - log but continue
+                self.logger.log_error(
+                    error_type="camera_response_processing_error", 
+                    message=f"Camera response processing error, continuing: {str(e)}",
+                    error=str(e)
+                )
+                time.sleep(0.1)  # Brief pause before retry
 
 
 def main():
