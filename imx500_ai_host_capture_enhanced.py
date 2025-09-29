@@ -612,6 +612,9 @@ class IMX500AIHostCapture:
                         logger.info(f"📸 Camera captured: No vehicles detected in {lighting_condition} conditions")
                 
                 # Create response data
+                capture_info = result.get("capture_info", {})
+                ai_results = result.get("ai_results", {})
+                
                 camera_response = {
                     "correlation_id": correlation_id,
                     "status": "completed",
@@ -620,7 +623,9 @@ class IMX500AIHostCapture:
                         "vehicle_types": vehicle_types,
                         "detection_confidence": detection_confidence,
                         "processing_time": inference_time,
-                        "image_metadata": result.get("capture_info", {}),
+                        "image_path": capture_info.get("filename"),  # Add image filename
+                        "image_metadata": capture_info,
+                        "roi_data": ai_results.get("detections", []),  # Add ROI detection data
                         "brightness_analysis": result.get("brightness_analysis", {}),
                         "capture_timestamp": time.time(),
                         "brightness_level": result.get("brightness_analysis", {}).get("mean_brightness", 128)
