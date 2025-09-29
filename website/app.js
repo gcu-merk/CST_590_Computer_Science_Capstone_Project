@@ -431,11 +431,13 @@ class TrafficDashboard {
                         // Process airport weather data (if available in future)
                         if (latestEvent.weather_data && latestEvent.weather_data.airport) {
                             const airportData = latestEvent.weather_data.airport;
-                            combinedWeatherData.airport_temperature_f = airportData.temperature || airportData.temperature_f;
+                            combinedWeatherData.airport_temperature_f = airportData.temperature_f; // Use correct Fahrenheit field
+                            combinedWeatherData.airport_temperature_c = airportData.temperature_c || airportData.temperature; // Celsius fallback
                             combinedWeatherData.weather_description = airportData.textDescription;
                             combinedWeatherData.sky_condition = airportData.cloudLayers;
                             hasValidData = true;
                             console.log('✅ Airport weather data loaded from consolidated endpoint');
+                            console.log(`📊 Airport temperature: ${airportData.temperature_c}°C (${Math.round(airportData.temperature_f)}°F)`);
                         }
                     }
 
