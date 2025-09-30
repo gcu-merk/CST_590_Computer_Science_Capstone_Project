@@ -504,7 +504,7 @@ class EnhancedSwaggerAPIGateway:
                 if not filename or '..' in filename or '/' in filename or '\\' in filename:
                     logger.warning("Invalid image filename requested", extra={
                         "business_event": "invalid_image_request",
-                        "filename": filename
+                        "image_filename": filename
                     })
                     return {"error": "Invalid filename"}, 400
                 
@@ -513,14 +513,14 @@ class EnhancedSwaggerAPIGateway:
                 if not os.path.exists(image_path):
                     logger.warning("Requested image not found", extra={
                         "business_event": "image_not_found",
-                        "filename": filename,
+                        "image_filename": filename,
                         "path": image_path
                     })
                     return {"error": "Image not found"}, 404
                 
                 logger.info("Serving camera image", extra={
                     "business_event": "image_served",
-                    "filename": filename
+                    "image_filename": filename
                 })
                 
                 return send_file(image_path, mimetype='image/jpeg')
@@ -528,7 +528,7 @@ class EnhancedSwaggerAPIGateway:
             except Exception as e:
                 logger.error("Failed to serve camera image", extra={
                     "business_event": "image_serving_error",
-                    "filename": filename,
+                    "image_filename": filename,
                     "error": str(e)
                 })
                 return {"error": "Failed to serve image"}, 500
@@ -574,20 +574,20 @@ class EnhancedSwaggerAPIGateway:
                 if file_age > 1800:  # 30 minutes
                     logger.warning("Latest camera image is very stale", extra={
                         "business_event": "very_stale_camera_image",
-                        "filename": filename,
+                        "image_filename": filename,
                         "age_seconds": file_age
                     })
                     return {"error": "Camera image is very stale", "age_minutes": round(file_age/60, 1)}, 503
                 elif file_age > 300:  # 5 minutes
                     logger.warning("Latest camera image is stale but serving anyway", extra={
                         "business_event": "stale_camera_image_served",
-                        "filename": filename,
+                        "image_filename": filename,
                         "age_seconds": file_age
                     })
                 
                 logger.info("Serving latest camera snapshot", extra={
                     "business_event": "latest_snapshot_served",
-                    "filename": filename,
+                    "image_filename": filename,
                     "age_seconds": file_age,
                     "path": latest_image
                 })
