@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CST 590 Traffic Monitoring System - Capstone Project</title>
+    <meta name="description" content="Real-time traffic monitoring system using AI cameras and radar sensors for Oklahoma City. CST 590 Computer Science Capstone Project.">
+    <meta name="keywords" content="traffic monitoring, AI, computer vision, radar sensors, Raspberry Pi, real-time analytics">
+    <meta name="author" content="Grand Canyon University CST 590 Capstone">
+    
+    <!-- Open Graph metadata for social sharing -->
+    <meta property="og:title" content="CST 590 Traffic Monitoring System">
+    <meta property="og:description" content="Real-time traffic monitoring system using AI cameras and radar sensors">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/">
+    
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header">
+        <div class="header-content">
+            <div class="docs-grid">
+                <div class="docs-section">
+                    <div class="docs-icon">🎓</div>
+                    <h3>Academic Project</h3>
+                    <div class="project-info">
+                        <div class="info-item"><strong>CST 590 Computer Science Capstone</strong></div>
+                        <div class="info-item">Grand Canyon University</div>
+                        <div class="info-item">Fall 2025</div>
+                        <div class="tech-stack">
+                            <small>Built with: Raspberry Pi 5, IMX500 AI Camera, Radar Sensors, Python, Docker</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="docs-section">
+                    <div class="docs-icon">📋</div>
+                    <h3>Project Documentation</h3>
+                    <div class="docs-links">
+                        <a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project" target="_blank" rel="noopener">GitHub Repository</a>
+                        <a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/README.md" target="_blank" rel="noopener">Project Overview</a>
+                        <a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/tree/main/documentation" target="_blank" rel="noopener">Technical Documentation</a>
+                    </div>
+                </div>
+                
+                <div class="docs-section">
+                    <div class="docs-icon">🔧</div>
+                    <h3>System Components</h3>
+                    <div class="docs-links">
+                        <a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/DEPLOYMENT_NOTES.md" target="_blank" rel="noopener">Implementation Guide</a>
+                        <a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/API_GATEWAY_DEPLOYMENT_GUIDE.md" target="_blank" rel="noopener">User Guide</a>
+                        <a href="https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/blob/main/API_ENDPOINTS_WITH_LINKS.html" target="_blank" rel="noopener">API Documentation</a>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="location-selector">
+                    <label for="location">Location:</label>
+                    <select id="location">
+                        <option value="oklahoma-city">Oklahoma City</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+        <button class="tab active" data-tab="overview">
+            <span class="tab-icon">📈</span>
+            <span>Overview</span>
+        </button>
+        <button class="tab" data-tab="patterns">
+            <span class="tab-icon">🕐</span>
+            <span>Traffic Patterns</span>
+        </button>
+        <button class="tab" data-tab="reports">
+            <span class="tab-icon">📋</span>
+            <span>Reports</span>
+        </button>
+        <button class="tab" data-tab="alerts">
+            <span class="tab-icon">🚨</span>
+            <span>Alerts</span>
+        </button>
+        <button class="tab" data-tab="events">
+            <span class="tab-icon">📡</span>
+            <span>Live Events</span>
+        </button>
+        <button class="tab" data-tab="logs">
+            <span class="tab-icon">📋</span>
+            <span>System Logs</span>
+        </button>
+    </div>
+
+    <!-- Overview Tab Content -->
+    <div id="overview" class="tab-content active">
+        <!-- Metric Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon vehicles">🚗</div>
+                <div class="metric-value" id="total-vehicles">0</div>
+                <div class="metric-label">Total Vehicles (24 hours)</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon speed">🏃</div>
+                <div class="metric-value" id="avg-speed">0</div>
+                <div class="metric-label">Avg Speed (24 hours)</div>
+            </div>
+            
+            <div class="metric-card violations-card" id="violations-card">
+                <div class="metric-icon violations">⚠️</div>
+                <div class="metric-value" id="violations-count">0</div>
+                <div class="metric-label">Safety Alerts (24 hours)</div>
+            </div>
+            
+            <div class="metric-card weather-card" id="weather-card">
+                <div class="metric-icon weather">🌤️</div>
+                <div class="metric-value" id="current-weather">--°F</div>
+                <div class="metric-label">Current Weather</div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Detection Trends (24 Hours)</h3>
+                    <div class="chart-controls">
+                        <select id="trend-timespan">
+                            <option value="24h">24 Hours</option>
+                            <option value="7d">7 Days</option>
+                            <option value="30d">30 Days</option>
+                        </select>
+                    </div>
+                </div>
+                <canvas id="detection-trend-chart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Speed Distribution</h3>
+                </div>
+                <canvas id="speed-distribution-chart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Vehicle Classification</h3>
+                </div>
+                <canvas id="vehicle-classification-chart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Weather Impact on Traffic</h3>
+                </div>
+                <canvas id="weather-traffic-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Weather Information -->
+        <div class="weather-info">
+            <div class="weather-details">
+                <div class="weather-item">
+                    <span class="weather-icon">🌡️</span>
+                    <span class="weather-label">Airport Temperature</span>
+                    <span class="weather-value" id="airport-temp">--°F</span>
+                </div>
+                <div class="weather-item">
+                    <span class="weather-icon">🌡️</span>
+                    <span class="weather-label">Local Temperature</span>
+                    <span class="weather-value" id="local-temp">--°F</span>
+                </div>
+                <div class="weather-item">
+                    <span class="weather-icon">💧</span>
+                    <span class="weather-label">Local Humidity</span>
+                    <span class="weather-value" id="local-humidity">--%</span>
+                </div>
+                <div class="weather-item">
+                    <span class="weather-icon">💨</span>
+                    <span class="weather-label">Wind Speed</span>
+                    <span class="weather-value" id="wind-speed">-- mph</span>
+                </div>
+            </div>
+            <div class="api-status" id="api-status">
+                <span class="status-indicator api-connected" id="status-indicator">●</span>
+                <span id="status-text">API Connected</span>
+                <span class="status-action" id="status-action">Reconfigure</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Traffic Patterns Tab Content -->
+    <div id="patterns" class="tab-content">
+        <div class="patterns-section">
+            <div class="pattern-card">
+                <h3>Hourly Patterns</h3>
+                <canvas id="hourly-pattern-chart"></canvas>
+            </div>
+            
+            <div class="pattern-card">
+                <h3>Weekly Patterns</h3>
+                <canvas id="weekly-pattern-chart"></canvas>
+            </div>
+            
+            <div class="pattern-card">
+                <h3>Peak Hours Analysis</h3>
+                <div class="peak-hours-grid">
+                    <div class="peak-time">
+                        <div class="peak-label">Morning Peak</div>
+                        <div class="peak-value" id="morning-peak">7:00 AM - 9:00 AM</div>
+                        <div class="peak-count" id="morning-count">0 vehicles</div>
+                    </div>
+                    <div class="peak-time">
+                        <div class="peak-label">Evening Peak</div>
+                        <div class="peak-value" id="evening-peak">5:00 PM - 7:00 PM</div>
+                        <div class="peak-count" id="evening-count">0 vehicles</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tab Content -->
+    <div id="reports" class="tab-content">
+        <div class="reports-section">
+            <div class="report-filters">
+                <div class="filter-group">
+                    <label for="report-timeframe">Time Range:</label>
+                    <select id="report-timeframe">
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="report-type">Report Type:</label>
+                    <select id="report-type">
+                        <option value="summary">Traffic Summary</option>
+                        <option value="violations">Safety Violations</option>
+                        <option value="weather">Weather Impact</option>
+                        <option value="detailed">Detailed Analysis</option>
+                    </select>
+                </div>
+                
+                <div class="export-buttons">
+                    <button class="export-btn" onclick="exportReport('pdf')">
+                        <span>📄</span> Export PDF
+                    </button>
+                    <button class="export-btn" onclick="exportReport('csv')">
+                        <span>📊</span> Export CSV
+                    </button>
+                    <button class="export-btn" onclick="exportReport('json')">
+                        <span>🔗</span> Export JSON
+                    </button>
+                </div>
+            </div>
+            
+            <div class="report-content">
+                <div class="report-summary">
+                    <h3>Report Summary</h3>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <div class="summary-label">Total Detections</div>
+                            <div class="summary-value" id="report-total-detections">0</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Average Speed</div>
+                            <div class="summary-value" id="report-avg-speed">0 mph</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Safety Alerts</div>
+                            <div class="summary-value" id="report-safety-alerts">0</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Weather Events</div>
+                            <div class="summary-value" id="report-weather-events">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="report-chart">
+                    <canvas id="report-main-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts Tab Content -->
+    <div id="alerts" class="tab-content">
+        <div class="alerts-section">
+            <div class="alerts-header">
+                <h3>System Alerts & Notifications</h3>
+                <div class="alerts-controls">
+                    <button class="btn-primary" onclick="refreshAlerts()">🔄 Refresh</button>
+                    <button class="btn-secondary" onclick="clearAllAlerts()">🗑️ Clear All</button>
+                </div>
+            </div>
+            
+            <div class="alerts-filters">
+                <div class="filter-group">
+                    <label for="alert-level">Alert Level:</label>
+                    <select id="alert-level">
+                        <option value="all">All Levels</option>
+                        <option value="critical">Critical</option>
+                        <option value="warning">Warning</option>
+                        <option value="info">Info</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="alert-category">Category:</label>
+                    <select id="alert-category">
+                        <option value="all">All Categories</option>
+                        <option value="speed">Speed Violations</option>
+                        <option value="system">System Health</option>
+                        <option value="weather">Weather Alerts</option>
+                        <option value="detection">Detection Issues</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="alerts-list" id="alerts-list">
+                <!-- Alerts will be populated dynamically -->
+                <div class="alert-item info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">System Initialized</div>
+                        <div class="alert-message">Traffic monitoring system started successfully</div>
+                        <div class="alert-time">Just now</div>
+                    </div>
+                    <div class="alert-actions">
+                        <button class="alert-action" onclick="dismissAlert(this)">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Tab Content -->
+    <div id="events" class="tab-content">
+        <div class="events-section">
+            <div class="events-status-bar">
+                <div class="connection-status">
+                    <span class="status-indicator connected" id="events-status-indicator">●</span>
+                    <span id="events-status-text">Connected to Live Feed</span>
+                </div>
+                <div class="events-controls">
+                    <button class="btn-secondary" onclick="pauseEvents()" id="pause-events-btn">⏸️ Pause</button>
+                    <button class="btn-secondary" onclick="clearEvents()">🗑️ Clear</button>
+                    <button class="btn-primary" onclick="exportEvents()">📁 Export</button>
+                </div>
+            </div>
+            
+            <div class="events-filters">
+                <div class="filter-group">
+                    <label for="event-type">Event Type:</label>
+                    <select id="event-type">
+                        <option value="all">All Events</option>
+                        <option value="detection">Vehicle Detection</option>
+                        <option value="speed">Speed Analysis</option>
+                        <option value="weather">Weather Update</option>
+                        <option value="system">System Event</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="event-source">Source:</label>
+                    <select id="event-source">
+                        <option value="all">All Sources</option>
+                        <option value="camera">Camera Service</option>
+                        <option value="radar">Radar Service</option>
+                        <option value="weather">Weather Service</option>
+                        <option value="consolidator">Data Consolidator</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="events-feed" id="events-feed">
+                <!-- Live events will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs Tab Content -->
+    <div id="logs" class="tab-content">
+        <div class="logs-section">
+            <div class="logs-header">
+                <h3>System Logs</h3>
+                <div class="logs-controls">
+                    <button class="btn-secondary" onclick="pauseLogs()" id="pause-logs-btn">⏸️ Pause</button>
+                    <button class="btn-secondary" onclick="clearLogs()" id="clear-logs">🗑️ Clear</button>
+                    <select id="log-level-filter" title="Filter by log level">
+                        <option value="all">All Levels</option>
+                        <option value="error">Error</option>
+                        <option value="warn">Warning</option>
+                        <option value="info">Info</option>
+                        <option value="debug">Debug</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="logs-container">
+                <div class="logs-feed" id="logs-feed">
+                    <!-- Real-time system logs will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>System Error</h3>
+                <span class="close" onclick="closeModal('error-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="error-message">An error occurred while processing your request.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('error-modal')">Close</button>
+                <button class="btn-primary" onclick="retryLastAction()">Retry</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Success</h3>
+                <span class="close" onclick="closeModal('success-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="success-message">Operation completed successfully.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="closeModal('success-modal')">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Socket.IO for real-time updates -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
