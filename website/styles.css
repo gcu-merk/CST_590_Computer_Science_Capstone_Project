@@ -1195,6 +1195,18 @@ body {
     border-bottom: 1px solid var(--gray-200);
 }
 
+.logs-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+#logs-status-text {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
 .logs-controls {
     display: flex;
     gap: var(--space-3);

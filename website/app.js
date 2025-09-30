@@ -1893,9 +1893,73 @@ document.addEventListener('DOMContentLoaded', () => {
     window.dashboard = new TrafficDashboard();
 });
 
-// Add some helper functions for backwards compatibility
+// Add helper functions for HTML onclick handlers
 function switchTab(tabName) {
     if (window.dashboard) {
         window.dashboard.switchTab(tabName);
     }
+}
+
+function exportReport(format) {
+    if (window.dashboard) {
+        window.dashboard.showNotImplemented(`Export ${format.toUpperCase()} functionality`);
+    }
+}
+
+function refreshAlerts() {
+    if (window.dashboard) {
+        window.dashboard.showNotImplemented('Refresh alerts functionality');
+    }
+}
+
+function clearAllAlerts() {
+    if (window.dashboard) {
+        const alertsList = document.getElementById('alerts-list');
+        if (alertsList) {
+            alertsList.innerHTML = '<div class="alert-item info"><div class="alert-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2"/></svg></div><div class="alert-content"><div class="alert-title">All Alerts Cleared</div><div class="alert-message">Alert history has been cleared</div><div class="alert-time">Just now</div></div></div>';
+        }
+    }
+}
+
+function dismissAlert(button) {
+    const alertItem = button.closest('.alert-item');
+    if (alertItem) {
+        alertItem.style.opacity = '0';
+        alertItem.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            alertItem.remove();
+        }, 300);
+    }
+}
+
+function pauseEvents() {
+    if (window.dashboard && window.dashboard.eventsManager) {
+        window.dashboard.eventsManager.isPaused = !window.dashboard.eventsManager.isPaused;
+        const btn = document.getElementById('pause-events-btn');
+        if (btn) {
+            btn.textContent = window.dashboard.eventsManager.isPaused ? 'Resume' : 'Pause';
+        }
+    }
+}
+
+function clearEvents() {
+    const eventsFeed = document.getElementById('events-feed');
+    if (eventsFeed) {
+        eventsFeed.innerHTML = '<div class="event-entry"><span class="event-timestamp">' + new Date().toISOString() + '</span> <span class="event-type">SYSTEM</span> <span class="event-message">Events feed cleared</span></div>';
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+}
+
+function retryLastAction() {
+    if (window.dashboard) {
+        window.dashboard.showNotImplemented('Retry functionality');
+    }
+    closeModal('error-modal');
 }
