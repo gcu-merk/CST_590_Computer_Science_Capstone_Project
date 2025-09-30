@@ -509,14 +509,17 @@ class EnhancedSwaggerAPIGateway:
                     return {"error": "Invalid filename"}, 400
                 
                 # Check if file exists in camera capture directory
-                image_path = f"/mnt/storage/camera_capture/live/{filename}"
+                image_path = f"/app/camera_capture/live/{filename}"
                 if not os.path.exists(image_path):
-                    logger.warning("Requested image not found", extra={
-                        "business_event": "image_not_found",
-                        "filename": filename,
-                        "path": image_path
-                    })
-                    return {"error": "Image not found"}, 404
+                    # Try alternative path
+                    image_path = f"/mnt/storage/camera_capture/live/{filename}"
+                    if not os.path.exists(image_path):
+                        logger.warning("Requested image not found", extra={
+                            "business_event": "image_not_found",
+                            "filename": filename,
+                            "paths_checked": [f"/app/camera_capture/live/{filename}", f"/mnt/storage/camera_capture/live/{filename}"]
+                        })
+                        return {"error": "Image not found"}, 404
                 
                 logger.info("Serving camera image", extra={
                     "business_event": "image_served",
@@ -540,10 +543,11 @@ class EnhancedSwaggerAPIGateway:
             try:
                 # Try multiple possible camera directory paths
                 possible_paths = [
-                    "/mnt/storage/camera_capture/live",  # Production mounted path
+                    "/app/camera_capture/live",  # Docker container mounted path
+                    "/mnt/storage/camera_capture/live",  # Production host path
                     os.path.join(os.path.dirname(__file__), "..", "data", "camera_capture", "live"),  # Local development
                     "./data/camera_capture/live",  # Relative path
-                    "/app/data/camera_capture/live",  # Docker container path
+                    "/app/data/camera_capture/live",  # Alternative container path
                     "/tmp/camera_capture/live"  # Fallback
                 ]
                 
