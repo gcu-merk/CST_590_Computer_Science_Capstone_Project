@@ -32,6 +32,7 @@ import platform
 import sys
 import uuid
 import psutil
+import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -983,28 +984,74 @@ class EnhancedSwaggerAPIGateway:
     
     @logger.monitor_performance("vehicle_detections_query")
     def _get_vehicle_detections(self) -> Dict[str, Any]:
-        """Get recent vehicle detections with monitoring"""
+        """Get recent vehicle detections from SQLite database"""
         detections = []
         
-        if self.redis_client:
-            try:
-                # Get recent vehicle detections from Redis
-                detection_keys = self.redis_client.keys("vehicle:detection:*")
-                
-                for key in detection_keys[-10:]:  # Get last 10 detections
-                    detection_data = self.redis_client.hgetall(key)
-                    if detection_data:
-                        detections.append(detection_data)
-                
-            except Exception as e:
-                logger.warning("Failed to retrieve detections from Redis", extra={
-                    "error": str(e)
-                })
+        try:
+            # Get database path from environment
+            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            
+            # Check if database file exists
+            if not os.path.exists(db_path):
+                logger.warning(f"Database file not found at {db_path}")
+                return {
+                    "detections": [],
+                    "count": 0,
+                    "timespan_seconds": None
+                }
+            
+            # Connect to SQLite database
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row  # Enable row access by column name
+            cursor = conn.cursor()
+            
+            # Query recent vehicle detections with speed data
+            query = """
+            SELECT 
+                td.id,
+                td.timestamp,
+                td.vehicle_count,
+                td.confidence_score,
+                rd.speed_mph,
+                rd.speed_mps,
+                rd.alert_level
+            FROM traffic_detections td
+            LEFT JOIN radar_detections rd ON td.id = rd.detection_id
+            WHERE td.timestamp >= datetime('now', '-7 days')
+            ORDER BY td.timestamp DESC
+            LIMIT 1000
+            """
+            
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            
+            # Convert rows to dictionaries
+            for row in rows:
+                detection = {
+                    "id": row["id"],
+                    "timestamp": row["timestamp"],
+                    "vehicle_count": row["vehicle_count"] or 1,
+                    "confidence_score": row["confidence_score"],
+                    "speed_mph": row["speed_mph"],
+                    "speed_mps": row["speed_mps"],
+                    "alert_level": row["alert_level"]
+                }
+                detections.append(detection)
+            
+            conn.close()
+            
+            logger.info(f"Retrieved {len(detections)} vehicle detections from database")
+            
+        except Exception as e:
+            logger.error("Failed to retrieve detections from database", extra={
+                "error": str(e),
+                "db_path": db_path
+            })
         
         return {
             "detections": detections,
-            "total_count": len(detections),
-            "timestamp": datetime.now().isoformat()
+            "count": len(detections),
+            "timespan_seconds": 604800  # 7 days
         }
 
     @logger.monitor_performance("consolidated_events_query")
