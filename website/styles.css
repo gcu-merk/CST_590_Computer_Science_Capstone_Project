@@ -61,7 +61,15 @@ body {
 
 .header-content {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.header-right {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 8px;
 }
 
 /* Project Documentation Header */
@@ -91,6 +99,20 @@ body {
     .project-docs-header {
         padding: 16px;
         margin-bottom: 16px;
+    }
+    
+    .header {
+        padding: 16px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .header-right {
+        align-self: stretch;
+        margin-top: 0;
     }
 }
 
