@@ -7,6 +7,8 @@ Provides Redis and PostgreSQL connections with connection pooling and caching
 import logging
 import json
 import time
+import sqlite3
+import os
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timedelta
 from functools import wraps
@@ -260,10 +262,99 @@ class RedisDataAccess:
         return sorted(detections, key=lambda x: x['timestamp'])
 
 
-# Global Redis instance
+class SQLiteDataAccess:
+    """SQLite database access for traffic analytics"""
+    
+    def __init__(self, db_path: str = None):
+        """Initialize SQLite connection"""
+        self.db_path = db_path or os.getenv('DATABASE_PATH', '/mnt/storage/data/traffic_data.db')
+        logger.info(f"SQLite database initialized: {self.db_path}")
+    
+    def get_connection(self):
+        """Get SQLite connection"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row  # Enable dict-like access
+            return conn
+        except Exception as e:
+            logger.error(f"SQLite connection error: {e}")
+            raise DataSourceError(f"SQLite connection failed: {e}", source="SQLite")
+    
+    def get_speed_measurements(self, start_time: datetime, end_time: datetime, 
+                             min_speed: float = None, max_speed: float = None,
+                             limit: int = 1000) -> List[Dict[str, Any]]:
+        """Get speed measurements from radar_detections table"""
+        
+        # Convert to Unix timestamps for database query
+        start_ts = start_time.timestamp()
+        end_ts = end_time.timestamp()
+        
+        # Build SQL query
+        sql = """
+        SELECT 
+            t.timestamp,
+            t.correlation_id,
+            r.speed_mph,
+            r.speed_mps,
+            r.confidence,
+            r.alert_level,
+            r.direction
+        FROM traffic_detections t
+        JOIN radar_detections r ON t.id = r.detection_id
+        WHERE t.timestamp BETWEEN ? AND ?
+        """
+        
+        params = [start_ts, end_ts]
+        
+        # Add speed filters
+        if min_speed is not None:
+            sql += " AND ABS(r.speed_mph) >= ?"
+            params.append(min_speed)
+        
+        if max_speed is not None:
+            sql += " AND ABS(r.speed_mph) <= ?"
+            params.append(max_speed)
+        
+        sql += " ORDER BY t.timestamp DESC LIMIT ?"
+        params.append(limit)
+        
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.execute(sql, params)
+                rows = cursor.fetchall()
+                
+                # Convert to list of dicts
+                measurements = []
+                for row in rows:
+                    measurements.append({
+                        'timestamp': datetime.fromtimestamp(row['timestamp']),
+                        'correlation_id': row['correlation_id'],
+                        'speed_mph': row['speed_mph'],
+                        'speed_mps': row['speed_mps'],
+                        'confidence': row['confidence'],
+                        'alert_level': row['alert_level'],
+                        'direction': row['direction'],
+                        'source': 'database_radar'
+                    })
+                
+                logger.debug(f"Retrieved {len(measurements)} speed measurements from database")
+                return measurements
+                
+        except Exception as e:
+            logger.error(f"Database query error: {e}")
+            raise DataSourceError(f"Speed measurements query failed: {e}", source="SQLite")
+
+
+# Global instances
 redis_client = RedisDataAccess()
+sqlite_client = SQLiteDataAccess()
 
 
 def get_redis_client() -> RedisDataAccess:
     """Get the global Redis client instance"""
     return redis_client
+
+
+def get_sqlite_client() -> SQLiteDataAccess:
+    """Get the global SQLite client instance"""
+    return sqlite_client

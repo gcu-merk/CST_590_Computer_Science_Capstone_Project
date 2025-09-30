@@ -12,7 +12,7 @@ from functools import wraps
 from collections import defaultdict
 
 from .config import config
-from .data_access import get_redis_client
+from .data_access import get_redis_client, get_sqlite_client
 from .error_handling import (
     ValidationError, DataSourceError, NotFoundError,
     validate_time_period, validate_pagination, validate_speed_range
@@ -134,12 +134,13 @@ class SpeedAnalysisService:
     
     def __init__(self):
         self.redis_client = get_redis_client()
+        self.sqlite_client = get_sqlite_client()
         logger.info("SpeedAnalysisService initialized")
     
     @monitor_performance("get_speed_analysis")
     def get_speeds(self, period_seconds: int, min_speed: float = None, 
                    max_speed: float = None, limit: int = 1000) -> Dict[str, Any]:
-        """Get vehicle speed measurements
+        """Get vehicle speed measurements from database
         
         Args:
             period_seconds: Time period in seconds to look back
@@ -158,88 +159,75 @@ class SpeedAnalysisService:
         end_time = datetime.now()
         start_time = end_time - timedelta(seconds=period_seconds)
         
-        # Get radar data for speed calculation
-        radar_data = self.redis_client.get_radar_stream_data(
-            start_time=start_time,
-            end_time=end_time,
-            count=min(limit * 5, 3000)  # More data needed for speed calculation
-        )
-        
-        if len(radar_data) < 2:
-            logger.info("Insufficient radar data for speed calculation")
+        try:
+            # Get speed measurements from database
+            speed_measurements = self.sqlite_client.get_speed_measurements(
+                start_time=start_time,
+                end_time=end_time,
+                min_speed=min_speed,
+                max_speed=max_speed,
+                limit=limit
+            )
+            
+            if not speed_measurements:
+                logger.info("No speed measurements found in database")
+                return {
+                    'speeds': [],
+                    'avg_speed': 0,
+                    'max_speed': 0,
+                    'min_speed': 0,
+                    'violations': 0,
+                    'violation_rate': 0,
+                    'total_measurements': 0,
+                    'speed_limit': 25,  # Default speed limit
+                    'time_range': {
+                        'start': start_time.isoformat(),
+                        'end': end_time.isoformat(),
+                        'period_seconds': period_seconds
+                    },
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            # Calculate statistics
+            speeds = [abs(m['speed_mph']) for m in speed_measurements]  # Use absolute values
+            statistics = {
+                'avg_speed': round(sum(speeds) / len(speeds), 1),
+                'max_speed': max(speeds),
+                'min_speed': min(speeds),
+                'violations': sum(1 for s in speeds if s > 25),  # Speed limit 25 mph
+                'violation_rate': round(sum(1 for s in speeds if s > 25) / len(speeds) * 100, 1),
+                'total_measurements': len(speed_measurements),
+                'speed_limit': 25
+            }
+            
+            # Format for API response  
+            formatted_speeds = []
+            for measurement in speed_measurements:
+                formatted_speeds.append({
+                    'timestamp': measurement['timestamp'].isoformat(),
+                    'speed': abs(measurement['speed_mph'])  # Use absolute value for display
+                })
+            
             return {
-                'speeds': [],
-                'count': 0,
-                'statistics': self._empty_speed_stats(),
+                'speeds': formatted_speeds,
+                'avg_speed': statistics['avg_speed'],
+                'max_speed': statistics['max_speed'],
+                'min_speed': statistics['min_speed'],
+                'violations': statistics['violations'],
+                'violation_rate': statistics['violation_rate'],
+                'total_measurements': statistics['total_measurements'],
+                'speed_limit': statistics['speed_limit'],
                 'time_range': {
                     'start': start_time.isoformat(),
                     'end': end_time.isoformat(),
                     'period_seconds': period_seconds
-                }
+                },
+                'timestamp': datetime.now().isoformat()
             }
-        
-        # Use direct speed measurements from radar (no calculation needed)
-        speed_measurements = []
-        for entry in radar_data:
-            if 'speed' in entry and entry['speed'] is not None:
-                try:
-                    speed_mph = float(entry['speed'])
-                    
-                    # Apply speed filters
-                    if (min_speed is None or speed_mph >= min_speed) and \
-                       (max_speed is None or speed_mph <= max_speed):
-                        speed_measurements.append({
-                            'timestamp': entry['timestamp'],
-                            'speed_mph': speed_mph,
-                            'speed_ms': round(speed_mph / 2.237, 2),  # Convert mph to m/s
-                            'source': entry.get('source', 'radar_direct'),
-                            'magnitude': entry.get('magnitude', 'unknown'),
-                            'unit': entry.get('unit', 'mph')
-                        })
-                except (ValueError, TypeError):
-                    continue
-        
-        # Limit results
-        if len(speed_measurements) > limit:
-            speed_measurements = speed_measurements[-limit:]  # Get most recent
-        
-        # Calculate statistics
-        statistics = self._calculate_speed_statistics(speed_measurements)
-        
-        # Format for API response
-        formatted_speeds = []
-        for speed in speed_measurements:
-            formatted_speeds.append({
-                'timestamp': speed['timestamp'].isoformat(),
-                'speed_mph': speed['speed_mph'],
-                'speed_ms': speed['speed_ms'],
-                'source': speed['source'],
-                'metadata': {
-                    'measurement_method': 'doppler_radar_direct',
-                    'magnitude': speed.get('magnitude', 'unknown'),
-                    'unit': speed.get('unit', 'mph')
-                }
-            })
-        
-        return {
-            'speeds': formatted_speeds,
-            'count': len(formatted_speeds),
-            'statistics': statistics,
-            'time_range': {
-                'start': start_time.isoformat(),
-                'end': end_time.isoformat(),
-                'period_seconds': period_seconds
-            },
-            'filters': {
-                'min_speed_mph': min_speed,
-                'max_speed_mph': max_speed
-            },
-            'metadata': {
-                'total_radar_entries': len(radar_data),
-                'measurement_method': 'doppler_radar_direct',
-                'speed_limit_mph': config.radar.speed_limit_mph
-            }
-        }
+            
+        except Exception as e:
+            logger.error(f"Speed analysis failed: {e}")
+            raise DataSourceError(f"Speed analysis failed: {e}", source="database")
     
     def _calculate_speed_statistics(self, speed_measurements: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate speed statistics from measurements"""
