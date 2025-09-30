@@ -538,19 +538,33 @@ class EnhancedSwaggerAPIGateway:
         def get_latest_camera_snapshot():
             """Get the latest camera snapshot"""
             try:
-                camera_dir = "/mnt/storage/camera_capture/live"
+                # Try multiple possible camera directory paths
+                possible_paths = [
+                    "/mnt/storage/camera_capture/live",  # Production mounted path
+                    os.path.join(os.path.dirname(__file__), "..", "data", "camera_capture", "live"),  # Local development
+                    "./data/camera_capture/live",  # Relative path
+                    "/app/data/camera_capture/live",  # Docker container path
+                    "/tmp/camera_capture/live"  # Fallback
+                ]
                 
-                # Check if camera directory exists
-                if not os.path.exists(camera_dir):
+                camera_dir = None
+                for path in possible_paths:
+                    abs_path = os.path.abspath(path)
+                    if os.path.exists(abs_path):
+                        camera_dir = abs_path
+                        logger.info(f"Using camera directory: {camera_dir}")
+                        break
+                
+                if not camera_dir:
                     logger.warning("Camera capture directory not found", extra={
                         "business_event": "camera_directory_missing",
-                        "path": camera_dir
+                        "checked_paths": possible_paths
                     })
-                    return {"error": "Camera not available"}, 404
+                    return {"error": "Camera directory not found", "checked_paths": possible_paths}, 404
                 
                 # Find the most recent image file
                 image_files = []
-                for ext in ['*.jpg', '*.jpeg', '*.png']:
+                for ext in ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']:
                     image_files.extend(glob.glob(os.path.join(camera_dir, ext)))
                 
                 if not image_files:
@@ -558,26 +572,38 @@ class EnhancedSwaggerAPIGateway:
                         "business_event": "no_camera_images",
                         "directory": camera_dir
                     })
-                    return {"error": "No camera images available"}, 404
+                    # List directory contents for debugging
+                    try:
+                        dir_contents = os.listdir(camera_dir)
+                        return {"error": "No camera images available", "directory": camera_dir, "contents": dir_contents}, 404
+                    except:
+                        return {"error": "No camera images available", "directory": camera_dir}, 404
                 
                 # Get the most recent file by modification time
                 latest_image = max(image_files, key=os.path.getmtime)
                 filename = os.path.basename(latest_image)
-                
-                # Check if the image is recent (within last 5 minutes)
                 file_age = time.time() - os.path.getmtime(latest_image)
-                if file_age > 300:  # 5 minutes
-                    logger.warning("Latest camera image is stale", extra={
-                        "business_event": "stale_camera_image",
+                
+                # More lenient time check - warn but still serve if older than 30 minutes
+                if file_age > 1800:  # 30 minutes
+                    logger.warning("Latest camera image is very stale", extra={
+                        "business_event": "very_stale_camera_image",
                         "filename": filename,
                         "age_seconds": file_age
                     })
-                    return {"error": "Camera image is stale"}, 503
+                    return {"error": "Camera image is very stale", "age_minutes": round(file_age/60, 1)}, 503
+                elif file_age > 300:  # 5 minutes
+                    logger.warning("Latest camera image is stale but serving anyway", extra={
+                        "business_event": "stale_camera_image_served",
+                        "filename": filename,
+                        "age_seconds": file_age
+                    })
                 
                 logger.info("Serving latest camera snapshot", extra={
                     "business_event": "latest_snapshot_served",
                     "filename": filename,
-                    "age_seconds": file_age
+                    "age_seconds": file_age,
+                    "path": latest_image
                 })
                 
                 return send_file(latest_image, mimetype='image/jpeg')
@@ -587,7 +613,7 @@ class EnhancedSwaggerAPIGateway:
                     "business_event": "latest_snapshot_error",
                     "error": str(e)
                 })
-                return {"error": "Failed to get camera snapshot"}, 500
+                return {"error": "Failed to get camera snapshot", "details": str(e)}, 500
         
         # Simple health check endpoint for Docker healthcheck
         @self.app.route('/health')
