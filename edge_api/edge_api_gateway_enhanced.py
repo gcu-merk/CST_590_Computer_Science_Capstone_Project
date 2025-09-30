@@ -511,15 +511,12 @@ class EnhancedSwaggerAPIGateway:
                 # Check if file exists in camera capture directory
                 image_path = f"/app/camera_capture/live/{filename}"
                 if not os.path.exists(image_path):
-                    # Try alternative path
-                    image_path = f"/mnt/storage/camera_capture/live/{filename}"
-                    if not os.path.exists(image_path):
-                        logger.warning("Requested image not found", extra={
-                            "business_event": "image_not_found",
-                            "filename": filename,
-                            "paths_checked": [f"/app/camera_capture/live/{filename}", f"/mnt/storage/camera_capture/live/{filename}"]
-                        })
-                        return {"error": "Image not found"}, 404
+                    logger.warning("Requested image not found", extra={
+                        "business_event": "image_not_found",
+                        "filename": filename,
+                        "path": image_path
+                    })
+                    return {"error": "Image not found"}, 404
                 
                 logger.info("Serving camera image", extra={
                     "business_event": "image_served",
@@ -541,30 +538,15 @@ class EnhancedSwaggerAPIGateway:
         def get_latest_camera_snapshot():
             """Get the latest camera snapshot"""
             try:
-                # Try multiple possible camera directory paths
-                possible_paths = [
-                    "/app/camera_capture/live",  # Docker container mounted path
-                    "/mnt/storage/camera_capture/live",  # Production host path
-                    os.path.join(os.path.dirname(__file__), "..", "data", "camera_capture", "live"),  # Local development
-                    "./data/camera_capture/live",  # Relative path
-                    "/app/data/camera_capture/live",  # Alternative container path
-                    "/tmp/camera_capture/live"  # Fallback
-                ]
+                camera_dir = "/app/camera_capture/live"
                 
-                camera_dir = None
-                for path in possible_paths:
-                    abs_path = os.path.abspath(path)
-                    if os.path.exists(abs_path):
-                        camera_dir = abs_path
-                        logger.info(f"Using camera directory: {camera_dir}")
-                        break
-                
-                if not camera_dir:
+                # Check if camera directory exists
+                if not os.path.exists(camera_dir):
                     logger.warning("Camera capture directory not found", extra={
                         "business_event": "camera_directory_missing",
-                        "checked_paths": possible_paths
+                        "path": camera_dir
                     })
-                    return {"error": "Camera directory not found", "checked_paths": possible_paths}, 404
+                    return {"error": "Camera directory not found", "path": camera_dir}, 404
                 
                 # Find the most recent image file
                 image_files = []
