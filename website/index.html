@@ -101,6 +101,10 @@
             <span class="tab-icon">📡</span>
             <span>Live Events</span>
         </button>
+        <button class="tab" data-tab="logs">
+            <span class="tab-icon">📋</span>
+            <span>System Logs</span>
+        </button>
     </div>
 
     <!-- Overview Tab Content -->
@@ -413,6 +417,33 @@
                 <li>🔍 Search and filter capabilities</li>
                 <li>📡 WebSocket connection for instant updates</li>
             </ul>
+        </div>
+    </div>
+
+    <!-- System Logs Tab Content -->
+    <div id="logs" class="tab-content">
+        <div class="logs-container">
+            <div class="logs-header">
+                <h3>📋 System Logs</h3>
+                <div class="logs-controls">
+                    <button id="clear-logs" class="clear-btn">Clear Logs</button>
+                    <button id="pause-logs" class="pause-btn">Pause</button>
+                    <select id="log-level-filter">
+                        <option value="all">All Levels</option>
+                        <option value="error">Errors Only</option>
+                        <option value="warn">Warnings+</option>
+                        <option value="info">Info+</option>
+                    </select>
+                </div>
+            </div>
+            <div id="logs-feed" class="logs-feed">
+                <div class="log-entry info">
+                    <span class="log-timestamp">Starting...</span>
+                    <span class="log-level">INFO</span>
+                    <span class="log-service">system</span>
+                    <span class="log-message">Log streaming will begin when connected</span>
+                </div>
+            </div>
         </div>
     </div>
 

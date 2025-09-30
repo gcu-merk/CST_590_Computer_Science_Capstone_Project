@@ -125,6 +125,43 @@ def with_correlation_tracking(f):
     return decorated_function
 
 
+import logging
+
+
+class SocketIOLogHandler(logging.Handler):
+    """Custom log handler that broadcasts log messages via Socket.IO"""
+    
+    def __init__(self, socketio_instance):
+        super().__init__()
+        self.socketio = socketio_instance
+        
+    def emit(self, record):
+        try:
+            # Format the log message
+            log_entry = {
+                'timestamp': datetime.fromtimestamp(record.created).isoformat(),
+                'level': record.levelname.lower(),
+                'message': record.getMessage(),
+                'module': record.module,
+                'line': record.lineno
+            }
+            
+            # Add correlation ID if available
+            if hasattr(record, 'correlation_id'):
+                log_entry['correlation_id'] = record.correlation_id
+                
+            # Add business event if available  
+            if hasattr(record, 'business_event'):
+                log_entry['business_event'] = record.business_event
+                
+            # Broadcast to all connected clients
+            self.socketio.emit('system_log', log_entry)
+            
+        except Exception:
+            # Silently ignore errors to prevent logging loops
+            pass
+
+
 class EnhancedSwaggerAPIGateway:
     """
     Enhanced Swagger-enabled API gateway with centralized logging and correlation tracking
@@ -182,6 +219,9 @@ class EnhancedSwaggerAPIGateway:
         # Initialize SocketIO with correlation tracking
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         self._setup_socketio_correlation()
+        
+        # Setup real-time log streaming via Socket.IO
+        self._setup_log_streaming()
         
         # Service references
         self.vehicle_detection_service = None
@@ -346,6 +386,54 @@ class EnhancedSwaggerAPIGateway:
                         'server_timestamp': datetime.now().isoformat(),
                         'client_timestamp': timestamp
                     })
+        
+        @self.socketio.on('subscribe_logs')
+        def handle_subscribe_logs():
+            """Handle logs subscription for real-time log streaming"""
+            correlation_id = str(uuid.uuid4())[:8]
+            
+            with CorrelationContext.set_correlation_id(correlation_id):
+                logger.info("Client subscribed to logs stream", extra={
+                    "business_event": "logs_subscription",
+                    "correlation_id": correlation_id,
+                    "client_id": request.sid
+                })
+                
+                emit('logs_status', {
+                    'status': 'subscribed',
+                    'correlation_id': correlation_id,
+                    'timestamp': datetime.now().isoformat()
+                })
+    
+    def _setup_log_streaming(self):
+        """Setup real-time log streaming via Socket.IO"""
+        try:
+            # Create and configure the Socket.IO log handler
+            socketio_handler = SocketIOLogHandler(self.socketio)
+            socketio_handler.setLevel(logging.INFO)  # Stream INFO level and above
+            
+            # Create a formatter for the handler
+            formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+            socketio_handler.setFormatter(formatter)
+            
+            # Add the handler to the root logger to catch all logs
+            root_logger = logging.getLogger()
+            root_logger.addHandler(socketio_handler)
+            
+            # Also add to our service logger specifically
+            service_logger = logging.getLogger('api_gateway_service')
+            service_logger.addHandler(socketio_handler)
+            
+            logger.info("Real-time log streaming initialized", extra={
+                "business_event": "log_streaming_initialized",
+                "handler_level": "INFO"
+            })
+            
+        except Exception as e:
+            logger.error("Failed to initialize log streaming", extra={
+                "business_event": "log_streaming_initialization_failure",
+                "error": str(e)
+            })
     
     def _setup_middleware(self):
         """Setup request/response middleware for logging and stats"""

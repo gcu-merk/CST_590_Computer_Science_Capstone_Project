@@ -1294,4 +1294,144 @@ body {
     }
 }
 
+/* System Logs Tab Styles */
+.logs-container {
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    height: calc(100vh - 200px);
+    display: flex;
+    flex-direction: column;
+}
+
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.logs-header h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #4c51bf;
+    margin: 0;
+}
+
+.logs-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.clear-btn, .pause-btn {
+    background: #4c51bf;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clear-btn:hover, .pause-btn:hover {
+    background: #3730a3;
+}
+
+.pause-btn.paused {
+    background: #dc2626;
+}
+
+#log-level-filter {
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.logs-feed {
+    flex: 1;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace;
+    font-size: 12px;
+    background: #1a202c;
+    color: #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    line-height: 1.4;
+    border: 1px solid #2d3748;
+}
+
+.log-entry {
+    display: grid;
+    grid-template-columns: 80px 60px 120px 1fr;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid #2d3748;
+    font-size: 11px;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-timestamp {
+    color: #a0aec0;
+    font-weight: 500;
+}
+
+.log-level {
+    font-weight: bold;
+    text-align: center;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.log-entry.error .log-level {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.log-entry.warn .log-level {
+    background: #fef5e7;
+    color: #d69e2e;
+}
+
+.log-entry.info .log-level {
+    background: #ebf8ff;
+    color: #3182ce;
+}
+
+.log-entry.debug .log-level {
+    background: #f0fff4;
+    color: #38a169;
+}
+
+.log-service {
+    color: #63b3ed;
+    font-weight: 500;
+}
+
+.log-message {
+    color: #e2e8f0;
+    word-break: break-word;
+}
+
+.log-entry.error .log-message {
+    color: #fc8181;
+}
+
+.log-entry.warn .log-message {
+    color: #f6e05e;
+}
+
 /* Footer removed to avoid duplication issues */

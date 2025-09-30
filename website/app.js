@@ -1187,6 +1187,10 @@ class TrafficDashboard {
                 }
                 this.eventsManager.start();
                 break;
+            case 'logs':
+                // Initialize system logs tab
+                this.initializeLogsTab();
+                break;
             default:
                 // Overview tab - data already loaded in loadRealData
                 break;
@@ -1583,6 +1587,11 @@ class VehicleEventsManager {
                 this.handleDisconnect();
             });
 
+            // Handle system logs
+            this.socket.on('system_log', (logData) => {
+                this.addLogEntry(logData);
+            });
+
         } catch (error) {
             console.error('Failed to create Socket.IO connection:', error);
             this.addSystemMessage('❌ Failed to establish Socket.IO connection. Using fallback...');
@@ -1787,6 +1796,89 @@ class VehicleEventsManager {
             } else {
                 line.style.display = 'none';
             }
+        });
+    }
+
+    // System Logs functionality
+    addLogEntry(logData) {
+        if (this.logsPaused) return;
+
+        const logsFeed = document.getElementById('logs-feed');
+        if (!logsFeed) return;
+
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry ${logData.level.toLowerCase()}`;
+        
+        const timestamp = new Date(logData.timestamp).toLocaleTimeString();
+        logEntry.innerHTML = `
+            <span class="log-timestamp">${timestamp}</span>
+            <span class="log-level">${logData.level}</span>
+            <span class="log-service">${logData.service}</span>
+            <span class="log-message">${logData.message}</span>
+        `;
+        
+        // Add to top of feed
+        logsFeed.insertBefore(logEntry, logsFeed.firstChild);
+        
+        // Keep only last 200 logs for performance
+        while (logsFeed.children.length > 200) {
+            logsFeed.removeChild(logsFeed.lastChild);
+        }
+
+        // Filter based on current level setting
+        this.applyLogFilter();
+    }
+
+    applyLogFilter() {
+        const filter = document.getElementById('log-level-filter')?.value || 'all';
+        const logEntries = document.querySelectorAll('.log-entry');
+        
+        logEntries.forEach(entry => {
+            let show = true;
+            
+            if (filter === 'error') {
+                show = entry.classList.contains('error');
+            } else if (filter === 'warn') {
+                show = entry.classList.contains('error') || entry.classList.contains('warn');
+            } else if (filter === 'info') {
+                show = !entry.classList.contains('debug');
+            }
+            
+            entry.style.display = show ? 'grid' : 'none';
+        });
+    }
+
+    initializeLogsTab() {
+        // Subscribe to logs when tab is activated
+        if (this.socket) {
+            this.socket.emit('subscribe_logs');
+        }
+
+        // Initialize log controls
+        this.logsPaused = false;
+        
+        document.getElementById('clear-logs')?.addEventListener('click', () => {
+            const logsFeed = document.getElementById('logs-feed');
+            if (logsFeed) {
+                logsFeed.innerHTML = '';
+                this.addLogEntry({
+                    timestamp: new Date().toISOString(),
+                    level: 'INFO',
+                    service: 'system',
+                    message: 'Logs cleared'
+                });
+            }
+        });
+
+        document.getElementById('pause-logs')?.addEventListener('click', (e) => {
+            this.logsPaused = !this.logsPaused;
+            const btn = e.target;
+            btn.textContent = this.logsPaused ? 'Resume' : 'Pause';
+            btn.classList.toggle('paused', this.logsPaused);
+        });
+
+        document.getElementById('log-level-filter')?.addEventListener('change', () => {
+            this.applyLogFilter();
         });
     }
 
