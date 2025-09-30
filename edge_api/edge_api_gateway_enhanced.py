@@ -622,7 +622,10 @@ class EnhancedSwaggerAPIGateway:
                     seconds = request.args.get('seconds', 3600, type=int)
                     
                     # Use the speed service to get real data
-                    from .services import get_speed_service
+                    import sys
+                    import os
+                    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+                    from services import get_speed_service
                     speed_service = get_speed_service()
                     result = speed_service.get_speeds(period_seconds=seconds, limit=1000)
                     
