@@ -33,6 +33,7 @@ import sys
 import uuid
 import psutil
 import sqlite3
+import glob
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -531,6 +532,62 @@ class EnhancedSwaggerAPIGateway:
                     "error": str(e)
                 })
                 return {"error": "Failed to serve image"}, 500
+
+        # Latest camera snapshot endpoint
+        @self.app.route('/api/camera/latest')
+        def get_latest_camera_snapshot():
+            """Get the latest camera snapshot"""
+            try:
+                camera_dir = "/mnt/storage/camera_capture/live"
+                
+                # Check if camera directory exists
+                if not os.path.exists(camera_dir):
+                    logger.warning("Camera capture directory not found", extra={
+                        "business_event": "camera_directory_missing",
+                        "path": camera_dir
+                    })
+                    return {"error": "Camera not available"}, 404
+                
+                # Find the most recent image file
+                image_files = []
+                for ext in ['*.jpg', '*.jpeg', '*.png']:
+                    image_files.extend(glob.glob(os.path.join(camera_dir, ext)))
+                
+                if not image_files:
+                    logger.warning("No camera images found", extra={
+                        "business_event": "no_camera_images",
+                        "directory": camera_dir
+                    })
+                    return {"error": "No camera images available"}, 404
+                
+                # Get the most recent file by modification time
+                latest_image = max(image_files, key=os.path.getmtime)
+                filename = os.path.basename(latest_image)
+                
+                # Check if the image is recent (within last 5 minutes)
+                file_age = time.time() - os.path.getmtime(latest_image)
+                if file_age > 300:  # 5 minutes
+                    logger.warning("Latest camera image is stale", extra={
+                        "business_event": "stale_camera_image",
+                        "filename": filename,
+                        "age_seconds": file_age
+                    })
+                    return {"error": "Camera image is stale"}, 503
+                
+                logger.info("Serving latest camera snapshot", extra={
+                    "business_event": "latest_snapshot_served",
+                    "filename": filename,
+                    "age_seconds": file_age
+                })
+                
+                return send_file(latest_image, mimetype='image/jpeg')
+                
+            except Exception as e:
+                logger.error("Failed to get latest camera snapshot", extra={
+                    "business_event": "latest_snapshot_error",
+                    "error": str(e)
+                })
+                return {"error": "Failed to get camera snapshot"}, 500
         
         # Simple health check endpoint for Docker healthcheck
         @self.app.route('/health')
