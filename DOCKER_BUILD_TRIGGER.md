@@ -11,3 +11,9 @@ image with the latest source code that includes:
 
 Build timestamp: 2025-09-23 17:05:00 UTC
 Source commit: 66d9373 (network cleanup fixes)
+
+Rebuild trigger note:
+- 2025-09-30: Include fix for Edge API enhanced gateway import in /api/analytics/speeds
+	- Change: import get_speed_service via package path (edge_api.services) to avoid
+		"attempted relative import with no known parent package" at runtime.
+	- Commit: f9c92bb
