@@ -719,19 +719,18 @@ class EnhancedSwaggerAPIGateway:
                     speed_service = get_speed_service()
                     result = speed_service.get_speeds(period_seconds=seconds, limit=1000)
                     
-                    # Extract analytics data
-                    statistics = result.get('statistics', {})
+                    # Extract analytics data - Updated to match SpeedAnalysisService output format
                     speeds_data = result.get('speeds', [])
                     
                     analytics_data = {
-                        "speeds": [{"speed": s.get('speed_mph', 0), "timestamp": s.get('timestamp')} for s in speeds_data],
-                        "avg_speed": statistics.get('average_mph', 0),
-                        "max_speed": statistics.get('max_mph', 0),
-                        "min_speed": statistics.get('min_mph', 0),
-                        "violations": statistics.get('violations', 0),
-                        "violation_rate": statistics.get('violation_rate', 0),
-                        "total_measurements": statistics.get('count', 0),
-                        "speed_limit": statistics.get('speed_limit_mph', 25),
+                        "speeds": [{"speed": s.get('speed', 0), "timestamp": s.get('timestamp')} for s in speeds_data],
+                        "avg_speed": result.get('avg_speed', 0),
+                        "max_speed": result.get('max_speed', 0),
+                        "min_speed": result.get('min_speed', 0),
+                        "violations": result.get('violations', 0),
+                        "violation_rate": result.get('violation_rate', 0),
+                        "total_measurements": result.get('total_measurements', 0),
+                        "speed_limit": result.get('speed_limit', 25),
                         "timestamp": datetime.now().isoformat()
                     }
                     
