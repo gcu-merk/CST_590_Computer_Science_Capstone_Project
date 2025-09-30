@@ -34,7 +34,20 @@ import uuid
 import psutil
 import sqlite3
 import glob
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    # Fallback for Python < 3.9
+    class ZoneInfo:
+        def __init__(self, key):
+            if key == 'America/Chicago':
+                # Central Time: UTC-6 (standard) or UTC-5 (daylight)
+                self.offset = timezone(timedelta(hours=-6))
+            else:
+                self.offset = timezone.utc
+        def __call__(self):
+            return self.offset
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import functools
@@ -183,6 +196,38 @@ class EnhancedSwaggerAPIGateway:
             "active_connections": 0,
             "start_time": datetime.now().isoformat()
         }
+
+    def convert_to_central_time(self, timestamp_str):
+        """Convert timestamp string to Central Time ISO format"""
+        try:
+            if not timestamp_str:
+                return None
+            
+            # Parse the timestamp (assume UTC if no timezone info)
+            if isinstance(timestamp_str, str):
+                if timestamp_str.endswith('Z'):
+                    dt = datetime.fromisoformat(timestamp_str[:-1]).replace(tzinfo=timezone.utc)
+                elif '+' in timestamp_str[-6:] or '-' in timestamp_str[-6:]:
+                    dt = datetime.fromisoformat(timestamp_str)
+                else:
+                    # No timezone info, assume UTC
+                    dt = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
+            else:
+                return timestamp_str
+            
+            # Convert to Central Time
+            try:
+                central_tz = ZoneInfo('America/Chicago')
+                central_dt = dt.astimezone(central_tz)
+            except:
+                # Fallback: approximate Central Time as UTC-6
+                central_dt = dt.astimezone(timezone(timedelta(hours=-6)))
+            
+            return central_dt.isoformat()
+            
+        except Exception as e:
+            print(f"Failed to convert timestamp {timestamp_str}: {e}")
+            return timestamp_str
         
         # Connection health tracking
         self.connection_health = {
@@ -792,8 +837,19 @@ class EnhancedSwaggerAPIGateway:
                     # Extract analytics data - Updated to match SpeedAnalysisService output format
                     speeds_data = result.get('speeds', [])
                     
+                    # Convert timestamps to Central Time
+                    converted_speeds = []
+                    for s in speeds_data:
+                        speed_record = {"speed": s.get('speed', 0)}
+                        original_timestamp = s.get('timestamp')
+                        if original_timestamp:
+                            speed_record["timestamp"] = gateway.convert_to_central_time(original_timestamp)
+                        else:
+                            speed_record["timestamp"] = original_timestamp
+                        converted_speeds.append(speed_record)
+                    
                     analytics_data = {
-                        "speeds": [{"speed": s.get('speed', 0), "timestamp": s.get('timestamp')} for s in speeds_data],
+                        "speeds": converted_speeds,
                         "avg_speed": result.get('avg_speed', 0),
                         "max_speed": result.get('max_speed', 0),
                         "min_speed": result.get('min_speed', 0),
