@@ -501,6 +501,40 @@ body {
     font-weight: 500;
 }
 
+/* Weather Card Enhancements */
+.weather-card {
+    position: relative;
+}
+
+.weather-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.weather-details {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--gray-200);
+}
+
+.weather-detail {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--space-1);
+    font-size: var(--font-size-xs);
+}
+
+.weather-detail-label {
+    color: var(--gray-500);
+    font-weight: 500;
+}
+
+.weather-detail-value {
+    color: var(--gray-700);
+    font-weight: 600;
+}
+
 /* Charts Section */
 .charts-section {
     display: grid;

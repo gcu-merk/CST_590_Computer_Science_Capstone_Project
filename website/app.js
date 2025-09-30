@@ -804,51 +804,124 @@ class TrafficDashboard {
     updateWeatherData(weatherData) {
         if (!weatherData) {
             console.error('❌ No weather data received');
-            document.getElementById('airport-temp').textContent = 'No Data';
-            document.getElementById('local-temp').textContent = 'No Data';
-            document.getElementById('local-humidity').textContent = 'No Data';
+            // Update current weather display
+            const currentWeatherElement = document.getElementById('current-weather');
+            if (currentWeatherElement) {
+                currentWeatherElement.textContent = '--°F';
+            }
+            
+            // Legacy element updates for compatibility
+            const airportTempElement = document.getElementById('airport-temp');
+            const localTempElement = document.getElementById('local-temp');
+            const localHumidityElement = document.getElementById('local-humidity');
+            
+            if (airportTempElement) airportTempElement.textContent = 'No Data';
+            if (localTempElement) localTempElement.textContent = 'No Data';
+            if (localHumidityElement) localHumidityElement.textContent = 'No Data';
             return;
         }
+
+        // Update the main current weather display in overview
+        const currentWeatherElement = document.getElementById('current-weather');
+        if (currentWeatherElement) {
+            let tempDisplay = '--°F';
+            let weatherInfo = '';
+            
+            // Prioritize local DHT22 temperature if available
+            if (weatherData.temperature_f) {
+                tempDisplay = `${Math.round(weatherData.temperature_f)}°F`;
+                console.log(`📊 Updated current weather: ${tempDisplay}`);
+            } else if (weatherData.temperature_c) {
+                const tempF = Math.round(weatherData.temperature_c * 9/5 + 32);
+                tempDisplay = `${tempF}°F`;
+                console.log(`📊 Updated current weather: ${tempF}°F`);
+            } else if (weatherData.airport_temperature_f) {
+                tempDisplay = `${Math.round(weatherData.airport_temperature_f)}°F`;
+                console.log(`📊 Updated current weather from airport: ${tempDisplay}`);
+            } else if (weatherData.airport_temperature_c) {
+                const tempF = Math.round(weatherData.airport_temperature_c * 9/5 + 32);
+                tempDisplay = `${tempF}°F`;
+                console.log(`📊 Updated current weather from airport: ${tempF}°F`);
+            }
+            
+            // Add humidity if available
+            if (weatherData.humidity !== undefined && weatherData.humidity !== null) {
+                weatherInfo = ` (${Math.round(weatherData.humidity)}% RH)`;
+            }
+            
+            currentWeatherElement.textContent = tempDisplay + weatherInfo;
+            
+            // Update weather source information
+            const weatherSourceElement = document.getElementById('weather-source');
+            if (weatherSourceElement) {
+                if (weatherData.temperature_f || weatherData.temperature_c) {
+                    weatherSourceElement.textContent = 'DHT22 Sensor';
+                } else if (weatherData.airport_temperature_f || weatherData.airport_temperature_c) {
+                    weatherSourceElement.textContent = 'Airport Weather';
+                } else {
+                    weatherSourceElement.textContent = 'No Data';
+                }
+            }
+            
+            // Update weather status indicator
+            const weatherStatusElement = document.getElementById('weather-status');
+            if (weatherStatusElement) {
+                const indicator = weatherStatusElement.querySelector('.status-indicator');
+                if (indicator) {
+                    if (tempDisplay !== '--°F') {
+                        indicator.className = 'status-indicator connected';
+                    } else {
+                        indicator.className = 'status-indicator error';
+                    }
+                }
+            }
+        }
         
-        // Update airport temperature
+        // Update airport temperature (legacy support)
         const airportTempElement = document.getElementById('airport-temp');
-        if (weatherData.airport_temperature_f) {
-            airportTempElement.textContent = `${Math.round(weatherData.airport_temperature_f)}°F`;
-            console.log(`📊 Updated airport temperature: ${Math.round(weatherData.airport_temperature_f)}°F`);
-        } else if (weatherData.airport_temperature_c) {
-            const tempF = Math.round(weatherData.airport_temperature_c * 9/5 + 32);
-            airportTempElement.textContent = `${tempF}°F`;
-            console.log(`📊 Updated airport temperature: ${tempF}°F`);
-        } else {
-            airportTempElement.textContent = '--°F';
-            console.log('📊 No airport temperature data available');
+        if (airportTempElement) {
+            if (weatherData.airport_temperature_f) {
+                airportTempElement.textContent = `${Math.round(weatherData.airport_temperature_f)}°F`;
+                console.log(`📊 Updated airport temperature: ${Math.round(weatherData.airport_temperature_f)}°F`);
+            } else if (weatherData.airport_temperature_c) {
+                const tempF = Math.round(weatherData.airport_temperature_c * 9/5 + 32);
+                airportTempElement.textContent = `${tempF}°F`;
+                console.log(`📊 Updated airport temperature: ${tempF}°F`);
+            } else {
+                airportTempElement.textContent = '--°F';
+                console.log('📊 No airport temperature data available');
+            }
         }
         
-        // Update local DHT22 temperature
+        // Update local DHT22 temperature (legacy support)
         const localTempElement = document.getElementById('local-temp');
-        if (weatherData.temperature_f) {
-            localTempElement.textContent = `${Math.round(weatherData.temperature_f)}°F`;
-            console.log(`📊 Updated local temperature: ${Math.round(weatherData.temperature_f)}°F`);
-        } else if (weatherData.temperature_c) {
-            const tempF = Math.round(weatherData.temperature_c * 9/5 + 32);
-            localTempElement.textContent = `${tempF}°F`;
-            console.log(`📊 Updated local temperature: ${tempF}°F`);
-        } else {
-            localTempElement.textContent = '--°F';
-            console.log('📊 No local temperature data available');
+        if (localTempElement) {
+            if (weatherData.temperature_f) {
+                localTempElement.textContent = `${Math.round(weatherData.temperature_f)}°F`;
+                console.log(`📊 Updated local temperature: ${Math.round(weatherData.temperature_f)}°F`);
+            } else if (weatherData.temperature_c) {
+                const tempF = Math.round(weatherData.temperature_c * 9/5 + 32);
+                localTempElement.textContent = `${tempF}°F`;
+                console.log(`📊 Updated local temperature: ${tempF}°F`);
+            } else {
+                localTempElement.textContent = '--°F';
+                console.log('📊 No local temperature data available');
+            }
         }
         
-        // Update local DHT22 humidity
+        // Update local DHT22 humidity (legacy support)
         const humidityElement = document.getElementById('local-humidity');
-        if (weatherData.humidity !== undefined && weatherData.humidity !== null) {
-            humidityElement.textContent = `${Math.round(weatherData.humidity)}%`;
-            console.log(`📊 Updated humidity: ${Math.round(weatherData.humidity)}%`);
-        } else {
-            humidityElement.textContent = '--%';
-            console.log('📊 No humidity data available');
+        if (humidityElement) {
+            if (weatherData.humidity !== undefined && weatherData.humidity !== null) {
+                humidityElement.textContent = `${Math.round(weatherData.humidity)}%`;
+                console.log(`📊 Updated humidity: ${Math.round(weatherData.humidity)}%`);
+            } else {
+                humidityElement.textContent = '--%';
+                console.log('📊 No humidity data available');
+            }
         }
         
-        // Update weather condition display if element exists
+        // Update weather condition display if element exists (legacy support)
         const weatherElement = document.getElementById('weather-condition');
         if (weatherElement) {
             if (weatherData.weather_description) {
@@ -860,25 +933,29 @@ class TrafficDashboard {
             }
         }
         
-        // Update wind speed
+        // Update wind speed (legacy support)
         const windSpeedElement = document.getElementById('wind-speed');
-        if (weatherData.wind_speed_mph !== undefined && weatherData.wind_speed_mph !== null) {
-            windSpeedElement.textContent = `${weatherData.wind_speed_mph} mph`;
-            console.log(`🌬️ Updated wind speed: ${weatherData.wind_speed_mph} mph`);
-        } else {
-            windSpeedElement.textContent = 'No Data';
-            console.log('🌬️ No wind speed data available');
+        if (windSpeedElement) {
+            if (weatherData.wind_speed_mph !== undefined && weatherData.wind_speed_mph !== null) {
+                windSpeedElement.textContent = `${weatherData.wind_speed_mph} mph`;
+                console.log(`🌬️ Updated wind speed: ${weatherData.wind_speed_mph} mph`);
+            } else {
+                windSpeedElement.textContent = 'No Data';
+                console.log('🌬️ No wind speed data available');
+            }
         }
         
-        // Update wind direction
+        // Update wind direction (legacy support)
         const windDirectionElement = document.getElementById('wind-direction');
-        if (weatherData.wind_direction !== undefined && weatherData.wind_direction !== null) {
-            const compass = weatherData.wind_direction_compass || this.degreesToCompass(weatherData.wind_direction);
-            windDirectionElement.textContent = `${compass} (${weatherData.wind_direction}°)`;
-            console.log(`🧭 Updated wind direction: ${compass} (${weatherData.wind_direction}°)`);
-        } else {
-            windDirectionElement.textContent = 'No Data';
-            console.log('🧭 No wind direction data available');
+        if (windDirectionElement) {
+            if (weatherData.wind_direction !== undefined && weatherData.wind_direction !== null) {
+                const compass = weatherData.wind_direction_compass || this.degreesToCompass(weatherData.wind_direction);
+                windDirectionElement.textContent = `${compass} (${weatherData.wind_direction}°)`;
+                console.log(`🧭 Updated wind direction: ${compass} (${weatherData.wind_direction}°)`);
+            } else {
+                windDirectionElement.textContent = 'No Data';
+                console.log('🧭 No wind direction data available');
+            }
         }
 
         // Update additional weather info in the metric trend if available

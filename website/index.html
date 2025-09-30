@@ -226,7 +226,7 @@
                         </div>
                     </div>
                     
-                    <div class="metric-card">
+                    <div class="metric-card weather-card">
                         <div class="metric-header">
                             <div class="metric-icon info">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -234,10 +234,23 @@
                                     <path d="M18 14C16 16 13 17 10 17C7 17 4 16 2 14C4 12 7 11 10 11C13 11 16 12 18 14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </div>
+                            <div class="weather-status" id="weather-status">
+                                <div class="status-indicator connected"></div>
+                            </div>
                         </div>
                         <div class="metric-content">
                             <div class="metric-value" id="current-weather">--°F</div>
                             <div class="metric-label">Current Weather</div>
+                            <div class="weather-details" id="weather-details">
+                                <div class="weather-detail">
+                                    <span class="weather-detail-label">Condition:</span>
+                                    <span class="weather-detail-value" id="weather-condition">--</span>
+                                </div>
+                                <div class="weather-detail">
+                                    <span class="weather-detail-label">Source:</span>
+                                    <span class="weather-detail-value" id="weather-source">DHT22 Sensor</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
