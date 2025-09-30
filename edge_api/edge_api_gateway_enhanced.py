@@ -710,10 +710,12 @@ class EnhancedSwaggerAPIGateway:
                     seconds = request.args.get('seconds', 3600, type=int)
                     
                     # Use the speed service to get real data
-                    import sys
-                    import os
-                    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-                    from services import get_speed_service
+                    # Import with package context to avoid relative import errors
+                    try:
+                        from edge_api.services import get_speed_service  # when running as a package
+                    except Exception:
+                        # Fallback for module-level execution
+                        from .services import get_speed_service  # type: ignore
                     speed_service = get_speed_service()
                     result = speed_service.get_speeds(period_seconds=seconds, limit=1000)
                     
