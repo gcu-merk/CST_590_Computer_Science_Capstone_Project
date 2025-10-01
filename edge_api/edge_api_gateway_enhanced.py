@@ -17,7 +17,7 @@ Architecture:
 HTTP Requests -> Enhanced API Gateway -> ServiceLogger -> Redis/Database -> Centralized Logging
 """
 
-from flask import Flask, jsonify, request, send_file, g
+from flask import Flask, jsonify, request, send_file, g, make_response
 from flask_restx import Api, Resource, Namespace, reqparse
 
 from flask_socketio import SocketIO, emit
@@ -34,6 +34,8 @@ import uuid
 import psutil
 import sqlite3
 import glob
+import csv
+import io
 from datetime import datetime, timezone, timedelta
 try:
     from zoneinfo import ZoneInfo
@@ -967,6 +969,79 @@ class EnhancedSwaggerAPIGateway:
                         "error": str(e)
                     })
                     return {"error": str(e)}, 500
+
+        @analytics_ns.route('/reports/monthly/download')
+        class MonthlyReportDownload(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Download monthly traffic summary report as PDF"""
+                try:
+                    # Generate PDF report data
+                    report_data = gateway._generate_monthly_report_data()
+                    
+                    # Create simple HTML content for PDF-like format
+                    html_content = gateway._generate_monthly_pdf_content(report_data)
+                    
+                    # Return as downloadable HTML file (PDF alternative)
+                    response = make_response(html_content)
+                    response.headers['Content-Type'] = 'text/html'
+                    response.headers['Content-Disposition'] = f'attachment; filename=monthly_traffic_summary_{datetime.now().strftime("%Y-%m")}.html'
+                    
+                    logger.info("Monthly report downloaded", extra={
+                        "business_event": "monthly_report_download",
+                        "report_type": "monthly_summary"
+                    })
+                    
+                    return response
+                    
+                except Exception as e:
+                    logger.error("Failed to generate monthly report", extra={
+                        "business_event": "monthly_report_download_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
+
+        @analytics_ns.route('/reports/violations/download')  
+        class ViolationsReportDownload(Resource):
+            @with_correlation_tracking
+            def get(self):
+                """Download speed violation report as CSV"""
+                try:
+                    # Generate CSV report data
+                    report_data = gateway._generate_violations_report_data()
+                    
+                    # Create CSV content
+                    output = io.StringIO()
+                    writer = csv.writer(output)
+                    
+                    # Write CSV headers
+                    writer.writerow(['Date', 'Time', 'Vehicle Type', 'Speed (MPH)', 'Speed Limit', 'Violation Amount', 'Location', 'Confidence'])
+                    
+                    # Write data rows
+                    for row in report_data:
+                        writer.writerow(row)
+                    
+                    # Create response
+                    csv_content = output.getvalue()
+                    output.close()
+                    
+                    response = make_response(csv_content)
+                    response.headers['Content-Type'] = 'text/csv'
+                    response.headers['Content-Disposition'] = f'attachment; filename=speed_violations_{datetime.now().strftime("%Y-%m")}.csv'
+                    
+                    logger.info("Violations report downloaded", extra={
+                        "business_event": "violations_report_download", 
+                        "report_type": "speed_violations"
+                    })
+                    
+                    return response
+                    
+                except Exception as e:
+                    logger.error("Failed to generate violations report", extra={
+                        "business_event": "violations_report_download_failure",
+                        "error": str(e)
+                    })
+                    return {"error": str(e)}, 500
         
         # Events endpoints for real-time dashboard
         @events_ns.route('/recent')
@@ -1387,6 +1462,187 @@ class EnhancedSwaggerAPIGateway:
                 "business_event": "event_broadcast_failure",
                 "error": str(e)
             })
+
+    def _generate_monthly_report_data(self):
+        """Generate data for monthly traffic summary report"""
+        try:
+            # Get database path from environment
+            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            
+            if not os.path.exists(db_path):
+                logger.warning(f"Database file not found at {db_path}")
+                return {
+                    "summary": "No data available",
+                    "total_vehicles": 0,
+                    "avg_speed": 0,
+                    "violations": 0,
+                    "period": "Current Month"
+                }
+            
+            # Connect to SQLite database
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Get monthly summary data
+            query = """
+            SELECT 
+                COUNT(*) as total_detections,
+                AVG(rd.speed_mph) as avg_speed,
+                COUNT(CASE WHEN rd.speed_mph > 35 THEN 1 END) as violations
+            FROM traffic_detections td
+            LEFT JOIN radar_detections rd ON td.id = rd.detection_id
+            WHERE td.timestamp >= datetime('now', 'start of month')
+            """
+            
+            cursor.execute(query)
+            row = cursor.fetchone()
+            
+            conn.close()
+            
+            return {
+                "total_vehicles": row[0] if row[0] else 0,
+                "avg_speed": round(row[1], 1) if row[1] else 0,
+                "violations": row[2] if row[2] else 0,
+                "period": datetime.now().strftime("%B %Y"),
+                "generated_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+        except Exception as e:
+            logger.error("Failed to generate monthly report data", extra={"error": str(e)})
+            return {
+                "summary": "Error generating report",
+                "total_vehicles": 0,
+                "avg_speed": 0,
+                "violations": 0,
+                "period": "Current Month"
+            }
+
+    def _generate_monthly_pdf_content(self, report_data):
+        """Generate HTML content for monthly PDF report"""
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monthly Traffic Summary Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; }}
+        .header {{ text-align: center; margin-bottom: 30px; }}
+        .summary {{ background: #f5f5f5; padding: 20px; margin: 20px 0; }}
+        .metric {{ display: inline-block; margin: 10px 20px; text-align: center; }}
+        .metric-value {{ font-size: 24px; font-weight: bold; color: #2563eb; }}
+        .metric-label {{ font-size: 14px; color: #666; }}
+        .footer {{ margin-top: 50px; font-size: 12px; color: #888; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Monthly Traffic Summary Report</h1>
+        <h2>{report_data['period']}</h2>
+        <p>Generated on {report_data['generated_date']}</p>
+    </div>
+    
+    <div class="summary">
+        <h3>Traffic Summary</h3>
+        <div class="metric">
+            <div class="metric-value">{report_data['total_vehicles']}</div>
+            <div class="metric-label">Total Vehicles Detected</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{report_data['avg_speed']} MPH</div>
+            <div class="metric-label">Average Speed</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{report_data['violations']}</div>
+            <div class="metric-label">Speed Violations</div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Report generated by Traffic Monitoring System - CST 590 Capstone Project</p>
+        <p>Oklahoma City Traffic Monitoring - Raspberry Pi Edge Computing Solution</p>
+    </div>
+</body>
+</html>
+        """
+        return html_content
+
+    def _generate_violations_report_data(self):
+        """Generate data for speed violations CSV report"""
+        try:
+            # Get database path from environment
+            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            
+            if not os.path.exists(db_path):
+                logger.warning(f"Database file not found at {db_path}")
+                return [
+                    [datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M:%S"), 
+                     "No Data", "0", "35", "0", "N/A", "0%"]
+                ]
+            
+            # Connect to SQLite database
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get violations data (speed > 35 mph)
+            query = """
+            SELECT 
+                td.timestamp,
+                'Vehicle' as vehicle_type,
+                rd.speed_mph,
+                35 as speed_limit,
+                (rd.speed_mph - 35) as violation_amount,
+                'Main Street' as location,
+                td.confidence_score
+            FROM traffic_detections td
+            JOIN radar_detections rd ON td.id = rd.detection_id
+            WHERE rd.speed_mph > 35
+            AND td.timestamp >= datetime('now', 'start of month')
+            ORDER BY td.timestamp DESC
+            LIMIT 1000
+            """
+            
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            
+            conn.close()
+            
+            # Convert to CSV rows
+            csv_data = []
+            for row in rows:
+                timestamp = datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00'))
+                csv_data.append([
+                    timestamp.strftime("%Y-%m-%d"),
+                    timestamp.strftime("%H:%M:%S"),
+                    row['vehicle_type'],
+                    f"{row['speed_mph']:.1f}",
+                    str(row['speed_limit']),
+                    f"{row['violation_amount']:.1f}",
+                    row['location'],
+                    f"{row['confidence_score']:.1f}%" if row['confidence_score'] else "N/A"
+                ])
+            
+            # If no data, return sample row
+            if not csv_data:
+                csv_data.append([
+                    datetime.now().strftime("%Y-%m-%d"),
+                    datetime.now().strftime("%H:%M:%S"),
+                    "No Violations",
+                    "0.0",
+                    "35",
+                    "0.0", 
+                    "Main Street",
+                    "N/A"
+                ])
+            
+            return csv_data
+            
+        except Exception as e:
+            logger.error("Failed to generate violations report data", extra={"error": str(e)})
+            return [
+                [datetime.now().strftime("%Y-%m-%d"), datetime.now().strftime("%H:%M:%S"), 
+                 "Error", "0", "35", "0", "N/A", "0%"]
+            ]
     
     def run(self, debug=False):
         """Run the enhanced API gateway with logging"""
