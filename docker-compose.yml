@@ -57,6 +57,12 @@ services:
     networks:
       - app-network
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   data-maintenance:
     image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
