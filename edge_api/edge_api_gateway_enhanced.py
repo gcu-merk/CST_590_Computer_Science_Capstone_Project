@@ -247,38 +247,6 @@ class EnhancedSwaggerAPIGateway:
         self.system_status = None
         self.weather_storage = None
 
-    def convert_to_central_time(self, timestamp_str):
-        """Convert timestamp string to Central Time ISO format"""
-        try:
-            if not timestamp_str:
-                return None
-            
-            # Parse the timestamp (assume UTC if no timezone info)
-            if isinstance(timestamp_str, str):
-                if timestamp_str.endswith('Z'):
-                    dt = datetime.fromisoformat(timestamp_str[:-1]).replace(tzinfo=timezone.utc)
-                elif '+' in timestamp_str[-6:] or '-' in timestamp_str[-6:]:
-                    dt = datetime.fromisoformat(timestamp_str)
-                else:
-                    # No timezone info, assume UTC
-                    dt = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
-            else:
-                return timestamp_str
-            
-            # Convert to Central Time
-            try:
-                central_tz = ZoneInfo('America/Chicago')
-                central_dt = dt.astimezone(central_tz)
-            except:
-                # Fallback: approximate Central Time as UTC-6
-                central_dt = dt.astimezone(timezone(timedelta(hours=-6)))
-            
-            return central_dt.isoformat()
-            
-        except Exception as e:
-            print(f"Failed to convert timestamp {timestamp_str}: {e}")
-            return timestamp_str
-        
         # Runtime state
         self.is_running = False
         self.client_count = 0
@@ -299,7 +267,39 @@ class EnhancedSwaggerAPIGateway:
             "port": self.port,
             "redis_available": self.redis_client is not None
         })
-    
+
+    def convert_to_central_time(self, timestamp_str):
+        """Convert timestamp string to Central Time ISO format"""
+        try:
+            if not timestamp_str:
+                return None
+
+            # Parse the timestamp (assume UTC if no timezone info)
+            if isinstance(timestamp_str, str):
+                if timestamp_str.endswith('Z'):
+                    dt = datetime.fromisoformat(timestamp_str[:-1]).replace(tzinfo=timezone.utc)
+                elif '+' in timestamp_str[-6:] or '-' in timestamp_str[-6:]:
+                    dt = datetime.fromisoformat(timestamp_str)
+                else:
+                    # No timezone info, assume UTC
+                    dt = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
+            else:
+                return timestamp_str
+
+            # Convert to Central Time
+            try:
+                central_tz = ZoneInfo('America/Chicago')
+                central_dt = dt.astimezone(central_tz)
+            except:
+                # Fallback: approximate Central Time as UTC-6
+                central_dt = dt.astimezone(timezone(timedelta(hours=-6)))
+
+            return central_dt.isoformat()
+
+        except Exception as e:
+            print(f"Failed to convert timestamp {timestamp_str}: {e}")
+            return timestamp_str
+
     def _setup_redis_connection(self):
         """Setup Redis connection with enhanced logging"""
         try:
