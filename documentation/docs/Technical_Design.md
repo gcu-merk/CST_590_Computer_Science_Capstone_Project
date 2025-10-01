@@ -860,6 +860,9 @@ The Sony IMX500 AI camera performs inference using a pre-trained model deployed 
 ## 4. Component Interaction Diagram
 
 ```text
+MAIN EVENT WORKFLOW (Real-time Detection Path)
+═══════════════════════════════════════════════════════════════════
+
 +------------------+       +-----------------+       +-----------------+
 | Sony IMX500 AI   |       | OPS243-C Radar  |       | DHT22 Sensor    |
 | Camera (Host)    |       | (UART/GPIO)     |       | (GPIO4)         |
@@ -881,14 +884,18 @@ The Sony IMX500 AI camera performs inference using a pre-trained model deployed 
 |  Redis Streams:                                                  |
 |  - radar_data (maxlen=1000, for historical queries)              |
 |  - consolidated_traffic_data (maxlen=100, multi-sensor fusion)   |
+|                                                                  |
+|  Redis Keys:                                                     |
+|  - weather:airport:latest, weather:dht22:latest                  |
+|  - consolidation:latest, maintenance:storage_stats               |
 +--------+---------+----------------+----------------+-------------+
          |                          |                |             |
          v                          v                v             v
 +------------------+  +-------------------+  +-----------------+ +------------------+
 | traffic-monitor  |  | vehicle-          |  | airport-weather| | realtime-events- |
 | (Container)      |  | consolidator      |  | (Container)    | | broadcaster      |
-| Reads detections |  | (Container)       |  | METAR API      | | (Container)      |
-| Publishes to     |  | Multi-sensor      |  | Weather data   | | WebSocket        |
+| Reads detections |  | (Container)       |  | weather.gov API| | (Container)      |
+| Publishes to     |  | Multi-sensor      |  | (METAR/KOKC)   | | WebSocket        |
 | Redis            |  | data fusion       |  |                | | streaming        |
 +--------+---------+  +--------+----------+  +--------+-------+ +--------+---------+
          |                     |                      |                  |
@@ -900,16 +907,9 @@ The Sony IMX500 AI camera performs inference using a pre-trained model deployed 
                     | 90-day retention     |                             |
                     +----------+-----------+                             |
                                |                                         |
-                               v                                         |
-                    +----------------------+                             |
-                    | data-maintenance     |                             |
-                    | (Container)          |                             |
-                    | Storage cleanup      |                             |
-                    +----------------------+                             |
-                                                                          |
-+------------------------------------------------------------------------+
-|
-v
++-----------------------------+|                                         |
+|                              |                                         |
+v                              v                                         v
 +------------------------------------------------------------------+
 |                     NGINX Reverse Proxy                          |
 |  HTTPS/TLS on port 8443 (Self-signed SSL)                       |
@@ -920,15 +920,13 @@ v
          |
          v
 +------------------------------------------------------------------+
-|                    Edge API Gateway                              |
+|                    Edge API Gateway (traffic-monitor)            |
 |  Flask-SocketIO (port 5000)                                      |
 |  REST API Endpoints:                                             |
-|  - /api/latest                                                   |
-|  - /api/daily-events                                             |
-|  - /api/redis-stats                                              |
-|  - /api/system-health                                            |
-|  WebSocket Events (realtime-events-broadcaster):                 |
-|  - new_detection, radar_update, weather_update                   |
+|  - /api/events, /api/radar, /api/weather, /api/consolidated     |
+|  - /api/stats, /api/system-health, /health                       |
+|  WebSocket Events (via realtime-events-broadcaster):             |
+|  - new_detection, radar_update, weather_update, database_event   |
 +--------+---------+------------------------------------------------+
          |
          v
@@ -937,6 +935,36 @@ v
 |  - Local Network Users (Tailscale VPN)                           |
 |  - GitHub Pages Dashboard (Historical Data Visualization)        |
 +------------------------------------------------------------------+
+
+
+BACKGROUND MAINTENANCE SERVICES (Independent Processes)
+═══════════════════════════════════════════════════════════════════
+
++----------------------+    +----------------------+    +----------------------+
+| data-maintenance     |    | redis-optimization   |    | camera-service-      |
+| (Container)          |    | (Container)          |    | manager (Container)  |
++----------------------+    +----------------------+    +----------------------+
+| Storage cleanup      |    | Memory management    |    | Health monitoring    |
+| - Images: 24h max    |    | - TTL policies       |    | - imx500-ai-capture  |
+| - Snapshots: 7d max  |    | - Stream trimming    |    |   .service status    |
+| - Logs: 30d max      |    | - Defragmentation    |    | - Auto-restart on    |
+| - Emergency cleanup  |    | - Stats reporting    |    |   failure            |
+|   at 90% capacity    |    | - Runs hourly        |    | - Checks every 30s   |
++----------+-----------+    +----------+-----------+    +----------+-----------+
+           |                           |                           |
+           | Monitors                  | Optimizes                 | Monitors
+           | /mnt/storage/             | Redis memory              | systemd service
+           v                           v                           v
++----------------------+    +----------------------+    +----------------------+
+| File System          |    | Redis Message Broker |    | Host systemd         |
+| (Samsung T7 SSD)     |    | (localhost:6379)     |    | (Raspberry Pi OS)    |
++----------------------+    +----------------------+    +----------------------+
+
+Legend:
+- Solid lines (|, v, -): Main event workflow (real-time data path)
+- Background services: Run independently, not triggered by detection events
+- All 12 containerized services shown
+- 1 host service (imx500-ai-capture.service) monitored by camera-service-manager
 ```
 
 ## 5. Happy Path Detection Workflow (Start to Finish)
