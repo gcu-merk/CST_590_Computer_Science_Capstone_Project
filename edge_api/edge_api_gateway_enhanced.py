@@ -1617,8 +1617,11 @@ class EnhancedSwaggerAPIGateway:
             # Convert to CSV rows
             csv_data = []
             for row in rows:
-                # Convert UNIX timestamp to datetime
-                timestamp = datetime.fromtimestamp(row['timestamp'])
+                # Convert UNIX timestamp to Central Time (UTC-6 for CST, UTC-5 for CDT)
+                # Python's timezone handling - create UTC datetime then convert to Central
+                from zoneinfo import ZoneInfo
+                utc_dt = datetime.fromtimestamp(row['timestamp'], tz=timezone.utc)
+                central_dt = utc_dt.astimezone(ZoneInfo('America/Chicago'))
                 
                 # Parse vehicle type if it's JSON
                 vehicle_type = "Vehicle"
@@ -1631,8 +1634,8 @@ class EnhancedSwaggerAPIGateway:
                         vehicle_type = str(row['vehicle_type'])
                 
                 csv_data.append([
-                    timestamp.strftime("%Y-%m-%d"),
-                    timestamp.strftime("%H:%M:%S"),
+                    central_dt.strftime("%Y-%m-%d"),
+                    central_dt.strftime("%H:%M:%S"),
                     vehicle_type,
                     f"{row['speed_mph']:.1f}",
                     str(row['speed_limit']),
