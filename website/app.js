@@ -78,7 +78,7 @@ class TrafficDashboard {
         document.querySelectorAll('.download-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const buttonText = btn.textContent.trim();
-                if (buttonText === 'Download PDF') {
+                if (buttonText === 'Download HTML') {
                     this.downloadMonthlyReport();
                 } else if (buttonText === 'Download CSV') {
                     this.downloadViolationsReport();

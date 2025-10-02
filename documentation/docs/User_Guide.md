@@ -469,13 +469,17 @@ The system uses a containerized microservices architecture with the following ke
 
 #### Services
 
-- **Radar Service:** Interfaces with OPS243-C radar sensor via UART
-- **Camera Service:** Captures and processes IMX500 AI camera data
-- **Consolidator Service:** Fuses radar and camera data for event correlation
-- **Database Persistence:** Stores vehicle detection events in SQLite
-- **API Gateway:** Provides REST and WebSocket endpoints
-- **Web Dashboard:** Real-time monitoring interface (Edge UI)
-- **Redis:** In-memory data store for real-time event streaming
+The system uses a containerized microservices architecture with Docker Compose:
+
+- **Redis:** In-memory data store for real-time event streaming and caching
+- **Traffic Monitor (API Gateway):** RESTful API and health monitoring endpoints (port 5000)
+- **Radar Service:** Interfaces with OPS243-C radar sensor via UART (/dev/ttyAMA0)
+- **Data Maintenance:** Automated cleanup of old data and storage management
+- **Airport Weather:** Fetches weather data from nearby airports via API
+- **DHT22 Weather:** Reads local temperature and humidity from DHT22 sensor (GPIO pin 4)
+- **IMX500 Camera Service:** Runs as host service (not containerized) for direct hardware access
+
+ℹ️ **NOTE:** The IMX500 AI camera service runs directly on the host (Raspberry Pi) rather than in a Docker container because it requires direct access to the camera hardware (`/dev/video*` devices). This is a Raspberry Pi 5-specific requirement.
 
 #### Technology Stack
 
@@ -577,11 +581,11 @@ After completing the hardware setup, follow these steps for initial system confi
 4. Connect via SSH or direct keyboard/monitor
 
 ```bash
-# SSH connection (replace with your Pi's IP)
-ssh pi@192.168.1.75
-
-# Or find your Pi using hostname
+# SSH connection (replace with your Pi's IP address on local network)
 ssh pi@raspberrypi.local
+
+# Or use direct IP if hostname doesn't work
+# Find IP with: hostname -I
 ```
 
 #### Step 2: Install Required Software
@@ -653,8 +657,8 @@ sudo cat /dev/ttyAMA0
 # Check GPIO status
 gpio readall
 
-# Test API endpoint
-curl http://localhost:5000/api/health
+# Test API endpoint (on Pi itself)
+curl http://localhost:5000/api/health/system
 ```
 
 💡 **Tip:** If you encounter permission errors with GPIO or serial ports, ensure your user is in the `gpio`, `dialout`, and `video` groups.
@@ -663,26 +667,40 @@ curl http://localhost:5000/api/health
 
 Once the system is configured and running, you can access the web dashboard:
 
-#### Local Network Access
+#### Public Access (Recommended)
+
+The easiest way to access the dashboard is through GitHub Pages:
+
+1. **Open any web browser**
+
+2. **Navigate to the public dashboard:**
+   ```
+   https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/
+   ```
+
+3. **The dashboard automatically connects to the API** through Tailscale VPN
+
+💡 **Note:** The GitHub Pages dashboard is publicly accessible, but the API requires Tailscale VPN for security.
+
+#### Local Network Access (Alternative)
+
+If accessing from the same local network as the Raspberry Pi:
 
 1. **Find your Raspberry Pi's IP address:**
    ```bash
    hostname -I
    ```
 
-2. **Open a web browser on any device on the same network**
-
-3. **Navigate to:**
+2. **Access the traffic-monitor API directly:**
    ```
    http://[PI_IP_ADDRESS]:5000
    ```
-   Example: `http://192.168.1.75:5000`
 
-#### Remote Access via Tailscale (Optional)
+#### Remote Access via Tailscale
 
-For secure remote access from anywhere:
+For secure remote access to the API backend:
 
-1. **Install Tailscale on Raspberry Pi:**
+1. **Install Tailscale on Raspberry Pi** (if not already installed):
    ```bash
    curl -fsSL https://tailscale.com/install.sh | sh
    sudo tailscale up
@@ -690,17 +708,12 @@ For secure remote access from anywhere:
 
 2. **Install Tailscale on your client device** (laptop, phone, etc.)
 
-3. **Find Tailscale IP:**
-   ```bash
-   tailscale ip -4
+3. **Access the API through Tailscale:**
+   ```
+   https://edge-traffic-monitoring.taild46447.ts.net/api
    ```
 
-4. **Access dashboard using Tailscale IP:**
-   ```
-   http://100.x.x.x:5000
-   ```
-
-💡 **Tip:** Bookmark the dashboard URL for quick access.
+💡 **Tip:** The GitHub Pages dashboard already uses the Tailscale API, so you only need Tailscale on your device if accessing the API directly.
 
 ---
 
@@ -808,11 +821,12 @@ This section explains how to view real-time vehicle detections as they happen.
 
 1. Open your web browser (Chrome, Firefox, Safari, or Edge)
 2. Type the dashboard address in the URL bar:
-   - If on local network: `http://192.168.1.75:5000` (use your Pi's IP address)
-   - If using Tailscale VPN: `http://100.x.x.x:5000` (use your Tailscale IP)
+   - **If using GitHub Pages (recommended):** `https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/`
+   - **If using Tailscale direct access:** `https://edge-traffic-monitoring.taild46447.ts.net/`
+   - **If on local network:** `http://[PI_IP_ADDRESS]:5000` (requires direct access to Raspberry Pi)
 3. Press **Enter**
 
-💡 **TIP:** Bookmark this page for quick access in the future!
+💡 **TIP:** The GitHub Pages dashboard is the recommended interface and works from anywhere with internet access. Bookmark this page for quick access!
 
 **Step 2: Navigate to Live View**
 
@@ -1115,9 +1129,9 @@ To verify the radar service is running properly:
 
 ```bash
 # Connect to your Pi via SSH
-ssh user@your-pi-ip
+ssh pi@raspberrypi.local
 
-# Check if radar service container is running
+# Check if radar-service container is running
 docker ps | grep radar-service
 
 # Expected output: radar-service container with "healthy" status
@@ -1144,39 +1158,49 @@ View the last few vehicle detections stored in Redis:
 # Check last 5 radar detections
 docker exec redis redis-cli XREVRANGE radar_data + - COUNT 5
 
-# Check latest consolidated record
-docker exec redis redis-cli GET consolidation:latest
+# Check latest detection data in Redis
+docker exec redis redis-cli KEYS *
 ```
 
 #### System Health Dashboard
 
 **Accessing the Health Dashboard:**
 
-1. **Find your Pi's IP address:**
-   - Local network: `http://192.168.1.75:5000` (replace with your Pi's IP)
-   - Tailscale VPN: `http://100.x.x.x:5000` (use `tailscale ip` to find IP)
+1. **Public access (recommended):**
+   - GitHub Pages: [https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/](https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/)
 
-2. **Dashboard sections to check:**
+2. **Remote secure access with Tailscale:**
+   - Tailscale VPN: `https://edge-traffic-monitoring.taild46447.ts.net/`
+   - (Requires Tailscale VPN connection to your network)
+
+3. **Dashboard sections to check:**
    - **System Status:** Shows if all services are running
    - **Recent Detections:** Displays latest vehicle detections with timestamps
    - **Radar Health:** Indicates radar sensor connectivity and data quality
 
-**Health Check Endpoint:**
+**Health Check Endpoints:**
 
 Test system health programmatically:
 
 ```bash
-# Check system health (returns JSON status)
-curl http://your-pi-ip:5000/api/health
+# Basic health check
+curl https://edge-traffic-monitoring.taild46447.ts.net/health
+
+# Detailed system health (includes all services)
+curl https://edge-traffic-monitoring.taild46447.ts.net/api/health/system
 
 # Expected response for healthy system:
 {
   "status": "healthy",
   "services": {
-    "radar": "running",
-    "consolidator": "running", 
-    "database": "running"
-  }
+    "redis": "running",
+    "traffic-monitor": "running",
+    "radar-service": "running",
+    "data-maintenance": "running",
+    "airport-weather": "running",
+    "dht22-weather": "running"
+  },
+  "camera_host_service": "imx500 (runs on host, not containerized)"
 }
 ```
 
@@ -1432,13 +1456,27 @@ If a mobile app is implemented, it provides remote access to real-time and histo
 
 **Solutions:**
 
-1. **Verify Raspberry Pi is on network:**
+1. **Try the GitHub Pages dashboard first:**
+   ```
+   https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/
+   ```
+
+2. **If accessing via Tailscale, verify VPN connection:**
+   ```bash
+   # Check Tailscale status
+   tailscale status
+   
+   # Verify connection to the edge device
+   curl https://edge-traffic-monitoring.taild46447.ts.net/health
+   ```
+
+3. **For local network access, verify Raspberry Pi is reachable:**
    ```bash
    # On the Pi, check IP address
    hostname -I
    
-   # Ping the Pi from your computer
-   ping 192.168.1.75  # Replace with your Pi's IP
+   # Ping the Pi from your computer (replace with actual IP)
+   ping raspberrypi.local
    ```
 
 2. **Check firewall settings:**
@@ -1476,10 +1514,10 @@ If a mobile app is implemented, it provides remote access to real-time and histo
    - Look for WebSocket connection errors
    - Verify real-time updates are working
 
-3. **Verify data consolidation:**
+3. **Verify data services:**
    ```bash
-   # Check consolidator service
-   docker logs vehicle-consolidator --tail 20
+   # Check traffic-monitor service (API gateway)
+   docker logs traffic-monitor --tail 20
    
    # Verify recent data in Redis
    docker exec redis redis-cli XREVRANGE radar_data + - COUNT 5
@@ -1595,7 +1633,7 @@ htop
 **Weekly Maintenance:**
 
 - Review radar service logs for errors
-- Check consolidation data is being properly stored
+- Check that detection data is being properly stored in Redis
 - Verify backup systems (if configured)
 - Test remote access capabilities
 
@@ -1654,13 +1692,24 @@ A: Yes. The system supports secure remote access using Tailscale, a mesh VPN tha
 
 **Q: How do I connect to the Raspberry Pi using Tailscale?**
 
-A: After installing and authenticating Tailscale on both your Raspberry Pi and your client device (laptop/desktop), you can use the Tailscale-assigned IP address to SSH into the Pi or access the web dashboard. Example:
+A: The system uses Tailscale for secure remote access. After installing Tailscale on both your Raspberry Pi and your client device (laptop/desktop), you can access the system:
 
+**Option 1: Web Dashboard (Recommended)**
+```
+https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/
+```
+The GitHub Pages dashboard will automatically connect to your Tailscale-protected API.
+
+**Option 2: Direct API Access**
 ```bash
-ssh merk@100.121.231.16
+# SSH to Raspberry Pi
+ssh merk@edge-traffic-monitoring.taild46447.ts.net
+
+# Or access API directly
+https://edge-traffic-monitoring.taild46447.ts.net/api
 ```
 
-Or open `http://100.121.231.16:5000` in your browser. Ensure Tailscale is running and connected on both devices. For more details, see the Implementation & Deployment Guide.
+Ensure Tailscale is running and connected on both devices. For more details, see the Implementation & Deployment Guide.
 
 **Q: How do I calibrate the speed measurement?**
 
@@ -1914,11 +1963,11 @@ When contacting support or reporting an issue, please provide the following info
 
 **AI Camera (IMX500):** Sony 12MP camera sensor with built-in neural processing unit that performs on-chip vehicle classification
 
-**API Gateway:** Service that provides REST and WebSocket endpoints for external system integration
+**API Gateway:** Service that provides REST and WebSocket endpoints for external system integration; in this system, the `traffic-monitor` service acts as the API gateway
 
-**Cloud UI:** Optional cloud-based dashboard for historical analytics and remote management
+**Cloud UI:** Optional cloud-based dashboard for historical analytics and remote management; this system uses GitHub Pages for the public dashboard
 
-**Consolidator:** Service that fuses radar and camera data to create comprehensive vehicle detection events
+**Data Integration:** The process of combining data from multiple sensors (IMX500 camera and OPS243-C radar) into a unified stream for analysis and storage in Redis
 
 **Detection Event:** A recorded instance of a vehicle detection, including timestamp, vehicle type, speed, and location
 
