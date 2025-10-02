@@ -1,7 +1,7 @@
 # Technical Design Document
 
-**Document Version:** 2.0  
-**Last Updated:** October 1, 2025  
+**Document Version:** 2.1  
+**Last Updated:** October 2, 2025  
 **Project:** Raspberry Pi 5 Edge ML Traffic Monitoring System  
 **Authors:** Technical Team  
 **Status:** Final Capstone Release (v1.0.0-capstone-final)  
@@ -18,8 +18,9 @@
 8. [CI/CD Deployment Architecture](#7-cicd-deployment-architecture)
 9. [Database Entity-Relationship Diagram (ERD)](#8-database-entity-relationship-diagram-erd)
 10. [API Endpoint Map](#8-api-endpoint-map)
-11. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
-12. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
+11. [Web Dashboard User Interface](#81-web-dashboard-user-interface)
+12. [Security/Data Flow Diagram](#9-securitydata-flow-diagram)
+13. [Remote Access Flow via Tailscale](#10-remote-access-flow-via-tailscale)
 
 **See also:**
 
@@ -2023,6 +2024,97 @@ The Edge API Gateway provides a comprehensive RESTful API with OpenAPI/Swagger d
   "processing_notes": "Triggered by radar at 35.5 mph"
 }
 ```
+
+---
+
+## 8.1 Web Dashboard User Interface
+
+The system provides a unified web dashboard hosted on GitHub Pages for real-time monitoring and historical data visualization. The dashboard connects to the backend API via Tailscale VPN for secure remote access.
+
+### Dashboard Architecture
+
+**Hosting:** GitHub Pages (Static Site)  
+**URL:** https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/  
+**Backend API:** Tailscale VPN connection to Raspberry Pi 5 edge device  
+**Frontend Stack:** HTML, CSS, JavaScript (Vanilla JS)  
+**Real-time Updates:** WebSocket (Socket.IO) connection to `realtime-events-broadcaster` service  
+
+### Dashboard Features
+
+The dashboard consists of four main tabs:
+
+1. **Overview Tab** - Real-time traffic summary and key metrics
+2. **Reports Tab** - Downloadable HTML and CSV reports  
+3. **Live Events Tab** - Real-time event stream via WebSocket
+4. **System Logs Tab** - Centralized logging for troubleshooting
+
+### Dashboard Screenshots (As-Built Implementation)
+
+#### Figure 1: Overview Tab - Real-Time Traffic Dashboard
+
+![Overview Tab](CloudUI_As_Built_1.jpg)
+
+The Overview tab displays:
+- Total vehicles detected in last 24 hours
+- Latest vehicle detection snapshot with speed
+- Speed violations count (vehicles exceeding 25 mph limit)
+- Current weather conditions (airport METAR + local DHT22 sensor)
+- Traffic volume chart (24-hour and 7-day views)
+- Speed distribution histogram
+
+#### Figure 2: Reports Tab - Downloadable Reports
+
+![Reports Tab](CloudUI_As_Built_2.jpg)
+
+The Reports tab provides:
+- Pre-generated HTML reports (monthly traffic summary)
+- CSV export functionality for data analysis in Excel/Google Sheets
+- Report timestamps and generation status
+- Download buttons for quick access to reports
+
+#### Figure 3: Live Events Tab - Real-Time Event Stream
+
+![Live Events Tab](CloudUI_As_Built_3.jpg)
+
+The Live Events tab features:
+- WebSocket-based real-time event streaming
+- Vehicle detection events with timestamps
+- Vehicle type classification (car, truck, bus, motorcycle)
+- Speed measurements from radar sensor
+- Detection snapshots (when available)
+- Connection status indicator
+
+#### Figure 4: System Logs Tab - Centralized Logging
+
+![System Logs Tab](CloudUI_As_Built_4.jpg)
+
+The System Logs tab includes:
+- Centralized logs from all 12 microservices
+- Log level filtering (DEBUG, INFO, WARNING, ERROR)
+- Correlation IDs for tracing events across services
+- Timestamp and service name for each log entry
+- Real-time log streaming for troubleshooting
+
+### Dashboard Configuration
+
+Users must configure the API connection on first access:
+
+1. **Click "Configure API" button** on dashboard
+2. **Enter Tailscale URL** (e.g., `https://edge-traffic-monitoring.taild46447.ts.net`)
+3. **Click "Test Connection"** to verify connectivity
+4. **Save configuration** to local storage for persistent connection
+
+The dashboard stores the API URL in browser local storage, so users only need to configure once per browser/device.
+
+### Mobile Responsiveness
+
+The dashboard is fully responsive and works on mobile devices:
+- Touch-friendly interface
+- Adaptive layout for small screens
+- "Add to Home Screen" capability for iOS and Android
+- Optimized data loading for mobile networks
+
+---
 
 ## 9. Security/Data Flow Diagram
 
