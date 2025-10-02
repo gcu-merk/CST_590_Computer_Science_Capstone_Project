@@ -2085,7 +2085,14 @@ class VehicleEventsManager {
     handleRealtimeEvent(data) {
         if (this.isPaused) return;
 
-        const timestamp = new Date().toLocaleTimeString();
+        // Format timestamp in Central Time
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone: 'America/Chicago'
+        });
 
         // Handle different event types
         switch (data.event_type || data.business_event) {
@@ -2130,7 +2137,15 @@ class VehicleEventsManager {
     addVehicleDetection(vehicleType, confidence, location, additionalInfo = '') {
         if (this.isPaused || !this.logContent) return;
 
-        const timestamp = new Date().toLocaleTimeString();
+        // Format timestamp in Central Time
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone: 'America/Chicago'
+        });
+        
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry info new-detection';
         
@@ -2222,7 +2237,15 @@ class VehicleEventsManager {
     addSystemMessage(message) {
         if (!this.logContent) return;
 
-        const timestamp = new Date().toLocaleTimeString();
+        // Format timestamp in Central Time
+        const timestamp = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone: 'America/Chicago'
+        });
+        
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry info';
         logEntry.innerHTML = `
@@ -2263,7 +2286,15 @@ class VehicleEventsManager {
         const logEntry = document.createElement('div');
         logEntry.className = `log-entry ${logData.level.toLowerCase()}`;
         
-        const timestamp = new Date(logData.timestamp).toLocaleTimeString();
+        // Format timestamp in Central Time
+        const timestamp = new Date(logData.timestamp).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+            timeZone: 'America/Chicago'
+        });
+        
         logEntry.innerHTML = `
             <span class="log-timestamp">${timestamp}</span>
             <span class="log-level">${logData.level}</span>
