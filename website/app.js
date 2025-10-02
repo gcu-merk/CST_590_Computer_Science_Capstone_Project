@@ -1,5 +1,6 @@
 // Traffic Analytics Dashboard - JavaScript
 // GitHub Pages implementation with Tailscale API integration
+// Clean logging output without emoji characters
 
 class TrafficDashboard {
     constructor() {
