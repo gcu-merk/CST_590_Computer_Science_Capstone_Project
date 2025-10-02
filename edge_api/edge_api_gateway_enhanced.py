@@ -154,10 +154,11 @@ class SocketIOLogHandler(logging.Handler):
         
     def emit(self, record):
         try:
-            # Format the log message
+            # Format the log message with proper UTC timestamp
             log_entry = {
-                'timestamp': datetime.fromtimestamp(record.created).isoformat(),
-                'level': record.levelname.lower(),
+                'timestamp': datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+                'level': record.levelname,
+                'service': getattr(record, 'name', record.module),
                 'message': record.getMessage(),
                 'module': record.module,
                 'line': record.lineno
