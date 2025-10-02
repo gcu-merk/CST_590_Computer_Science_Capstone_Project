@@ -181,11 +181,13 @@ This guide has been designed with accessibility in mind:
    - 3.3 [Accessing the Dashboard](#33-accessing-the-dashboard)
 4. [Using the System](#4-using-the-system)
    - 4.1 [Web Dashboard](#41-web-dashboard)
-   - 4.2 [Monitoring Live Traffic](#42-monitoring-live-traffic)
-   - 4.3 [Viewing Analytics](#43-viewing-analytics)
-   - 4.4 [Radar System Monitoring](#44-radar-system-monitoring)
-   - 4.5 [Mobile App (Optional)](#45-mobile-app-optional)
-   - 4.6 [Common Use Cases](#46-common-use-cases)
+   - 4.2 [Accessing the Dashboard](#42-accessing-the-dashboard)
+   - 4.3 [Monitoring Real-Time Traffic](#43-monitoring-real-time-traffic)
+   - 4.4 [Using Live Events Feed](#44-using-live-events-feed)
+   - 4.5 [Viewing System Logs](#45-viewing-system-logs)
+   - 4.6 [Downloading Reports](#46-downloading-reports)
+   - 4.7 [Mobile Access](#47-mobile-access)
+   - 4.8 [Common Use Cases](#48-common-use-cases)
 5. [Troubleshooting](#5-troubleshooting)
    - 5.1 [Common Issues](#51-common-issues)
    - 5.2 [Radar Detection Problems](#52-radar-detection-problems)
@@ -230,18 +232,18 @@ The system offers the following key features:
 - **Multi-Sensor Fusion:** Correlates radar speed/direction with AI vehicle identification
 - **Privacy-First:** All AI processing happens locally on the camera sensor
 - **Weather Independent:** Radar detection works in all weather conditions
-- **Local & Cloud Dashboards:** Edge UI for live monitoring and Cloud UI for historical analytics
-- **REST and WebSocket APIs:** For integration and automation with external systems
-- **Data Export & Reporting:** Generate reports and export data for further analysis
+- **Web Dashboard:** GitHub Pages-hosted interface for remote monitoring via Tailscale VPN
+- **REST and WebSocket APIs:** For integration and real-time event streaming
+- **Basic Reporting:** Download HTML and CSV reports of traffic data
 
 ### 1.3 User Roles
 
-The system supports different user roles with varying levels of access:
+The system supports different user roles:
 
 - **Operator:** Installs, configures, and maintains the system on-site. Responsible for hardware setup and basic troubleshooting.
-- **Traffic Analyst:** Reviews real-time and historical data, generates reports, and identifies traffic patterns and trends.
-- **Administrator:** Manages user access, system configuration, cloud integration, and performs system maintenance tasks.
-- **Viewer:** Read-only access to dashboard and reports for monitoring purposes.
+- **Traffic Analyst:** Reviews real-time and historical data via the web dashboard and identifies traffic patterns.
+- **Administrator:** Manages system configuration and performs system maintenance tasks.
+- **Viewer:** Anyone with access to the dashboard can view real-time traffic data and reports.
 
 ### 1.4 Accessibility & Safety
 
@@ -717,557 +719,363 @@ For secure remote access to the API backend:
 
 ---
 
-## 4. Using the System
-
-### 4.1 Web Dashboard
-
-The Edge UI (local web dashboard) provides real-time monitoring, configuration, and analytics for the traffic monitoring system. The Cloud UI (optional) extends these features with historical data and remote management.
-
-### Layout & Navigation
-
-- **Header:** Displays system name, current status, and navigation links (e.g., Live View, Analytics, Settings)
-- **Live View Panel:**
-  - Real-time video feed from the AI camera (if enabled)
-  - Overlay of detected vehicles and bounding boxes
-  - Speed readings from radar sensor
-- **Event Table:**
-  - List of recent vehicle events (timestamp, type, speed, location)
-  - Filter/search by date, type, or speed
-- **Analytics Panel:**
-  - Charts for vehicle counts, speed distributions, and violation rates
-  - Historical trends and anomaly alerts
-- **System Status:**
-  - Health indicators for camera, radar, storage, and network
-  - Log messages and error notifications
-  
-#### Dashboard Screenshots
-
-![Cloud Dashboard 1](../archive/CloudUI_1.jpg)
-*Figure 1: Cloud Dashboard - Main Analytics View*
-
-![Cloud Dashboard 2](../archive/CloudUI_2.jpg)
-*Figure 2: Cloud Dashboard - Event Table*
-
-![Cloud Dashboard 3](../archive/CloudUI_3.jpg)
-*Figure 3: Cloud Dashboard - System Status*
-
-![Cloud Dashboard 4](../archive/CloudUI_4.jpg)
-*Figure 4: Cloud Dashboard - Settings Panel*
-
-![Cloud Dashboard 5](../archive/CloudUI_5.jpg)
-*Figure 5: Cloud Dashboard - Historical Trends*
-
-![Local Dashboard 1](../archive/LocalUI.jpg)
-*Figure 6: Local Edge UI - Live View*
-
-![Local Dashboard 2](../archive/LocalUI2.jpg)
-*Figure 7: Local Edge UI - Analytics Panel*
-
 ---
 
 ## 4. Using the System
 
 ### 4.1 Web Dashboard
 
-The Edge UI (local web dashboard) provides real-time monitoring, configuration, and analytics for the traffic monitoring system. The Cloud UI (optional) extends these features with historical data and remote management.
+The web dashboard (hosted on GitHub Pages) provides real-time monitoring and analytics for the traffic monitoring system. It connects to your Raspberry Pi system via Tailscale VPN for secure remote access.
 
 #### Dashboard Layout & Navigation
 
-- **Header:** Displays system name, current status, and navigation links (e.g., Live View, Analytics, Settings)
-- **Live View Panel:**
-  - Real-time video feed from the AI camera (if enabled)
-  - Overlay of detected vehicles and bounding boxes
-  - Speed readings from radar sensor
-- **Event Table:**
-  - List of recent vehicle events (timestamp, type, speed, location)
-  - Filter/search by date, type, or speed
-- **Analytics Panel:**
-  - Charts for vehicle counts, speed distributions, and violation rates
-  - Historical trends and anomaly alerts
-- **System Status:**
-  - Health indicators for camera, radar, storage, and network
-  - Log messages and error notifications
+The dashboard has **four main tabs**:
+
+- **Overview Tab:**
+  - Total vehicles detected (24-hour count)
+  - Average, minimum, and maximum speeds
+  - Last detected vehicle snapshot image
+  - Speed violations counter
+  - Current weather conditions
+  - Traffic volume chart (24H or 7D views)
+  - Speed distribution chart
+
+- **Reports Tab:**
+  - Downloadable traffic reports (HTML/CSV formats)
+  - Monthly traffic summary
+  - Speed violation report
+
+- **Live Events Tab:**
+  - Real-time vehicle detection events
+  - WebSocket streaming of detections
+  - Filterable event feed (all events, vehicles only, speed events, system events)
+  - Pause/resume and clear controls
+
+- **System Logs Tab:**
+  - Real-time system log messages
+  - Filterable by log level (all, errors, warnings, info)
+  - Useful for troubleshooting
+  - Pause/resume and clear controls
 
 #### Dashboard Screenshots
 
-![Cloud Dashboard 1](../archive/CloudUI_1.jpg)
-*Figure 1: Cloud Dashboard - Main Analytics View*
+![Web Dashboard Overview](CloudUI_As_Built_1.jpg)
+*Figure 1: Web Dashboard - Overview Tab with Real-Time Metrics*
 
-![Cloud Dashboard 2](../archive/CloudUI_2.jpg)
-*Figure 2: Cloud Dashboard - Event Table*
+![Web Dashboard Live Events](CloudUI_As_Built_2.jpg)
+*Figure 2: Web Dashboard - Live Events Tab*
 
-![Cloud Dashboard 3](../archive/CloudUI_3.jpg)
-*Figure 3: Cloud Dashboard - System Status*
+![Web Dashboard System Logs](CloudUI_As_Built_3.jpg)
+*Figure 3: Web Dashboard - System Logs Tab*
 
-![Cloud Dashboard 4](../archive/CloudUI_4.jpg)
-*Figure 4: Cloud Dashboard - Settings Panel*
+![Web Dashboard Reports](CloudUI_As_Built_4.jpg)
+*Figure 4: Web Dashboard - Reports Tab*
 
-![Cloud Dashboard 5](../archive/CloudUI_5.jpg)
-*Figure 5: Cloud Dashboard - Historical Trends*
+### 4.2 Accessing the Dashboard
 
-![Local Dashboard 1](../archive/LocalUI.jpg)
-*Figure 6: Local Edge UI - Live View*
-
-![Local Dashboard 2](../archive/LocalUI2.jpg)
-*Figure 7: Local Edge UI - Analytics Panel*
-
-### 4.2 Monitoring Live Traffic
-
-This section explains how to view real-time vehicle detections as they happen.
-
-#### Step-by-Step: Viewing Real-Time Data
+#### Step-by-Step: First Time Access
 
 **Step 1: Open the Dashboard**
 
-1. Open your web browser (Chrome, Firefox, Safari, or Edge)
-2. Type the dashboard address in the URL bar:
-   - **If using GitHub Pages (recommended):** `https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/`
-   - **If using Tailscale direct access:** `https://edge-traffic-monitoring.taild46447.ts.net/`
-   - **If on local network:** `http://[PI_IP_ADDRESS]:5000` (requires direct access to Raspberry Pi)
+1. Open your web browser (Chrome, Firefox, Safari, or Edge recommended)
+2. Navigate to the GitHub Pages dashboard:
+   ```
+   https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/
+   ```
 3. Press **Enter**
 
-💡 **TIP:** The GitHub Pages dashboard is the recommended interface and works from anywhere with internet access. Bookmark this page for quick access!
+**Step 2: Configure API Connection**
 
-**Step 2: Navigate to Live View**
+1. When you first open the dashboard, you'll see "API Offline" status indicator
+2. Click the **"Configure API"** button (bottom right corner)
+3. A configuration modal appears
+4. In the "Tailscale Pi IP Address" field, enter your Pi's Tailscale URL:
+   ```
+   https://edge-traffic-monitoring.taild46447.ts.net/api
+   ```
+5. Click **"Test Connection"** to verify connectivity
+6. If successful, you'll see "✅ Connected successfully"
+7. Close the modal
 
-1. Look for the navigation menu at the top of the page
-2. Click on the **"Live View"** tab or button
-3. Wait a few seconds for the live feed to load
+✅ **SUCCESS:** The API status indicator should now show "API Online" with a green dot
 
-✅ **SUCCESS:** You should now see the live camera feed and a list of recent vehicle detections
+💡 **TIP:** Bookmark this page for quick access! Your API configuration is saved in your browser.
 
-**Step 3: Observe Vehicle Detections**
+**Step 3: View Live Data**
 
-When a vehicle is detected, you'll see:
+1. Once connected, the dashboard automatically loads recent data
+2. You should see:
+   - Total vehicle count updating
+   - Last detected vehicle snapshot appearing
+   - Weather data loading
+   - Charts populating with data
 
-1. **Visual Indicators:**
-   - A colored box (bounding box) appears around the vehicle in the video feed
-   - The box color or label shows the vehicle type:
-     - 🚗 **Blue box** = Car / Passenger vehicle
-     - 🚚 **Green box** = Truck / Large vehicle
-     - 🏍️ **Yellow box** = Motorcycle
-     - 🚌 **Red box** = Bus
+### 4.3 Monitoring Real-Time Traffic
 
-2. **Speed Display:**
-   - A number appears next to the vehicle showing its speed
-   - Example: "**35 mph**" or "**56 km/h**"
+#### Overview Tab Features
 
-3. **Event Entry:**
-   - A new row appears in the event table below the video
-   - Shows timestamp, vehicle type, speed, and direction
+**Real-Time Metrics Cards:**
 
-#### Understanding the Event Table
+1. **Total Vehicles Card** (top left):
+   - Shows total vehicles detected in last 24 hours
+   - Displays average, minimum, and maximum speeds
+   - Updates automatically as new vehicles are detected
 
-Each detection creates a new row in the table with the following information:
+2. **Last Detected Card** (top center):
+   - Shows the most recent vehicle detection snapshot
+   - Displays vehicle type (car, truck, bus, motorcycle)
+   - Shows speed of last detected vehicle
+   - Image updates when new vehicle is detected (24-hour retention)
+   - Status indicator shows "Connecting...", "No recent detections", or timestamp
 
-| Column | What It Means | Example |
-|--------|---------------|---------|
-| **Timestamp** | Date and time the vehicle was detected | 2025-12-20 14:32:15 |
-| **Vehicle Type** | What kind of vehicle it is | Car, Truck, Motorcycle, Bus |
-| **Speed** | How fast the vehicle was traveling | 35 mph, 56 km/h |
-| **Direction** | Which way the vehicle was going | Inbound, Outbound, North, South |
-| **Confidence** | How sure the AI is about the vehicle type | 95% (higher is better) |
-| **Source** | Which sensor detected it | Camera, Radar, or Fusion (both) |
+3. **Speed Violations Card** (top right):
+   - Counts vehicles exceeding 25 mph speed limit
+   - Shows last 24 hours of violations
+   - Scrollable list of recent violations with timestamps and speeds
 
-**What Do the Confidence Scores Mean?**
+4. **Weather Card** (bottom):
+   - Airport temperature (from CheckWX API)
+   - Local temperature (from DHT22 sensor on Pi)
+   - Local humidity (from DHT22 sensor)
+   - Wind speed and direction (from airport weather)
+   - Updates every 5 minutes
 
-- **90-100%** = Very confident ✅ (Highly reliable)
+**Traffic Volume Chart:**
+
+- Located below the metrics cards
+- Shows vehicle detections over time
+- Two view modes:
+  - **24H** button: Hourly data for last 24 hours
+  - **7D** button: Daily totals for last 7 days
+- Bar chart format - taller bars = more traffic
+- Useful for identifying peak traffic times
+
+**Speed Distribution Chart:**
+
+- Shows histogram of vehicle speeds
+- Grouped into speed ranges (buckets)
+- Helps identify speeding patterns
+- Most vehicles should cluster around posted speed limit
+
+#### Interpreting the Data
+
+**Understanding Confidence Levels:**
+
+Each vehicle detection includes a confidence score:
+- **90-100%** = Very confident ✅ (Highly reliable classification)
 - **75-89%** = Confident ⚠️ (Generally reliable)
 - **60-74%** = Somewhat confident ℹ️ (Less reliable, verify if important)
 - **Below 60%** = Low confidence ❌ (May be inaccurate)
 
-#### Filtering and Searching Events
+**Speed Accuracy:**
 
-**To Filter by Date/Time:**
+- Radar provides highly accurate speed measurements (±1 mph)
+- Speed is measured continuously while vehicle is in detection zone
+- Reported speed is the average during detection period
 
-1. Click on the **Date Picker** at the top of the event table
-2. Select your desired date range (e.g., "Today", "Last 7 Days", or custom dates)
-3. Click **Apply**
-4. The table refreshes to show only events from that time period
+**Vehicle Type Classification:**
 
-**To Filter by Vehicle Type:**
+- AI classification happens on the IMX500 camera's NPU
+- Classification accuracy depends on:
+  - Lighting conditions (better in daylight)
+  - Vehicle distance (best at 20-100 feet)
+  - Angle of view (front/rear views work best)
+  - Weather conditions (clear weather is best)
 
-1. Click on the **Vehicle Type** dropdown menu
-2. Check the boxes for the types you want to see:
-   - ☑️ Cars
-   - ☑️ Trucks
-   - ☐ Motorcycles (uncheck to hide)
-   - ☑️ Buses
-3. Click **Apply** or click outside the menu
-4. The table updates to show only selected vehicle types
+### 4.4 Using Live Events Feed
 
-**To Search for Specific Speeds:**
+The Live Events tab shows real-time detection events as they happen via WebSocket streaming.
 
-1. Find the **Speed Filter** section
-2. Enter minimum speed (e.g., **40** mph) to see only vehicles going at least that fast
-3. Enter maximum speed (e.g., **60** mph) to see vehicles below that speed
-4. Click **Apply**
-5. Useful for finding speeding violations!
+#### Step-by-Step: Viewing Live Events
 
-**To Export Data:**
+**Step 1: Navigate to Live Events Tab**
 
-1. After filtering your data, click the **Export** button
-2. Choose your format:
-   - **CSV** - Opens in Excel or Google Sheets
-   - **PDF** - Printable report format
-   - **JSON** - For technical integration
-3. The file downloads to your computer
-4. Use this for reports or record-keeping
+1. Click the **"Live Events"** tab in the navigation bar
+2. The events feed loads automatically
+3. New events appear at the top of the list in real-time
 
-💡 **TIP:** Export data at the end of each day for your records!
+**Step 2: Understanding Event Entries**
 
-### 4.3 Viewing Analytics
+Each event shows:
+- **Timestamp:** When the detection occurred
+- **Event Type:** Vehicle detection, speed event, or system event
+- **Service:** Which system component generated the event
+- **Details:** Vehicle type, speed, confidence, or system message
 
-Analytics help you understand traffic patterns over time. This section shows you how to view charts, interpret data, and generate reports.
-
-#### Step-by-Step: Accessing Analytics
-
-**Step 1: Navigate to Analytics**
-
-1. From the dashboard, click on the **"Analytics"** tab in the main navigation
-2. Wait for the charts to load (2-3 seconds)
-3. You'll see several different charts and graphs
-
-**Step 2: Select Your Time Period**
-
-1. Look for the **Time Range Selector** at the top of the page
-2. Click the dropdown menu to see options:
-   - Today
-   - Yesterday
-   - Last 7 Days
-   - Last 30 Days
-   - Custom Range (pick specific dates)
-3. Choose your desired time period
-4. Charts automatically update to show data for that period
-
-💡 **TIP:** Use "Last 7 Days" to see weekly traffic patterns and identify busy times!
-
-#### Understanding the Analytics Charts
-
-**Chart 1: Vehicle Count Over Time**
-
-**What It Shows:** Total number of vehicles detected each hour or day
-
-**How to Read It:**
-- **X-axis (horizontal):** Time (hours or days)
-- **Y-axis (vertical):** Number of vehicles
-- **Bars:** Height shows vehicle count - taller bars = more traffic
-
-**What to Look For:**
-- **Peak hours:** The tallest bars show your busiest traffic times
-- **Trends:** Are bars getting taller over time? Traffic is increasing!
-- **Patterns:** Do certain days show consistent patterns?
-
-**Example Interpretation:**
+Example event:
 ```
-Monday 8:00 AM - Bar height: 120 vehicles
-Monday 2:00 PM - Bar height: 45 vehicles
-Monday 5:30 PM - Bar height: 135 vehicles
-
-Interpretation: Morning and evening rush hours have the most traffic
+2025-10-02 14:32:15 | INFO | vehicle-consolidator | 
+Car detected at 35 mph (confidence: 95%)
 ```
 
-**Chart 2: Vehicle Type Distribution**
+**Step 3: Filtering Events**
 
-**What It Shows:** Breakdown of vehicle types detected (cars, trucks, buses, motorcycles)
+Use the dropdown filter to view specific event types:
+- **All Events:** Shows everything (default)
+- **Vehicle Detections:** Only vehicle detection events
+- **Speed Events:** Only speed-related events  
+- **System Events:** Only system status messages
 
-**How to Read It:**
-- **Pie chart** or **bar chart** showing percentages
-- **Different colors** for each vehicle type:
-  - 🔵 Blue = Cars (usually 70-85%)
-  - 🟢 Green = Trucks (usually 10-20%)
-  - 🟡 Yellow = Motorcycles (usually 2-5%)
-  - 🔴 Red = Buses (usually 1-3%)
+**Step 4: Controls**
 
-**What to Look For:**
-- **Dominant vehicle type:** Which type is most common?
-- **Unusual patterns:** Sudden increase in trucks might indicate construction
-- **Changes over time:** Compare different time periods
+- **Pause Button:** Temporarily stop new events from appearing (useful for reviewing)
+- **Resume:** Resume live event streaming
+- **Clear Events:** Remove all current events from the display
 
-**Example Interpretation:**
+💡 **TIP:** Pause the feed when you need to read specific events carefully. Don't forget to resume!
+
+### 4.5 Viewing System Logs
+
+The System Logs tab provides technical diagnostic information useful for troubleshooting.
+
+#### When to Use System Logs
+
+Use system logs when:
+- Dashboard shows errors or warnings
+- Vehicle detections aren't appearing
+- Weather data isn't updating
+- System seems to be malfunctioning
+- You need to report an issue
+
+#### Log Levels Explained
+
+- **ERROR** 🔴: Something went wrong (e.g., sensor failure, database error)
+- **WARN** 🟡: Potential issue (e.g., high CPU usage, slow response)
+- **INFO** ℹ️: Normal operational messages (e.g., service started, detection processed)
+
+#### Using the Log Filter
+
+1. Click **System Logs** tab
+2. Use the dropdown to filter by severity:
+   - **All Levels:** See everything
+   - **Errors Only:** Only show problems
+   - **Warnings+:** Show warnings and errors
+   - **Info+:** Show all messages (default)
+
+3. Look for patterns:
+   - Repeated errors indicate persistent problem
+   - Timestamp shows when issue occurred
+   - Service name shows which component has the issue
+
+Example log entry:
 ```
-Today: 78% Cars, 15% Trucks, 5% Motorcycles, 2% Buses
-Last Month: 82% Cars, 12% Trucks, 4% Motorcycles, 2% Buses
-
-Interpretation: Slight increase in truck traffic this month
-```
-
-**Chart 3: Speed Distribution**
-
-**What It Shows:** How fast vehicles are traveling - helps identify speeding
-
-**How to Read It:**
-- **Histogram** (bars grouped by speed ranges)
-- **X-axis:** Speed ranges (e.g., 0-25 mph, 25-35 mph, 35-45 mph)
-- **Y-axis:** Number of vehicles in each range
-- **Red line:** Speed limit (if configured)
-
-**What to Look For:**
-- **Bars to the right of red line:** Vehicles exceeding speed limit (speeding)
-- **Tallest bar:** Most common speed range
-- **Spread:** Are speeds concentrated or spread out?
-
-**Example Interpretation:**
-```
-Speed Limit: 35 mph
-Vehicles under 35 mph: 450 (75%)
-Vehicles over 35 mph: 150 (25%)
-
-Interpretation: 1 in 4 vehicles are speeding
-```
-
-**Chart 4: Traffic Flow by Direction**
-
-**What It Shows:** Traffic volume separated by direction (inbound vs. outbound)
-
-**How to Read It:**
-- **Two lines** (one for each direction)
-- **Blue line:** Traffic flowing one direction (e.g., Northbound)
-- **Orange line:** Traffic flowing opposite direction (e.g., Southbound)
-
-**What to Look For:**
-- **Balanced lines:** Equal traffic both directions
-- **Imbalanced lines:** One direction much busier (common during rush hour)
-- **Crossover points:** Times when traffic direction switches
-
-**Example Interpretation:**
-```
-7:00 AM: Inbound = 80 vehicles, Outbound = 25 vehicles
-5:00 PM: Inbound = 30 vehicles, Outbound = 95 vehicles
-
-Interpretation: Morning commute into town, evening commute out of town
+2025-10-02 14:35:22 | ERROR | radar-service | 
+Failed to read from UART device /dev/ttyAMA0
 ```
 
-#### Step-by-Step: Generating Reports
+💡 **TIP:** If you see errors, note the timestamp and service name when reporting issues.
 
-Reports allow you to save and share traffic data.
+### 4.6 Downloading Reports
 
-**Step 1: Choose Report Type**
+The Reports tab provides pre-generated downloadable reports (feature may vary based on implementation).
 
-1. Click the **"Generate Report"** button in the Analytics section
-2. Select from predefined templates:
-   - **Daily Summary:** Traffic data for one day
-   - **Weekly Report:** 7-day traffic patterns
-   - **Monthly Report:** Full month analysis
-   - **Custom Report:** Choose your own parameters
+#### Available Reports
 
-**Step 2: Configure Report Settings**
+- **Monthly Traffic Summary (HTML):** Overview of traffic patterns for the month
+- **Speed Violation Report (CSV):** Spreadsheet of speeding violations
 
-1. **Set Date Range:**
-   - Click the calendar icon
-   - Select start date and end date
-   - Click **Apply**
+#### How to Download
 
-2. **Choose What to Include:**
-   - ☑️ Vehicle counts
-   - ☑️ Speed violations
-   - ☑️ Vehicle type breakdown
-   - ☑️ Charts and graphs
-   - ☑️ Peak hour analysis
+1. Click **Reports** tab
+2. Find the report you want
+3. Click **Download HTML** or **Download CSV** button
+4. File saves to your browser's Downloads folder
+5. Open the file:
+   - HTML files open in your browser
+   - CSV files open in Excel or Google Sheets
 
-3. **Add Filters (Optional):**
-   - Include only specific vehicle types
-   - Show only speeding violations
-   - Filter by time of day
+💡 **TIP:** Reports are useful for record-keeping and sharing data with stakeholders.
 
-**Step 3: Generate and Download**
+### 4.7 Mobile Access
 
-1. Click the **"Generate Report"** button
-2. Wait for processing (5-30 seconds depending on data volume)
-3. Preview the report on screen
-4. Choose your download format:
-   - **PDF** - Best for printing and presentations
-   - **Excel/CSV** - Best for further analysis in spreadsheets
-   - **HTML** - Best for viewing in web browser
+The dashboard is fully responsive and works on mobile devices through your phone's web browser - no app installation required!
 
-5. Click **"Download"**
-6. File saves to your Downloads folder
+#### Accessing from Mobile
 
-✅ **SUCCESS:** Your report is ready! Check your Downloads folder.
+**Step 1: Open Your Mobile Browser**
 
-💡 **TIP:** Generate weekly reports every Monday to track trends over time!
+1. Open Safari (iPhone/iPad), Chrome, or any modern mobile browser
+2. Navigate to the dashboard URL:
+   ```
+   https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/
+   ```
+3. The dashboard automatically adapts to your screen size
 
-#### Common Analysis Tasks
+**Step 2: Add to Home Screen (Optional)**
 
-**Task 1: Identify Peak Traffic Hours**
+For quick access, you can add the dashboard to your home screen:
 
-1. Go to Analytics → Vehicle Count Over Time chart
-2. Set time range to "Last 7 Days"
-3. Look for the tallest bars - these are peak hours
-4. Note the times for scheduling road work or enforcement
+**On iPhone/iPad:**
+1. Tap the Share button (square with arrow)
+2. Scroll down and tap "Add to Home Screen"
+3. Name it "Traffic Monitor" or similar
+4. Tap "Add"
+5. Icon appears on your home screen like a regular app
 
-**Task 2: Check Compliance with Speed Limits**
+**On Android:**
+1. Tap the menu button (three dots)
+2. Tap "Add to Home screen"
+3. Name it and tap "Add"
+4. Icon appears on your home screen
 
-1. Go to Analytics → Speed Distribution chart
-2. Note the red line (speed limit)
-3. Count bars to the right of the line (speeders)
-4. Calculate percentage: (speeders ÷ total vehicles) × 100
+**Step 3: Configure API Connection**
 
-**Task 3: Compare Traffic Patterns Week-Over-Week**
+1. Tap the "Configure API" button
+2. Enter your Tailscale URL (same as desktop)
+3. Tap "Test Connection"
+4. Once connected, you're ready to use the dashboard
 
-1. Generate a report for "Last 7 Days"
-2. Generate another report for "Previous 7 Days"
-3. Compare vehicle counts between the two periods
-4. Look for increases/decreases and identify causes
+#### Mobile-Friendly Features
 
-**Task 4: Monitor Specific Vehicle Types**
+The dashboard is optimized for mobile with:
+- **Touch-friendly buttons and controls**
+- **Responsive layout** that adapts to screen size
+- **Swipe-friendly tabs** for easy navigation
+- **Readable text** on small screens
+- **Efficient data loading** for mobile networks
 
-1. Use vehicle type filter to show only trucks
-2. Set date range to last 30 days
-3. Look for unusual increases
-4. Could indicate construction, delivery routes, or detours
+#### Mobile Usage Tips
 
-### 4.4 Radar System Monitoring
+💡 **Tips for mobile users:**
+- Rotate to landscape for better chart viewing
+- Pinch to zoom on charts if needed
+- Use Wi-Fi for best performance
+- Close other browser tabs to save battery
+- Enable browser notifications for real-time alerts (if supported)
 
-This section explains how to monitor the radar system operation and verify that vehicle detections are working correctly.
-
-#### Real-Time Radar Monitoring
-
-**Checking Radar Service Status:**
-
-To verify the radar service is running properly:
-
-```bash
-# Connect to your Pi via SSH
-ssh pi@raspberrypi.local
-
-# Check if radar-service container is running
-docker ps | grep radar-service
-
-# Expected output: radar-service container with "healthy" status
-```
-
-**Monitoring Live Radar Detections:**
-
-View real-time vehicle detections as they happen:
-
-```bash
-# Follow radar service logs in real-time
-docker logs radar-service -f
-
-# Example output when a vehicle passes:
-# Vehicle detected: 23.9 mph (magnitude: unknown)
-# LOW SPEED ALERT: 23.9 mph
-```
-
-**Checking Recent Detections in Redis:**
-
-View the last few vehicle detections stored in Redis:
-
-```bash
-# Check last 5 radar detections
-docker exec redis redis-cli XREVRANGE radar_data + - COUNT 5
-
-# Check latest detection data in Redis
-docker exec redis redis-cli KEYS *
-```
-
-#### System Health Dashboard
-
-**Accessing the Health Dashboard:**
-
-1. **Public access (recommended):**
-   - GitHub Pages: [https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/](https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/)
-
-2. **Remote secure access with Tailscale:**
-   - Tailscale VPN: `https://edge-traffic-monitoring.taild46447.ts.net/`
-   - (Requires Tailscale VPN connection to your network)
-
-3. **Dashboard sections to check:**
-   - **System Status:** Shows if all services are running
-   - **Recent Detections:** Displays latest vehicle detections with timestamps
-   - **Radar Health:** Indicates radar sensor connectivity and data quality
-
-**Health Check Endpoints:**
-
-Test system health programmatically:
-
-```bash
-# Basic health check
-curl https://edge-traffic-monitoring.taild46447.ts.net/health
-
-# Detailed system health (includes all services)
-curl https://edge-traffic-monitoring.taild46447.ts.net/api/health/system
-
-# Expected response for healthy system:
-{
-  "status": "healthy",
-  "services": {
-    "redis": "running",
-    "traffic-monitor": "running",
-    "radar-service": "running",
-    "data-maintenance": "running",
-    "airport-weather": "running",
-    "dht22-weather": "running"
-  },
-  "camera_host_service": "imx500 (runs on host, not containerized)"
-}
-```
-
-### 4.5 Mobile App (Optional)
-
-If a mobile app is implemented, it provides remote access to real-time and historical traffic data, system status, and configuration options. The app uses the same REST and WebSocket APIs as the dashboard.
-
-#### Key Screens
-
-- **Login:** Secure authentication for users
-- **Live Events:** Real-time list of detected vehicles, speeds, and locations
-- **Analytics:** Charts for traffic volume, speed, and violations
-- **System Status:** Health indicators for camera, radar, and connectivity
-- **Settings:** User preferences and notification options
-
-#### Typical Workflows
-
-1. **Login and Authentication:**
-   - User logs in with credentials (or SSO if enabled)
-2. **Monitor Live Events:**
-   - View real-time vehicle detections and speed data
-   - Tap on an event for more details
-3. **Review Analytics:**
-   - Access historical charts and reports
-   - Filter by date, location, or event type
-4. **Check System Status:**
-   - Monitor health of edge devices and receive alerts
-5. **Adjust Settings:**
-   - Set notification preferences or update user profile
-
-**Note:** The mobile app is optional and may be implemented as a progressive web app (PWA) for cross-platform compatibility.
-
-### 4.6 Common Use Cases
+### 4.8 Common Use Cases
 
 #### Use Case 1: Live Traffic Monitoring
 
-1. Operator opens the Edge UI dashboard in a browser
-2. Observes real-time video feed and vehicle detections with speed overlays
-3. Checks system status indicators for camera, radar, and storage health
-4. Reviews the event table for recent detections and violations
+1. User opens the GitHub Pages dashboard in a browser
+2. Views the Overview tab showing real-time metrics:
+   - Total vehicles in last 24 hours
+   - Last detected vehicle snapshot with speed
+   - Speed violations count
+   - Current weather conditions
+3. Checks the Live Events tab for real-time vehicle detections
+4. Reviews traffic volume and speed distribution charts
 
-#### Use Case 2: Reviewing Historical Analytics
+#### Use Case 2: Reviewing Speed Violations
 
-1. Traffic analyst logs into the Cloud UI dashboard
-2. Navigates to the Analytics panel to view charts of vehicle counts and speed distributions over the past week
-3. Filters data by date, location, or vehicle type to identify trends or anomalies
-4. Downloads a report for further analysis or presentation
+1. User views the Speed Violations card on Overview tab
+2. Sees count of vehicles exceeding 25 mph in last 24 hours
+3. Scrolls through list of recent violations with timestamps and speeds
+4. Can switch to Live Events tab to see more detailed violation data
 
-#### Use Case 3: Investigating a Speed Violation
+#### Use Case 3: Monitoring System Health
 
-1. Operator receives an alert for a speeding event
-2. Clicks on the event in the dashboard to view details (timestamp, speed, vehicle type, location)
-3. Reviews associated video and radar data for verification
-4. Exports event data for record-keeping or enforcement
+1. User clicks on System Logs tab
+2. Filters by log level to see errors or warnings
+3. Identifies any issues with camera, radar, or other services
+4. Notes timestamps and error messages for troubleshooting
 
-#### Use Case 4: System Maintenance
+#### Use Case 4: Downloading Reports
 
-1. Administrator logs into the dashboard and checks system health logs
-2. Notices a warning about low storage space
-3. Initiates a backup and clears old data as needed
-4. Updates system software and dependencies via the maintenance panel
-
----
-
-## 5. Troubleshooting
-
-### 5.1 Common Issues
+1. User navigates to Reports tab
+2. Clicks "Download HTML" for monthly traffic summary
+3. Opens downloaded HTML report in browser
+4. Alternatively downloads CSV report for analysis in Excel
 
 ---
 
@@ -1646,10 +1454,6 @@ htop
 
 ---
 
-## 6. FAQ
-
-### 6.1 General Questions
-
 ---
 
 ## 6. FAQ
@@ -1684,7 +1488,7 @@ A: Yes. The system provides REST and WebSocket APIs that can be integrated with 
 
 **Q: What network connectivity is required?**
 
-A: The system requires an internet connection for cloud synchronization and remote access. Local operation (Edge UI) works without internet. Minimum bandwidth requirement is 1 Mbps for cloud features. For optimal performance, 5-10 Mbps is recommended, especially if capturing and uploading snapshots.
+A: The system requires an internet connection for remote access via Tailscale VPN and GitHub Pages dashboard access. The API backend runs locally on the Raspberry Pi but is accessed remotely through Tailscale. Minimum bandwidth requirement is 1 Mbps. For optimal performance, 5-10 Mbps is recommended, especially if the system is capturing and storing snapshots.
 
 **Q: Can I access the system remotely?**
 
@@ -1965,15 +1769,13 @@ When contacting support or reporting an issue, please provide the following info
 
 **API Gateway:** Service that provides REST and WebSocket endpoints for external system integration; in this system, the `traffic-monitor` service acts as the API gateway
 
-**Cloud UI:** Optional cloud-based dashboard for historical analytics and remote management; this system uses GitHub Pages for the public dashboard
+**Dashboard:** The unified web interface hosted on GitHub Pages for monitoring traffic, viewing analytics, and accessing system logs
 
 **Data Integration:** The process of combining data from multiple sensors (IMX500 camera and OPS243-C radar) into a unified stream for analysis and storage in Redis
 
 **Detection Event:** A recorded instance of a vehicle detection, including timestamp, vehicle type, speed, and location
 
 **Edge AI:** Artificial intelligence processing performed locally on the device (camera sensor) rather than in the cloud
-
-**Edge UI:** Local web dashboard for real-time monitoring and system configuration
 
 **FMCW Radar:** Frequency-Modulated Continuous Wave radar technology used in the OPS243-C sensor
 
@@ -2073,13 +1875,17 @@ When contacting support or reporting an issue, please provide the following info
 
 ### A. Future Enhancements
 
-- **Mobile App Expansion:** Native iOS and Android apps with push notifications
+**Current Mobile Access:** The dashboard is responsive and works on mobile browsers. You can add it to your home screen for quick access.
+
+**Potential future enhancements may include:**
+- **Native Mobile Apps:** Dedicated iOS and Android apps with push notifications
 - **User Customization:** Advanced user roles, permissions, and dashboard customization
 - **Accessibility Improvements:** Enhanced UI accessibility with screen reader support
 - **Automated Alerts:** Flexible, user-defined alerting and notification options
 - **Multi-Site Management:** Support for managing multiple installations from a single dashboard
 - **Advanced Analytics:** Machine learning for traffic prediction and anomaly detection
 - **License Plate Recognition:** Optional LPR integration for enforcement applications (subject to privacy regulations)
+- **Data Export Options:** PDF and JSON export formats in addition to current HTML/CSV
 
 ### B. Related Documentation
 
