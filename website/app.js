@@ -2025,6 +2025,8 @@ class VehicleEventsManager {
 
             // Handle system logs
             this.socket.on('system_log', (logData) => {
+                // Debug: Log the incoming timestamp format
+                console.log('Received log timestamp:', logData.timestamp, 'Type:', typeof logData.timestamp);
                 this.addLogEntry(logData);
             });
 
@@ -2287,13 +2289,38 @@ class VehicleEventsManager {
         logEntry.className = `log-entry ${logData.level.toLowerCase()}`;
         
         // Format timestamp in Central Time
-        const timestamp = new Date(logData.timestamp).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true,
-            timeZone: 'America/Chicago'
-        });
+        let timestamp;
+        try {
+            // Parse the timestamp - handle both ISO strings and already-formatted strings
+            const date = new Date(logData.timestamp);
+            if (!isNaN(date.getTime())) {
+                timestamp = date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                    timeZone: 'America/Chicago'
+                });
+            } else {
+                // If parsing fails, use current time in Central Time
+                timestamp = new Date().toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                    timeZone: 'America/Chicago'
+                });
+            }
+        } catch (e) {
+            // Fallback to current time if timestamp parsing fails
+            timestamp = new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZone: 'America/Chicago'
+            });
+        }
         
         logEntry.innerHTML = `
             <span class="log-timestamp">${timestamp}</span>
