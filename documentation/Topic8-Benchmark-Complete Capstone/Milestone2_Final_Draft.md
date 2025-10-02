@@ -21,7 +21,6 @@ October 2, 2025
 **Project Contributors:**
 - Steven Merkling - System Architect, Lead Developer, Documentation Lead
 - Dr. Aiman Darwiche - Faculty Advisor, Technical Reviewer
-- Dr. Shaun-inn Wu - Initial Project Advisor
 
 **Document Contributors:**
 - Steven Merkling - Primary Author
