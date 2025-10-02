@@ -1484,17 +1484,21 @@ class EnhancedSwaggerAPIGateway:
             cursor = conn.cursor()
             
             # Get monthly summary data
+            # Use UNIX timestamp comparison - get start of current month as epoch
+            current_time = time.time()
+            start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
+            
             query = """
             SELECT 
                 COUNT(*) as total_detections,
                 AVG(rd.speed_mph) as avg_speed,
-                COUNT(CASE WHEN rd.speed_mph > 35 THEN 1 END) as violations
+                COUNT(CASE WHEN rd.speed_mph > 25 THEN 1 END) as violations
             FROM traffic_detections td
             LEFT JOIN radar_detections rd ON td.id = rd.detection_id
-            WHERE td.timestamp >= datetime('now', 'start of month')
+            WHERE td.timestamp >= ?
             """
             
-            cursor.execute(query)
+            cursor.execute(query, (start_of_month,))
             row = cursor.fetchone()
             
             conn.close()
@@ -1584,25 +1588,28 @@ class EnhancedSwaggerAPIGateway:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            # Get violations data (speed > 35 mph)
+            # Get violations data (speed > 25 mph) - using UNIX timestamp
+            start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
+            
             query = """
             SELECT 
                 td.timestamp,
-                'Vehicle' as vehicle_type,
+                cd.vehicle_types as vehicle_type,
                 rd.speed_mph,
-                35 as speed_limit,
-                (rd.speed_mph - 35) as violation_amount,
-                'Main Street' as location,
-                td.confidence_score
+                25 as speed_limit,
+                (rd.speed_mph - 25) as violation_amount,
+                td.location_id as location,
+                rd.confidence
             FROM traffic_detections td
             JOIN radar_detections rd ON td.id = rd.detection_id
-            WHERE rd.speed_mph > 35
-            AND td.timestamp >= datetime('now', 'start of month')
+            LEFT JOIN camera_detections cd ON td.id = cd.detection_id
+            WHERE rd.speed_mph > 25
+            AND td.timestamp >= ?
             ORDER BY td.timestamp DESC
             LIMIT 1000
             """
             
-            cursor.execute(query)
+            cursor.execute(query, (start_of_month,))
             rows = cursor.fetchall()
             
             conn.close()
@@ -1610,16 +1617,28 @@ class EnhancedSwaggerAPIGateway:
             # Convert to CSV rows
             csv_data = []
             for row in rows:
-                timestamp = datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00'))
+                # Convert UNIX timestamp to datetime
+                timestamp = datetime.fromtimestamp(row['timestamp'])
+                
+                # Parse vehicle type if it's JSON
+                vehicle_type = "Vehicle"
+                if row['vehicle_type']:
+                    try:
+                        import json
+                        types = json.loads(row['vehicle_type']) if isinstance(row['vehicle_type'], str) else row['vehicle_type']
+                        vehicle_type = types[0] if isinstance(types, list) and types else str(types)
+                    except:
+                        vehicle_type = str(row['vehicle_type'])
+                
                 csv_data.append([
                     timestamp.strftime("%Y-%m-%d"),
                     timestamp.strftime("%H:%M:%S"),
-                    row['vehicle_type'],
+                    vehicle_type,
                     f"{row['speed_mph']:.1f}",
                     str(row['speed_limit']),
                     f"{row['violation_amount']:.1f}",
-                    row['location'],
-                    f"{row['confidence_score']:.1f}%" if row['confidence_score'] else "N/A"
+                    row['location'] or "Main Street",
+                    f"{row['confidence']*100:.1f}%" if row['confidence'] else "N/A"
                 ])
             
             # If no data, return sample row
@@ -1629,7 +1648,7 @@ class EnhancedSwaggerAPIGateway:
                     datetime.now().strftime("%H:%M:%S"),
                     "No Violations",
                     "0.0",
-                    "35",
+                    "25",
                     "0.0", 
                     "Main Street",
                     "N/A"
