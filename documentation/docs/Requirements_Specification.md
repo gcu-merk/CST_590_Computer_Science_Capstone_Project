@@ -122,6 +122,7 @@ This document covers:
 To develop an edge-based AI traffic monitoring solution that leverages modern hardware acceleration (Sony IMX500 NPU) and microservices architecture to provide real-time, accurate vehicle detection and classification without reliance on cloud infrastructure.
 
 **Key Differentiators:**
+
 - On-device AI inference using dedicated NPU (zero CPU overhead)
 - Multi-sensor data fusion (radar + camera + weather)
 - Real-time processing with sub-350ms latency
@@ -141,6 +142,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 ### 2.3 Project Scope
 
 **In Scope:**
+
 - Vehicle detection using Doppler radar sensor
 - AI-powered vehicle classification using IMX500 camera
 - Environmental data collection (temperature, humidity, weather conditions)
@@ -155,6 +157,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 - Tailscale VPN remote access
 
 **Target Environment:**
+
 - Raspberry Pi 5 (8GB RAM)
 - Residential street monitoring
 - Real-world traffic conditions
@@ -187,6 +190,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 ### 3.2 User Needs
 
 **As a system operator, I need:**
+
 1. Real-time visibility into vehicle traffic patterns
 2. Accurate vehicle speed measurements
 3. Vehicle type classification
@@ -223,6 +227,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 ### 4.1 Hardware Requirements
 
 **Edge Computing Device:**
+
 - **Model**: Raspberry Pi 5 (8GB RAM)
 - **Storage**: NVMe SSD (Gen 3, minimum 128GB)
 - **Network**: Gigabit Ethernet or WiFi 6
@@ -230,6 +235,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 - **Operating Temperature**: 0°C to 50°C
 
 **Sensors:**
+
 - **Radar**: OPS243-C Doppler radar sensor
   - Interface: UART (via USB)
   - Detection range: 1-100 meters
@@ -246,48 +252,58 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
   - Humidity range: 0-100% RH
 
 **Networking:**
+
 - Tailscale VPN client for secure remote access
 - Internet connectivity for weather API and remote access
 
 ### 4.2 Software Requirements
 
 **Operating System:**
+
 - Raspberry Pi OS 64-bit (Debian-based)
 - Kernel version: 6.1 or higher
 
 **Container Runtime:**
+
 - Docker Engine: 24.0 or higher
 - Docker Compose: 2.0 or higher
 
 **Python Environment:**
+
 - Python 3.9 or higher
 - Key libraries: picamera2, opencv-python, redis, Flask, SQLAlchemy
 
 **System Services:**
+
 - systemd for service management
 - journald for centralized logging
 
 **External Services:**
+
 - CheckWX Aviation Weather API (for METAR data)
 - Tailscale VPN service
 
 ### 4.3 Network Requirements
 
 **Bandwidth:**
+
 - Minimum: 10 Mbps download, 5 Mbps upload
 - Recommended: 50+ Mbps for HD image uploads (if enabled)
 
 **Latency:**
+
 - Internet latency: <100ms (for weather API calls)
 - Local network latency: <5ms (for dashboard access)
 
 **Ports:**
+
 - 80: HTTP (redirects to HTTPS)
 - 443 or 8443: HTTPS/TLS
 - 6379: Redis (internal Docker network only)
 - 5000-5005: Internal API services (Docker network)
 
 **Security:**
+
 - Tailscale VPN required for remote access
 - No public internet exposure of services
 - All external traffic encrypted via TLS
@@ -295,12 +311,14 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 ### 4.4 Environmental Requirements
 
 **Physical Location:**
+
 - Clear line of sight for radar sensor (no obstructions)
 - Weather-protected installation for outdoor sensors
 - Stable mounting for camera (minimal vibration)
 - Power source within 2 meters
 
 **Operating Conditions:**
+
 - Temperature: 0°C to 40°C (typical indoor/outdoor)
 - Humidity: 20-80% RH (non-condensing)
 - Ventilation: Passive cooling for Raspberry Pi 5
@@ -318,6 +336,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall detect vehicle presence using a Doppler radar sensor with continuous monitoring capability.
 
 **Acceptance Criteria:**
+
 - Radar sensor continuously monitors for vehicle motion
 - Detection range: 1-100 meters
 - Detection triggers within 2 seconds of vehicle entering range
@@ -340,6 +359,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall measure vehicle speed using Doppler radar with accuracy of ±2 mph.
 
 **Acceptance Criteria:**
+
 - Speed measured in miles per hour (mph)
 - Accuracy: ±2 mph compared to GPS reference
 - Speed range: 5-60 mph (residential street typical)
@@ -364,6 +384,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall classify vehicles using the IMX500 AI camera with on-device neural network inference.
 
 **Acceptance Criteria:**
+
 - Vehicle types classified: car, truck, bus, motorcycle, bicycle
 - Classification accuracy: >80% (minimum threshold)
 - AI inference performed on-device using IMX500 NPU
@@ -387,6 +408,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall perform AI inference in less than 100ms per frame using the IMX500's integrated NPU.
 
 **Acceptance Criteria:**
+
 - Inference time: <100ms per frame (measured from capture to classification)
 - Zero CPU overhead (NPU handles all AI processing)
 - Inference latency logged for performance monitoring
@@ -411,6 +433,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall collect local temperature and humidity data using a DHT22 sensor every 5 minutes.
 
 **Acceptance Criteria:**
+
 - Temperature reading in Celsius (°C)
 - Humidity reading in percentage (% RH)
 - Reading interval: 5 minutes
@@ -434,6 +457,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall retrieve airport weather data (METAR format) from the nearest airport every 10 minutes.
 
 **Acceptance Criteria:**
+
 - METAR data retrieved from CheckWX Aviation Weather API
 - Update interval: 10 minutes
 - Data includes: temperature, wind speed/direction, visibility, conditions
@@ -459,6 +483,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall correlate data from radar, camera, and weather sensors into unified consolidated events.
 
 **Acceptance Criteria:**
+
 - Each consolidated event includes:
   - Radar data: speed, direction, magnitude
   - Camera data: vehicle type, confidence, bounding box, image path
@@ -487,6 +512,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall persist all consolidated traffic events to a SQLite database with 90-day retention.
 
 **Acceptance Criteria:**
+
 - All consolidated events stored in `traffic_events` table
 - Database schema includes all sensor data fields
 - Batch insertion for performance (30-second batching window)
@@ -513,6 +539,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall broadcast traffic events to connected web clients in real-time using WebSocket (Socket.IO).
 
 **Acceptance Criteria:**
+
 - WebSocket server listens on HTTPS port
 - Events broadcast within 1 second of detection
 - Multiple concurrent clients supported (minimum 10)
@@ -538,6 +565,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall provide a comprehensive RESTful API with at least 15 endpoints for data access and system monitoring.
 
 **Acceptance Criteria:**
+
 - **Health Check**: `GET /api/health` - System health status
 - **Recent Events**: `GET /api/events/recent` - Latest N events (default 100)
 - **Event Statistics**: `GET /api/events/stats` - Aggregate statistics
@@ -566,6 +594,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall provide a web-based dashboard for real-time monitoring and historical data visualization.
 
 **Acceptance Criteria:**
+
 - Single-page application (SPA) interface
 - Real-time event updates via WebSocket
 - Display latest vehicle detections with speed, type, weather
@@ -593,6 +622,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall encrypt all HTTP traffic using TLS 1.2 or higher with valid SSL certificates.
 
 **Acceptance Criteria:**
+
 - HTTPS enabled on port 443 or 8443
 - TLS version: 1.2 minimum, 1.3 preferred
 - Valid SSL certificate (Let's Encrypt via Tailscale)
@@ -616,6 +646,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall be accessible only via Tailscale VPN, preventing public internet exposure.
 
 **Acceptance Criteria:**
+
 - Tailscale VPN client installed and configured
 - System accessible via Tailscale hostname (*.ts.net)
 - No services exposed on public IP addresses
@@ -641,6 +672,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall continuously monitor the health of all services with automated recovery from failures.
 
 **Acceptance Criteria:**
+
 - Docker health checks configured for all containers (30-60 second intervals)
 - Failed health checks trigger automatic container restart
 - Health check endpoints return HTTP 200 for healthy status
@@ -664,6 +696,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall automatically clean up old data to prevent storage exhaustion.
 
 **Acceptance Criteria:**
+
 - AI camera images deleted after 24 hours
 - Database records retained for 90 days, then purged
 - Docker logs rotated (max 10MB per file, 3 files per service)
@@ -687,6 +720,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Description**: The system shall support zero-downtime deployments using CI/CD pipeline with rolling updates.
 
 **Acceptance Criteria:**
+
 - GitHub Actions CI/CD pipeline configured
 - Deployment triggered by push to main branch
 - Rolling container restarts (one service at a time)
@@ -717,6 +751,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: Timestamp analysis from logs (radar detection → database write)
 
 **Acceptance Criteria:**
+
 - Average latency: <300ms
 - 95th percentile latency: <350ms
 - No processing delays during normal operation
@@ -739,6 +774,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: cURL timing measurements
 
 **Acceptance Criteria:**
+
 - Health check endpoint: <50ms
 - Recent events query: <200ms
 - Statistics aggregation: <200ms
@@ -762,6 +798,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: NPU inference time logging
 
 **Acceptance Criteria:**
+
 - Inference time: <100ms per frame
 - Zero CPU overhead (NPU-accelerated)
 - Consistent performance across frame sizes
@@ -786,6 +823,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: Continuous monitoring logs, service restart tracking
 
 **Acceptance Criteria:**
+
 - No unexpected service crashes
 - Automated recovery from failures in <2 minutes
 - Minimal manual intervention required
@@ -809,6 +847,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: Database validation, checksum verification
 
 **Acceptance Criteria:**
+
 - All radar detections result in database records
 - No data corruption in SQLite database
 - Transaction atomicity maintained
@@ -832,6 +871,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: Failure injection testing
 
 **Acceptance Criteria:**
+
 - Camera unavailable: system continues with radar-only data
 - Weather sensor unavailable: system caches last known values
 - Network unavailable: system operates offline (no airport weather)
@@ -857,6 +897,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: `docker stats` monitoring
 
 **Acceptance Criteria:**
+
 - Normal load (1 detection per 5 minutes): <10% CPU
 - Peak load (5 detections per minute): <50% CPU
 - IMX500 AI inference: 0% CPU (NPU-accelerated)
@@ -879,6 +920,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: `docker stats` memory monitoring
 
 **Acceptance Criteria:**
+
 - Total system memory usage: <4GB
 - No memory leaks over extended operation (9+ hours)
 - Memory growth: <10MB per hour
@@ -901,6 +943,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: High-traffic scenario testing
 
 **Acceptance Criteria:**
+
 - Process 10+ detections per minute
 - No dropped events
 - Latency remains stable under load
@@ -924,6 +967,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Requirement**: The system shall not collect or store personally identifiable information (PII).
 
 **Acceptance Criteria:**
+
 - No license plate recognition
 - No facial recognition
 - No video recording/storage
@@ -945,6 +989,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Measurement Method**: Code review, security testing
 
 **Acceptance Criteria:**
+
 - All database queries use parameterized statements
 - No string concatenation for SQL query construction
 - Input validation on API endpoints
@@ -962,6 +1007,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Requirement**: The system shall implement network-level security to prevent unauthorized access.
 
 **Acceptance Criteria:**
+
 - Services not exposed on public internet
 - TLS 1.2+ encryption for all HTTP traffic
 - Tailscale VPN required for access
@@ -982,6 +1028,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Requirement**: The system shall be deployable with a single command after initial setup.
 
 **Acceptance Criteria:**
+
 - Single command deployment: `docker-compose up -d`
 - Automated CI/CD pipeline for updates
 - No manual configuration for normal operation
@@ -1000,6 +1047,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Requirement**: The API shall be intuitive and well-documented for ease of integration.
 
 **Acceptance Criteria:**
+
 - RESTful design following industry standards
 - Swagger/OpenAPI documentation available
 - Consistent JSON response format
@@ -1021,6 +1069,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Requirement**: The codebase shall follow Python best practices and be well-documented.
 
 **Acceptance Criteria:**
+
 - PEP 8 style compliance
 - Type hints for function signatures
 - Docstrings for all public functions
@@ -1040,6 +1089,7 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Requirement**: The system shall provide comprehensive logging for debugging and monitoring.
 
 **Acceptance Criteria:**
+
 - Structured logging with severity levels (INFO, WARNING, ERROR)
 - Correlation IDs for tracing requests across services
 - Centralized logging via Docker stdout/stderr
@@ -1061,11 +1111,13 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Goal**: Detect and classify a passing vehicle with full sensor data correlation
 
 **Preconditions:**
+
 - All services running and healthy
 - Sensors operational (radar, camera, weather)
 - Network connectivity available
 
 **Main Flow:**
+
 1. Radar sensor detects vehicle motion
 2. Radar service measures speed and publishes event to Redis
 3. IMX500 camera triggers on radar event
@@ -1079,16 +1131,19 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 11. Dashboard updates with new detection in real-time
 
 **Postconditions:**
+
 - Vehicle detection stored in database
 - Real-time dashboard updated
 - Data available via API
 
 **Alternative Flows:**
+
 - **3a. Camera unavailable (nighttime)**: System continues with radar + weather data only
 - **4a. AI inference fails**: Event logged, continues with radar data
 - **8a. Database write fails**: Event buffered and retried
 
 **Performance Criteria:**
+
 - End-to-end completion: <350ms (95th percentile)
 - Real-time dashboard update: <1 second
 
@@ -1103,11 +1158,13 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Goal**: Query historical traffic data to identify patterns
 
 **Preconditions:**
+
 - System has collected data for analysis period
 - User has access to API (via Tailscale VPN)
 - API service operational
 
 **Main Flow:**
+
 1. Analyst opens web browser
 2. Navigates to dashboard URL (https://*.ts.net)
 3. Dashboard loads and displays recent events
@@ -1123,15 +1180,18 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 10. Analyst exports data for further processing
 
 **Postconditions:**
+
 - Analyst has historical data for analysis
 - No system state changes
 
 **Alternative Flows:**
+
 - **4a. No data for time range**: API returns empty array with 200 status
 - **5a. Database query timeout**: API returns 503 error, logs issue
 - **6a. Invalid date format**: API returns 400 error with clear message
 
 **Performance Criteria:**
+
 - Query response time: <200ms for typical date range (1 day)
 - Result set size: Up to 10,000 records per query
 
@@ -1146,11 +1206,13 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 **Goal**: Deploy system update with zero downtime
 
 **Preconditions:**
+
 - Code changes pushed to GitHub main branch
 - Self-hosted runner operational on Raspberry Pi
 - System currently running in production
 
 **Main Flow:**
+
 1. Administrator pushes code changes to GitHub
 2. GitHub Actions detects push to main branch
 3. CI/CD pipeline triggered automatically
@@ -1166,16 +1228,19 @@ To develop an edge-based AI traffic monitoring solution that leverages modern ha
 9. Administrator verifies deployment via dashboard
 
 **Postconditions:**
+
 - System running with updated code
 - No service downtime experienced
 - All health checks passing
 
 **Alternative Flows:**
+
 - **6a. Health check fails**: Pipeline rolls back to previous version
 - **6b. Critical service fails**: Pipeline stops, alerts administrator
 - **9a. Manual verification fails**: Administrator can rollback manually
 
 **Performance Criteria:**
+
 - Deployment time: <10 minutes
 - Downtime: 0 seconds (rolling restart)
 
@@ -1192,6 +1257,7 @@ Requirements prioritized using the MoSCoW method:
 #### MUST HAVE (Critical - Project Cannot Succeed Without These)
 
 **Functional:**
+
 - FR-001: Radar-based vehicle detection
 - FR-002: Vehicle speed measurement
 - FR-003: AI vehicle classification
@@ -1204,6 +1270,7 @@ Requirements prioritized using the MoSCoW method:
 - FR-014: Automated health monitoring
 
 **Non-Functional:**
+
 - NFR-001: End-to-end latency <350ms
 - NFR-002: API response time <200ms
 - NFR-003: AI inference <100ms
@@ -1217,6 +1284,7 @@ Requirements prioritized using the MoSCoW method:
 #### SHOULD HAVE (Important - Add Significant Value)
 
 **Functional:**
+
 - FR-005: Local weather data (DHT22)
 - FR-006: Airport weather data (METAR)
 - FR-009: WebSocket real-time streaming
@@ -1225,6 +1293,7 @@ Requirements prioritized using the MoSCoW method:
 - FR-016: Zero-downtime deployments
 
 **Non-Functional:**
+
 - NFR-006: Fault tolerance
 - NFR-007: CPU utilization <50%
 - NFR-008: Memory usage <4GB
@@ -1235,6 +1304,7 @@ Requirements prioritized using the MoSCoW method:
 #### COULD HAVE (Nice to Have - Desirable but Not Essential)
 
 **Non-Functional:**
+
 - NFR-009: Throughput >10/min (already exceeded with 5/min typical)
 
 #### WON'T HAVE (Out of Scope for This Release)
@@ -1268,26 +1338,31 @@ Hardware Setup → Radar Integration → Camera Integration → Data Fusion → 
 ### 9.1 Technical Constraints
 
 **TC-001**: Hardware Platform  
+
 - **Constraint**: System must run on Raspberry Pi 5 (ARM64 architecture)
 - **Impact**: Limits processing power, requires efficient algorithms
 - **Mitigation**: Use hardware acceleration (IMX500 NPU), optimize code
 
 **TC-002**: Edge Computing  
+
 - **Constraint**: All processing must occur on-device (no cloud dependency)
 - **Impact**: Limited computational resources compared to cloud
 - **Mitigation**: Leverage NPU for AI, use lightweight models
 
 **TC-003**: Single-Site Deployment  
+
 - **Constraint**: System designed for single monitoring location
 - **Impact**: No distributed architecture required, simpler design
 - **Benefit**: Reduces complexity, easier to maintain
 
 **TC-004**: Open-Source Technologies  
+
 - **Constraint**: Must use free/open-source software (budget limitation)
 - **Impact**: Limits vendor-specific features
 - **Benefit**: No licensing costs, community support
 
 **TC-005**: Network Dependency  
+
 - **Constraint**: Internet required for weather API and VPN access
 - **Impact**: Offline operation limited (no airport weather, no remote access)
 - **Mitigation**: Local DHT22 sensor, system continues core function offline
@@ -1295,21 +1370,25 @@ Hardware Setup → Radar Integration → Camera Integration → Data Fusion → 
 ### 9.2 Business Constraints
 
 **BC-001**: Project Timeline  
+
 - **Constraint**: Capstone project timeline (academic semester)
 - **Impact**: Limits scope, requires prioritization
 - **Mitigation**: MoSCoW prioritization, MVP-first approach
 
 **BC-002**: Budget  
+
 - **Constraint**: Limited budget for hardware/services
 - **Impact**: Commodity hardware (Raspberry Pi), no premium services
 - **Benefit**: Demonstrates cost-effective solution
 
 **BC-003**: Solo Development  
+
 - **Constraint**: Single developer (no team)
 - **Impact**: Limited capacity, focus on core features
 - **Mitigation**: Leverage existing libraries, focus on integration
 
 **BC-004**: Privacy Requirements  
+
 - **Constraint**: No personally identifiable information (PII) collection
 - **Impact**: No license plates, no facial recognition, no video storage
 - **Benefit**: Simpler compliance, ethical design
@@ -1317,31 +1396,37 @@ Hardware Setup → Radar Integration → Camera Integration → Data Fusion → 
 ### 9.3 Assumptions
 
 **AS-001**: Network Availability  
+
 - **Assumption**: Internet connectivity available >95% of the time
 - **Risk**: Weather API unavailable during outages
 - **Validation**: System continues core function offline (radar + camera)
 
 **AS-002**: Power Stability  
+
 - **Assumption**: Consistent power supply to Raspberry Pi
 - **Risk**: Unexpected shutdowns could corrupt database
 - **Mitigation**: SQLite transaction safety, UPS recommended
 
 **AS-003**: Sensor Accuracy  
+
 - **Assumption**: Radar sensor provides ±2 mph accuracy as specified
 - **Risk**: Inaccurate speed measurements
 - **Validation**: Tested against GPS reference (±1.2 mph achieved)
 
 **AS-004**: Traffic Volume  
+
 - **Assumption**: Residential street traffic: 5-20 vehicles per hour
 - **Risk**: System may be underutilized in low-traffic areas
 - **Validation**: Performance tested up to 20+ detections per minute
 
 **AS-005**: Environmental Conditions  
+
 - **Assumption**: Sensors operate within 0°C to 40°C range
 - **Risk**: Extreme temperatures may affect accuracy
 - **Mitigation**: Weather-protected housing for outdoor sensors
 
 **AS-006**: Tailscale VPN Service  
+
 - **Assumption**: Tailscale service remains available and free for personal use
 - **Risk**: Service changes could affect remote access
 - **Mitigation**: System functions independently, VPN only for remote access
@@ -1361,6 +1446,7 @@ The system shall be considered acceptable for capstone submission when:
 **SA-003**: All functional requirements tested with documented results (✅ Achieved)
 
 **SA-004**: Performance metrics meet or exceed targets:
+
 - ✅ End-to-end latency: <350ms (achieved 280ms avg)
 - ✅ AI inference: <100ms (achieved 45ms avg)
 - ✅ API response: <200ms (achieved 45ms avg)
@@ -1368,6 +1454,7 @@ The system shall be considered acceptable for capstone submission when:
 **SA-005**: Zero major defects or unresolved issues (✅ Achieved)
 
 **SA-006**: Comprehensive documentation complete:
+
 - ✅ Requirements Specification (this document)
 - ✅ Technical Design Document
 - ✅ Testing Documentation
@@ -1377,16 +1464,19 @@ The system shall be considered acceptable for capstone submission when:
 ### 10.2 Performance Acceptance
 
 **PA-001**: Latency Performance (✅ Achieved)
+
 - End-to-end: <350ms (95th percentile) → Achieved: 320ms
 - AI inference: <100ms → Achieved: 45ms
 - API response: <200ms → Achieved: 45ms
 
 **PA-002**: Resource Utilization (✅ Achieved)
+
 - CPU: <50% peak → Achieved: 33% peak
 - Memory: <4GB → Achieved: 900MB
 - Disk: Managed growth → Achieved: <1GB long-term
 
 **PA-003**: Reliability (✅ Achieved)
+
 - Uptime: >99.9% → Achieved: 100% (9+ hours)
 - Recovery time: <2 minutes → Achieved: 40-75 seconds
 - Data integrity: 100% → Achieved: 100%
@@ -1394,12 +1484,14 @@ The system shall be considered acceptable for capstone submission when:
 ### 10.3 Quality Acceptance
 
 **QA-001**: Code Quality (✅ Achieved)
+
 - PEP 8 compliance for Python code
 - Comprehensive logging and error handling
 - Modular microservices architecture
 - Dockerized deployment
 
 **QA-002**: Testing Coverage (✅ Achieved)
+
 - 106 test cases executed
 - 100% pass rate
 - 25 requirements validated
@@ -1407,6 +1499,7 @@ The system shall be considered acceptable for capstone submission when:
 - 10 end-to-end scenarios
 
 **QA-003**: Documentation Quality (✅ Achieved)
+
 - Clear, comprehensive technical documentation
 - User guide for operators
 - API documentation (Swagger)
@@ -1414,6 +1507,7 @@ The system shall be considered acceptable for capstone submission when:
 - Testing procedures and results
 
 **QA-004**: Security (✅ Achieved)
+
 - TLS encryption enabled
 - SQL injection prevention verified
 - No PII collected
@@ -1427,6 +1521,7 @@ The system shall be considered acceptable for capstone submission when:
 `Testing_Documentation.md` - Section 3.1
 
 **Summary:**
+
 - **Total Requirements**: 25 (15 Functional + 10 Non-Functional)
 - **Requirements Tested**: 25 (100% coverage)
 - **Requirements Passed**: 25 (100% pass rate)

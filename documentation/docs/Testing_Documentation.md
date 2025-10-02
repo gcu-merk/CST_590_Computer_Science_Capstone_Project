@@ -4,7 +4,7 @@
 **Document Version:** 1.0.0  
 **Last Updated:** October 2, 2025  
 **Project:** CST 590 Computer Science Capstone  
-**Author:** Michael Merkle  
+**Author:** Steve Merkling
 **System Version:** v1.0.0-capstone-final
 
 ---
