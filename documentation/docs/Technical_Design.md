@@ -222,7 +222,7 @@ All services include health checks, restart policies, centralized logging with c
   - Trims oversized streams
   - Defragments memory
   - Reports memory statistics
-- **Achievement:** 94% storage reduction (removed sky analysis overhead)
+- **Achievement:** 94% storage reduction through intelligent data management
 - **Health Check:** Process and Redis connectivity verification
 
 #### 2.2.4 API and User Interface Services
@@ -1652,7 +1652,7 @@ The system implements a fully automated CI/CD pipeline using GitHub Actions, Doc
 **Service-Specific Deployment:** `deploy-services.sh`
 
 - Deploys containerized microservices
-- 94% storage optimization (removed sky analysis)
+- 94% storage optimization through intelligent data management
 - Radar-triggered architecture validation
 - Post-deployment validation script execution
 
@@ -2403,9 +2403,8 @@ requests==2.31.0
 - **Total Latency:** <350ms for complete detection pipeline
 
 **Storage Optimization:**
-- **Initial Design:** ~16 GB/day (with sky analysis)
-- **Optimized Design:** ~1 GB/day (94% reduction)
-- **Achievement:** Eliminated sky analysis overhead
+- **Optimized Design:** ~1 GB/day
+- **Achievement:** 94% storage reduction through intelligent data management
 - **Retention:** 24 hours (images), 90 days (database events)
 
 **System Uptime & Reliability:**
@@ -2758,7 +2757,7 @@ This section documents the complete data flow from OPS243-C radar detection thro
    • SET 'consolidation:history:{id}' (time-series)
    • PUBLISH 'database_events' (persistence trigger)
 
-5. Database Persistence (database_persistence_service.py)
+5. Database Persistence (database_persistence_service_simplified.py)
    • SUBSCRIBE 'database_events'
    • ON new_consolidated_data:
      - GET consolidated data from Redis
@@ -2784,7 +2783,7 @@ This section documents the complete data flow from OPS243-C radar detection thro
 │                                                                         │
 │ Service: database-persistence                                           │
 │ • REDIS_HOST=redis                                                     │
-│ • DATABASE_PATH=/app/data/traffic.db                                   │
+│ • DATABASE_PATH=/app/data/traffic_data.db                              │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -2793,7 +2792,7 @@ This section documents the complete data flow from OPS243-C radar detection thro
 To prevent memory bloat, the system implements automatic Redis stream cleanup:
 
 ```text
-database_persistence_service.py:
+database_persistence_service_simplified.py:
 ├── _cleanup_redis_streams()
 │   ├── XTRIM radar_data MAXLEN ~ 1000      # Keep last 1000 entries
 │   └── XTRIM consolidated_traffic_data MAXLEN ~ 100  # Keep last 100 entries
