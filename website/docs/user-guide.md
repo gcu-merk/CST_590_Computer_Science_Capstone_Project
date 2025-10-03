@@ -185,9 +185,8 @@ This guide has been designed with accessibility in mind:
    - 4.3 [Monitoring Real-Time Traffic](#43-monitoring-real-time-traffic)
    - 4.4 [Using Live Events Feed](#44-using-live-events-feed)
    - 4.5 [Viewing System Logs](#45-viewing-system-logs)
-   - 4.6 [Downloading Reports](#46-downloading-reports)
-   - 4.7 [Mobile Access](#47-mobile-access)
-   - 4.8 [Common Use Cases](#48-common-use-cases)
+   - 4.6 [Mobile Access](#46-mobile-access)
+   - 4.7 [Common Use Cases](#47-common-use-cases)
 5. [Troubleshooting](#5-troubleshooting)
    - 5.1 [Common Issues](#51-common-issues)
    - 5.2 [Radar Detection Problems](#52-radar-detection-problems)
@@ -234,7 +233,7 @@ The system offers the following key features:
 - **Weather Independent:** Radar detection works in all weather conditions
 - **Web Dashboard:** GitHub Pages-hosted interface for remote monitoring via Tailscale VPN
 - **REST and WebSocket APIs:** For integration and real-time event streaming
-- **Basic Reporting:** Download HTML and CSV reports of traffic data
+- **Real-Time Monitoring:** View live vehicle detections, speed data, and system events
 
 ### 1.3 User Roles
 
@@ -740,11 +739,6 @@ The dashboard has **four main tabs**:
   - Traffic volume chart (24H or 7D views)
   - Speed distribution chart
 
-- **Reports Tab:**
-  - Downloadable traffic reports (HTML/CSV formats)
-  - Monthly traffic summary
-  - Speed violation report
-
 - **Live Events Tab:**
   - Real-time vehicle detection events
   - WebSocket streaming of detections
@@ -767,9 +761,6 @@ The dashboard has **four main tabs**:
 
 ![Web Dashboard System Logs](CloudUI_As_Built_3.jpg)
 *Figure 3: Web Dashboard - System Logs Tab*
-
-![Web Dashboard Reports](CloudUI_As_Built_4.jpg)
-*Figure 4: Web Dashboard - Reports Tab*
 
 ### 4.2 Accessing the Dashboard
 
@@ -965,28 +956,7 @@ Failed to read from UART device /dev/ttyAMA0
 
 💡 **TIP:** If you see errors, note the timestamp and service name when reporting issues.
 
-### 4.6 Downloading Reports
-
-The Reports tab provides pre-generated downloadable reports (feature may vary based on implementation).
-
-#### Available Reports
-
-- **Monthly Traffic Summary (HTML):** Overview of traffic patterns for the month
-- **Speed Violation Report (CSV):** Spreadsheet of speeding violations
-
-#### How to Download
-
-1. Click **Reports** tab
-2. Find the report you want
-3. Click **Download HTML** or **Download CSV** button
-4. File saves to your browser's Downloads folder
-5. Open the file:
-   - HTML files open in your browser
-   - CSV files open in Excel or Google Sheets
-
-💡 **TIP:** Reports are useful for record-keeping and sharing data with stakeholders.
-
-### 4.7 Mobile Access
+### 4.6 Mobile Access
 
 The dashboard is fully responsive and works on mobile devices through your phone's web browser - no app installation required!
 
@@ -1043,7 +1013,7 @@ The dashboard is optimized for mobile with:
 - Close other browser tabs to save battery
 - Enable browser notifications for real-time alerts (if supported)
 
-### 4.8 Common Use Cases
+### 4.7 Common Use Cases
 
 #### Use Case 1: Live Traffic Monitoring
 
@@ -1069,13 +1039,6 @@ The dashboard is optimized for mobile with:
 2. Filters by log level to see errors or warnings
 3. Identifies any issues with camera, radar, or other services
 4. Notes timestamps and error messages for troubleshooting
-
-#### Use Case 4: Downloading Reports
-
-1. User navigates to Reports tab
-2. Clicks "Download HTML" for monthly traffic summary
-3. Opens downloaded HTML report in browser
-4. Alternatively downloads CSV report for analysis in Excel
 
 ---
 
@@ -1885,7 +1848,7 @@ When contacting support or reporting an issue, please provide the following info
 - **Multi-Site Management:** Support for managing multiple installations from a single dashboard
 - **Advanced Analytics:** Machine learning for traffic prediction and anomaly detection
 - **License Plate Recognition:** Optional LPR integration for enforcement applications (subject to privacy regulations)
-- **Data Export Options:** PDF and JSON export formats in addition to current HTML/CSV
+- **Data Export Options:** Enhanced data export capabilities for analysis and reporting
 
 ### B. Related Documentation
 
