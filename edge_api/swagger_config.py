@@ -23,10 +23,6 @@ API_CONFIG = {
         'name': 'Traffic Monitoring System',
         'email': 'admin@trafficmonitor.local'
     },
-    'license': {
-        'name': 'MIT License',
-        'url': 'https://opensource.org/licenses/MIT'
-    },
     'servers': [
         {
             'url': 'http://localhost:5000',
