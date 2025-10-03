@@ -1118,6 +1118,7 @@ class EnhancedSwaggerAPIGateway:
         @events_ns.route('/broadcast')
         class BroadcastEvent(Resource):
             @with_correlation_tracking
+            @events_ns.doc(False)  # Hide from public API documentation - internal use only
             def post(self):
                 """Receive event from broadcaster service and send to WebSocket clients"""
                 try:
