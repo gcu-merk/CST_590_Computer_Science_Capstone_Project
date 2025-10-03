@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Viewer - Edge Traffic Monitoring System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.2.0/github-markdown.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin: 20px 30px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c00;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+
+        .error h2 {
+            margin-bottom: 10px;
+        }
+
+        /* Code block styling */
+        .markdown-body pre {
+            background: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        .markdown-body code {
+            background: #f6f8fa;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .markdown-body pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        /* Table styling */
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+
+        .markdown-body table th,
+        .markdown-body table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+        }
+
+        .markdown-body table th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+
+        /* Image styling */
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 1em 0;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="doc-title">Loading Document...</h1>
+            <p id="doc-subtitle">Edge Traffic Monitoring System - CST 590 Capstone Project</p>
+        </div>
+
+        <a href="index.html" class="back-button">← Back to Dashboard</a>
+
+        <div class="content">
+            <div id="loading" class="loading">
+                <p>Loading document...</p>
+            </div>
+            <div id="markdown-content" class="markdown-body" style="display: none;"></div>
+            <div id="error" class="error" style="display: none;">
+                <h2>Error Loading Document</h2>
+                <p id="error-message"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configure marked options
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: true,
+            mangle: false,
+            sanitize: false
+        });
+
+        // Get the file parameter from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileName = urlParams.get('file');
+
+        // Document titles mapping
+        const docTitles = {
+            'technical-design.md': 'Technical Design Document',
+            'user-guide.md': 'User Guide',
+            'system-administration-guide.md': 'System Administration Guide',
+            'testing-documentation.md': 'Testing Documentation',
+            'project-management.md': 'Project Management',
+            'Milestone1_Final_Draft.md': 'Milestone 1: Project Proposal',
+            'Milestone2_Final_Draft.md': 'Milestone 2: Requirements Analysis',
+            'Milestone3_Final_Draft.md': 'Milestone 3: Design & Implementation',
+            'Milestone4_Final_Draft.md': 'Milestone 4: Testing & Deployment'
+        };
+
+        async function loadMarkdown() {
+            if (!fileName) {
+                showError('No file specified in URL');
+                return;
+            }
+
+            // Update document title
+            const title = docTitles[fileName] || fileName;
+            document.getElementById('doc-title').textContent = title;
+            document.title = `${title} - Edge Traffic Monitoring System`;
+
+            try {
+                // Construct the file path
+                let filePath = `docs/${fileName}`;
+                if (fileName.startsWith('Milestone')) {
+                    filePath = `docs/milestones/${fileName}`;
+                }
+
+                // Fetch the markdown file
+                const response = await fetch(filePath);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load document: ${response.status} ${response.statusText}`);
+                }
+
+                const markdown = await response.text();
+                
+                // Convert markdown to HTML
+                const html = marked.parse(markdown);
+                
+                // Display the content
+                document.getElementById('loading').style.display = 'none';
+                const contentDiv = document.getElementById('markdown-content');
+                contentDiv.innerHTML = html;
+                contentDiv.style.display = 'block';
+
+                // Make external links open in new tab
+                contentDiv.querySelectorAll('a[href^="http"]').forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('doc-title').textContent = 'Error';
+        }
+
+        // Load the markdown when page loads
+        loadMarkdown();
+    </script>
+</body>
+</html>
