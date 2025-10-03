@@ -28,6 +28,7 @@ API_CONFIG = {
     - Redis caching for performance
     - PostgreSQL data persistence
     - Docker containerized deployment
+    - Centralized logging and monitoring
     """,
     'doc': '/docs/',  # Swagger UI path
     'contact': {
