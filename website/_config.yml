@@ -1,0 +1,19 @@
+# Jekyll configuration for GitHub Pages
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Enable relative links
+relative_links:
+  enabled: true
+  collections: true
+
+# Include markdown files
+include:
+  - docs
+  - "*.md"
+  - "**/*.md"
+
+# Theme (optional - using GitHub's default)
+theme: jekyll-theme-minimal
