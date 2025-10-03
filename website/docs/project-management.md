@@ -2,7 +2,7 @@
 
 **Document Version:** 1.0  
 > **Note:**
-> This project is managed with a Minimal Viable Product (MVP)-first approach, emphasizing incremental development, future extensibility, and robust risk management. Phase 1 is designed to deliver a working MVP, with later phases planned for future implementation as time and resources allow. For full feedback and rationale, see [AI Feedback for Capstone Completion plan](../archive/AI%20Feedback%20for%20Capstone%20Completion%20plan.txt).
+> This project is managed with a Minimal Viable Product (MVP)-first approach, emphasizing incremental development, future extensibility, and robust risk management. Phase 1 is designed to deliver a working MVP, with later phases planned for future implementation as time and resources allow. For full feedback and rationale, see [AI Feedback for Capstone Completion plan](ai-feedback-capstone-completion-plan.txt).
 **Last Updated:** August 7, 2025  
 **Project:** Raspberry Pi 5 Edge ML Traffic Monitoring System  
 **Authors:** Project Team  
