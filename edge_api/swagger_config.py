@@ -15,7 +15,7 @@ API_CONFIG = {
     A production-ready edge computing traffic monitoring system powered by Raspberry Pi 5, Sony IMX500 AI camera, 
     and mmWave radar. Delivers real-time vehicle detection, classification, and speed analysis with <350ms latency. 
     Features multi-sensor fusion, weather integration, and comprehensive REST/WebSocket APIs for seamless integration. 
-    All AI processing happens on-device with privacy-first architecture, backed by Redis caching, PostgreSQL persistence, 
+    All AI processing happens on-device with privacy-first architecture, backed by Redis caching, SQLite persistence, 
     and centralized logging for enterprise-grade reliability.
     """,
     'doc': '/docs/',  # Swagger UI path
