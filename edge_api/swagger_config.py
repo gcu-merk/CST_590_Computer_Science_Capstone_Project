@@ -12,23 +12,11 @@ API_CONFIG = {
     'version': '1.0.0',
     'title': 'Traffic Monitoring Edge API',
     'description': """
-    Real-time traffic monitoring system with vehicle detection, speed analysis, and weather integration.
-    
-    This API provides comprehensive traffic monitoring capabilities including:
-    - Real-time vehicle detection and tracking
-    - Speed measurement and analysis
-    - Weather condition monitoring (DHT22 sensor + airport data)
-    - Traffic analytics and insights
-    - System health monitoring
-    - WebSocket support for real-time updates
-    
-    **Key Features:**
-    - Raspberry Pi 5 optimized
-    - GPIO sensor integration
-    - Redis caching for performance
-    - PostgreSQL data persistence
-    - Docker containerized deployment
-    - Centralized logging and monitoring
+    A production-ready edge computing traffic monitoring system powered by Raspberry Pi 5, Sony IMX500 AI camera, 
+    and mmWave radar. Delivers real-time vehicle detection, classification, and speed analysis with <350ms latency. 
+    Features multi-sensor fusion, weather integration, and comprehensive REST/WebSocket APIs for seamless integration. 
+    All AI processing happens on-device with privacy-first architecture, backed by Redis caching, PostgreSQL persistence, 
+    and centralized logging for enterprise-grade reliability.
     """,
     'doc': '/docs/',  # Swagger UI path
     'contact': {
