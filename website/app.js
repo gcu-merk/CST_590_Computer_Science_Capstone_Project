@@ -877,7 +877,7 @@ class TrafficDashboard {
         const cutoffTime = new Date();
         cutoffTime.setHours(now.getHours() - 24);
 
-        // Filter violations (speeds > 25 mph) within last 24 hours and sort by timestamp (newest first)
+        // Filter violations (speeds > 25 mph) within last 24 hours and sort by speed (highest first)
         const violations = speeds
             .filter(record => {
                 if (!record.speed || record.speed <= 25) return false;
@@ -893,10 +893,8 @@ class TrafficDashboard {
                 return true;
             })
             .sort((a, b) => {
-                // Sort by timestamp - handle both ISO strings and objects with timestamp property
-                const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                return timeB - timeA; // Newest first
+                // Sort by speed - highest speed first
+                return b.speed - a.speed;
             });
 
         if (violations.length === 0) {
