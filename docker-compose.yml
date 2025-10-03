@@ -1,3 +1,4 @@
+# Production Docker Compose Configuration - v1.0.0-capstone-final
 services:
   redis:
     image: redis:7-alpine
