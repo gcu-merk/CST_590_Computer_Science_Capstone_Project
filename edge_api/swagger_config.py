@@ -47,7 +47,8 @@ API_CONFIG = {
             'url': 'http://100.121.231.16:5000',
             'description': 'Raspberry Pi deployment'
         }
-    ]
+    ],
+    'tags': []  # Let Flask-RESTX auto-generate tags from namespaces
 }
 
 def create_api_models():
