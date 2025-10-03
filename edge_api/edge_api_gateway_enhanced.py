@@ -222,7 +222,7 @@ class EnhancedSwaggerAPIGateway:
             self.app,
             version=API_CONFIG['version'],
             title=API_CONFIG['title'] + " - Enhanced",
-            description=API_CONFIG['description'] + " (with centralized logging)",
+            description=API_CONFIG['description'],
             doc=API_CONFIG['doc'],
             contact=API_CONFIG['contact'],
             license=API_CONFIG['license'],
