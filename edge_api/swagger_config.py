@@ -47,32 +47,6 @@ API_CONFIG = {
             'url': 'http://100.121.231.16:5000',
             'description': 'Raspberry Pi deployment'
         }
-    ],
-    'tags': [
-        {
-            'name': 'System',
-            'description': 'System health and status endpoints'
-        },
-        {
-            'name': 'Vehicle Detection',
-            'description': 'Vehicle detection and tracking endpoints'
-        },
-        {
-            'name': 'Speed Analysis',
-            'description': 'Speed measurement and analysis endpoints'
-        },
-        {
-            'name': 'Weather',
-            'description': 'Weather monitoring and analysis endpoints'
-        },
-        {
-            'name': 'Analytics',
-            'description': 'Traffic analytics and insights endpoints'
-        },
-        {
-            'name': 'Camera',
-            'description': 'Camera and image endpoints'
-        }
     ]
 }
 
