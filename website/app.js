@@ -69,10 +69,13 @@ class TrafficDashboard {
             this.testApiConnection();
         });
         
-        // Location selector
-        document.getElementById('location').addEventListener('change', (e) => {
-            this.filterByLocation(e.target.value);
-        });
+        // Location selector (if exists)
+        const locationSelector = document.getElementById('location');
+        if (locationSelector) {
+            locationSelector.addEventListener('change', (e) => {
+                this.filterByLocation(e.target.value);
+            });
+        }
         
         // Export buttons functionality
         document.querySelectorAll('.download-btn').forEach(btn => {
