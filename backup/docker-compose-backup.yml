@@ -1,0 +1,39 @@
+# SD Card Backup Service - Docker Compose Configuration
+# 
+# Add this to your main docker-compose.yml file
+
+  sd-backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: sd-backup
+    restart: unless-stopped
+    privileged: true  # Required for block device access
+    volumes:
+      - /dev:/dev  # Access to block devices (SD card)
+      - /mnt/samsung-ssd/backups:/mnt/backups  # Backup storage on SSD
+    environment:
+      # Backup directory on SSD
+      - BACKUP_DIR=/mnt/backups
+      
+      # SD card block device (usually mmcblk0 on Raspberry Pi)
+      - SD_DEVICE=/dev/mmcblk0
+      
+      # Number of backups to retain (older ones are deleted)
+      - MAX_BACKUPS=3
+      
+      # Daily backup time in 24h format (2 AM by default)
+      - BACKUP_SCHEDULE=02:00
+      
+      # Compression level 1-9 (6 is balanced, lower is faster)
+      - COMPRESSION_LEVEL=6
+      
+      # Run backup immediately on container start (false by default)
+      - RUN_ON_STARTUP=false
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - backend
