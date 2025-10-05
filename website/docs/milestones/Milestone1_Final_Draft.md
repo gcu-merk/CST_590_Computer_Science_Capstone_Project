@@ -28,7 +28,18 @@ University 
 
 **Project Overview**
 
-The Raspberry Pi 5 Edge ML Traffic Monitoring System addresses the
+The Raspberry Pi 5 Edge M**Total Project Cost**
+
+-   **Per Unit Hardware:** \$804.89
+
+-   **Implementation (One-time):** \$1,650
+
+-   **Software & Cloud:** \$0 (self-hosted, open source)
+
+-   **Total First Unit:** \$2,454.89
+
+*Note: Costs may vary based on supplier, location, and bulk purchasing
+agreements. No recurring operational costs - system is fully self-hosted.*nitoring System addresses the
 growing concern of speeding and unsafe driving in residential
 neighborhoods. Traditional traffic monitoring and speed detection
 systems are often prohibitively expensive, making them inaccessible to
@@ -664,11 +675,11 @@ Summary and reflects the most current and detailed estimates:
   Software Licenses  Open source (PostgreSQL, Python,         \$0
                      TensorFlow)                              
 
-  Cloud Services     Optional cloud hosting (monthly)         \$20-50
+  Cloud Services     Self-hosted (no cloud costs)             \$0
 
   Development Tools  VS Code, Git, testing tools              \$0
 
-  **Software                                                  **\$0-50**
+  **Software                                                  **\$0**
   Subtotal**                                                  
   ------------------------------------------------------------------------
 
