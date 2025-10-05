@@ -189,7 +189,6 @@ Milestone 3 presents the complete system architecture including hardware design,
 - Flask API Gateway (REST and WebSocket endpoints)
 - WebSocket Broadcaster (real-time event streaming)
 - DHT22 Weather Service (environmental monitoring)
-- Sky Analyzer Service (weather condition detection)
 
 **Layer 3 - API & Integration Layer:**
 - RESTful API with OpenAPI 3.0 specification
@@ -312,8 +311,7 @@ CST_590_Computer_Science_Capstone_Project/
 │   ├── vehicle_detection_service.py
 │   ├── ops243_radar_service.py
 │   ├── data_fusion_service.py
-│   ├── dht_22_weather_service_enhanced.py
-│   └── sky_analyzer_service.py
+│   └── dht_22_weather_service_enhanced.py
 ├── edge_api/                     # API layer
 │   ├── edge_api_gateway_enhanced.py
 │   ├── swagger_config.py
@@ -570,7 +568,7 @@ The project successfully delivered all objectives within the approved scope. Wor
 #### Scope Evolution and Justification
 
 **Enhancements Added:**
-1. **Weather Integration** - Added DHT22 sensor and sky analysis for environmental correlation
+1. **Weather Integration** - Added DHT22 sensor for environmental monitoring
    - Justification: Enables correlation of traffic patterns with weather conditions
    - Documented in: Milestone 3, Section "Weather Services Addition"
 
