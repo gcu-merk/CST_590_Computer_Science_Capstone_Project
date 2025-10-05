@@ -648,6 +648,35 @@ class EnhancedSwaggerAPIGateway:
                 })
                 return {"error": "Failed to get camera snapshot", "details": str(e)}, 500
         
+        # Video presentation endpoint
+        @self.app.route('/media/capstone-presentation.mp4')
+        def serve_presentation_video():
+            """Serve the capstone presentation video"""
+            try:
+                video_path = "/app/website/docs/capstone-presentation.mp4"
+                
+                # Check if video file exists
+                if not os.path.exists(video_path):
+                    logger.warning("Presentation video not found", extra={
+                        "business_event": "video_not_found",
+                        "path": video_path
+                    })
+                    return {"error": "Video not found"}, 404
+                
+                logger.info("Serving presentation video", extra={
+                    "business_event": "video_served",
+                    "path": video_path
+                })
+                
+                return send_file(video_path, mimetype='video/mp4')
+                
+            except Exception as e:
+                logger.error("Failed to serve presentation video", extra={
+                    "business_event": "video_serving_error",
+                    "error": str(e)
+                })
+                return {"error": "Failed to serve video"}, 500
+        
         # Simple health check endpoint for Docker healthcheck
         @self.app.route('/health')
         def simple_health_check():
