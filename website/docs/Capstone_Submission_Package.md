@@ -246,7 +246,6 @@ Milestone 3 presents the complete system architecture including hardware design,
 - timestamp (INDEXED)
 - temperature_f
 - humidity_percent
-- sky_condition (clear, cloudy, overcast)
 - correlation_id (links to detection)
 
 #### API Endpoint Design
@@ -902,7 +901,7 @@ The capstone presentation provides a comprehensive demonstration of the Edge AI 
 - Peak Hour Detections: 67 (5-6 PM)
 - Speed Violations (>30 MPH): 3,241 (25% of detections)
 - Unique Vehicle Types: Car (82%), Truck (12%), Motorcycle (4%), Bicycle (2%)
-- Environmental Conditions Monitored: Temperature, Humidity, Sky Condition
+- Environmental Conditions Monitored: Temperature, Humidity
 - API Requests Served: 45,293
 - WebSocket Connections: 1,847
 - Zero Downtime Incidents
