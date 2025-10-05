@@ -817,7 +817,7 @@ The capstone presentation provides a comprehensive demonstration of the Edge AI 
 - 96% detection accuracy achieved
 - <350ms end-to-end latency
 - 99.9% system uptime in production
-- $299 total cost (40% under budget)
+- $867 total cost (13.3% under $1,000 budget)
 - Open-source release for community benefit
 
 **Conclusion and Future Work (1 minute):**
@@ -928,7 +928,7 @@ The capstone presentation provides a comprehensive demonstration of the Edge AI 
 - Original scope defined in Milestone 1
 - Work breakdown structure documented across all milestones
 - Stakeholder identification: Academic, technical, community
-- Resource allocation: Hardware ($299), software (open source)
+- Resource allocation: Hardware ($867), software (open source), no recurring costs
 - Scope changes justified: Weather integration, IMX500 upgrade, Tailscale
 
 **3. Requirements (17 points) - COMPLETE**
@@ -1029,7 +1029,7 @@ The system achieves:
 - **96% detection accuracy** through multi-sensor fusion
 - **Sub-350ms real-time performance** with on-chip AI processing
 - **99.9% uptime** in production deployment over 30+ days
-- **$299 total cost** - 40% under budget and 10x cheaper than commercial systems
+- **$867 total cost** - 13.3% under $1,000 budget and 10x+ cheaper than commercial systems
 - **100% privacy compliance** with all processing on-device
 
 All capstone deliverables are complete and documented:
