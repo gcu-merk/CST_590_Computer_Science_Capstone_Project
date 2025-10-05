@@ -113,27 +113,29 @@ This project follows an agile, milestone-based approach. The initial focus is on
 
 | Category | Description | Cost (USD) |
 |----------|-------------|------------|
-| Software Licenses | Open source (PostgreSQL, Python, TensorFlow) | $0 |
-| Cloud Services | Optional cloud hosting (monthly) | $20-50 |
-| Development Tools | VS Code, Git, testing tools | $0 |
-| **Software Subtotal** | | **$0-50** |
+| Software Licenses | Open source (SQLite, Redis, Python, Flask, Docker) | $0 |
+| Cloud Services | Tailscale (free tier) | $0 |
+| Development Tools | VS Code, Git, GitHub Actions (free tier) | $0 |
+| **Software Subtotal** | | **$0** |
 
-### Implementation & Deployment Costs
+### Additional Project Expenses
 
-| Activity | Description | Hours | Rate | Total Cost |
-|----------|-------------|-------|------|------------|
-| System Integration | Hardware assembly and configuration | 8 | $75 | $600 |
-| Software Deployment | OS setup, application installation | 4 | $75 | $300 |
-| Testing & Validation | Field testing and calibration | 6 | $75 | $450 |
-| Documentation | User training and documentation | 4 | $75 | $300 |
-| **Implementation Subtotal** | | | | **$1,650** |
+| Item | Description | Cost (USD) |
+|------|-------------|------------|
+| Weather Sensor | DHT22 Temperature/Humidity Sensor | $5 |
+| Cables & Connectors | USB cables, GPIO wires, adapters | $15 |
+| Testing Equipment | Multimeter, tools, testing supplies | $35 |
+| Miscellaneous | Zip ties, mounting tape, labels, etc. | $7 |
+| **Additional Expenses** | | **$62** |
 
-### Total Project Cost
+### Total Project Cost Summary
 
-- **Per Unit Hardware:** $804.89
-- **Implementation (One-time):** $1,650
-- **Monthly Operating:** $20-50 (if using cloud services)
-- **Total First Unit:** $2,454.89 + monthly costs
+- **Project Budget:** $1,000.00
+- **Hardware Subtotal:** $804.89
+- **Software Costs:** $0.00 (all open source/free tier)
+- **Additional Expenses:** $62.00
+- **Total Project Cost:** $866.89
+- **Budget Remaining:** $133.11 (13.3% under budget)
 
 *Note: Costs may vary based on supplier, location, and bulk purchasing agreements.*
 
