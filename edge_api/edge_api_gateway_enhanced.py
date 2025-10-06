@@ -1417,53 +1417,74 @@ class EnhancedSwaggerAPIGateway:
             db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'centralized_logs.db')
             
             import sqlite3
-            conn = sqlite3.connect(db_path)
-            conn.row_factory = sqlite3.Row  # Enable dict-like access
-            cursor = conn.cursor()
+            import time
             
-            # Query recent business events for the dashboard
-            cursor.execute("""
-                SELECT timestamp, service_name, level, message, 
-                       business_event, correlation_id, extra_data
-                FROM logs 
-                WHERE business_event IS NOT NULL 
-                   AND business_event IN (
-                       'vehicle_detection', 'vehicle_detected', 'api_request_success',
-                       'radar_alert', 'system_status', 'health_check'
-                   )
-                ORDER BY timestamp DESC 
-                LIMIT ?
-            """, (limit,))
+            # Retry logic for database connection (handles SSD mount delays)
+            max_retries = 3
+            retry_delay = 0.5  # seconds
             
-            rows = cursor.fetchall()
-            
-            for row in rows:
-                # Parse extra_data JSON if available
-                extra_data = {}
-                if row['extra_data']:
-                    try:
-                        extra_data = json.loads(row['extra_data'])
-                    except json.JSONDecodeError:
-                        pass
-                
-                event = {
-                    'timestamp': row['timestamp'],
-                    'service_name': row['service_name'],
-                    'level': row['level'],
-                    'message': row['message'],
-                    'business_event': row['business_event'],
-                    'correlation_id': row['correlation_id'],
-                    **extra_data  # Merge extra data fields
-                }
-                events.append(event)
-            
-            conn.close()
+            for attempt in range(max_retries):
+                try:
+                    conn = sqlite3.connect(db_path, timeout=10.0)
+                    conn.row_factory = sqlite3.Row  # Enable dict-like access
+                    cursor = conn.cursor()
+                    
+                    # Query recent business events for the dashboard
+                    cursor.execute("""
+                        SELECT timestamp, service_name, level, message, 
+                               business_event, correlation_id, extra_data
+                        FROM logs 
+                        WHERE business_event IS NOT NULL 
+                           AND business_event IN (
+                               'vehicle_detection', 'vehicle_detected', 'api_request_success',
+                               'radar_alert', 'system_status', 'health_check'
+                           )
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    """, (limit,))
+                    
+                    rows = cursor.fetchall()
+                    
+                    for row in rows:
+                        # Parse extra_data JSON if available
+                        extra_data = {}
+                        if row['extra_data']:
+                            try:
+                                extra_data = json.loads(row['extra_data'])
+                            except json.JSONDecodeError:
+                                pass
+                        
+                        event = {
+                            'timestamp': row['timestamp'],
+                            'service_name': row['service_name'],
+                            'level': row['level'],
+                            'message': row['message'],
+                            'business_event': row['business_event'],
+                            'correlation_id': row['correlation_id'],
+                            **extra_data  # Merge extra data fields
+                        }
+                        events.append(event)
+                    
+                    conn.close()
+                    break  # Success, exit retry loop
+                    
+                except (sqlite3.OperationalError, sqlite3.DatabaseError) as db_err:
+                    if attempt < max_retries - 1:
+                        # Retry on database errors (locked, busy, etc.)
+                        logger.debug(f"Database query attempt {attempt + 1} failed, retrying: {db_err}")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        # Final attempt failed, log as error
+                        logger.error("Failed to retrieve recent events after retries", extra={
+                            "business_event": "events_retrieval_failure",
+                            "error": str(db_err),
+                            "attempts": max_retries
+                        })
             
         except Exception as e:
-            logger.error("Failed to retrieve recent events", extra={
-                "business_event": "events_retrieval_failure",
-                "error": str(e)
-            })
+            # Only log unexpected errors (not database lock/busy errors)
+            logger.debug(f"Could not retrieve recent events: {e}")
         
         return events
     
