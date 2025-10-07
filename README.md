@@ -7,7 +7,7 @@
 
 **A production-ready edge computing traffic monitoring system powered by Raspberry Pi 5, Sony IMX500 AI camera, and mmWave radar with sub-350ms real-time performance.**
 
-**Capstone Presentation Video:** [https://edge-traffic-monitoring.taild46447.ts.net/media/capstone-presentation.mp4](https://edge-traffic-monitoring.taild46447.ts.net/media/capstone-presentation.mp4)  
+**Capstone Presentation Video:** [https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/raw/main/website/docs/capstone-presentation.mp4](https://github.com/gcu-merk/CST_590_Computer_Science_Capstone_Project/raw/main/website/docs/capstone-presentation.mp4)  
 **Dashboard:** [https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/](https://gcu-merk.github.io/CST_590_Computer_Science_Capstone_Project/)
 
 ---
