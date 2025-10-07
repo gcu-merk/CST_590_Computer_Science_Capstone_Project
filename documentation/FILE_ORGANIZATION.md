@@ -49,24 +49,29 @@ This document clarifies which files are actively used in production vs deprecate
    - Status: ✅ PRODUCTION
    - Service: Vehicle detection fusion (radar + camera)
 
-## Deprecated Files (Not Used)
+## Deprecated Files (Moved to backup/)
 
-### API Gateway
-- ❌ `edge_api/edge_api_gateway_original.py` - Superseded by enhanced version
-- ❌ `edge_api/edge_api_gateway.py` - Superseded by enhanced version
+### ✅ CLEANUP COMPLETED (October 7, 2025)
 
-### Data Persistence
-- ❌ `edge_processing/data_persistence/database_persistence_service.py` - Superseded by simplified version
-- ❌ `edge_processing/data_persistence/database_persistence_service_enhanced.py` - Superseded by simplified version
-- ❌ `edge_processing/data_persistence/redis_optimization_service.py` - Superseded by enhanced version
+All deprecated files have been moved to `backup/deprecated_*/` directories:
 
-### Weather Services
-- ❌ `edge_processing/airport_weather_service.py` - Superseded by enhanced version
-- ❌ `edge_processing/dht_22_weather_service.py` - Superseded by enhanced version
+### API Gateway (backup/deprecated_api/)
+- ✅ `edge_api_gateway_original.py` - Superseded by edge_api_gateway_enhanced.py
+- ✅ `edge_api_gateway.py` - Superseded by edge_api_gateway_enhanced.py
 
-### Radar Services
-- ⚠️ `edge_processing/ops243_radar_service.py` - Status unclear, investigate usage
-- ⚠️ `scripts/deprecated/radar_service.py` - Backup of production version (DO NOT DELETE)
+### Data Persistence (backup/deprecated_persistence/)
+- ✅ `database_persistence_service.py` - Superseded by database_persistence_service_simplified.py
+- ✅ `database_persistence_service_enhanced.py` - Superseded by simplified version
+- ✅ `redis_optimization_service.py` - Superseded by redis_optimization_service_enhanced.py
+
+### Weather Services (backup/deprecated_weather/)
+- ✅ `airport_weather_service.py` - Superseded by airport_weather_service_enhanced.py
+- ✅ `dht_22_weather_service.py` - Superseded by dht_22_weather_service_enhanced.py
+
+### Radar Services (backup/deprecated_radar/)
+- ✅ `ops243_radar_service.py` - Old class-based library, superseded by radar_service.py
+- ✅ `test_ops243_service.py` - Test file for deprecated ops243_radar_service.py
+- ⚠️ `scripts/deprecated/radar_service.py` - Backup of production version (DO NOT DELETE - keep for reference)
 
 ## Development/Test Variants
 
@@ -80,31 +85,37 @@ Located in `scripts/development/`:
 
 **Purpose**: These are development/testing variants. Keep for reference but not used in production.
 
-## Cleanup Recommendations
+## Cleanup Status
 
-### Phase 1: Move Deprecated Files
+### ✅ Phase 1: Move Deprecated Files (COMPLETED - October 7, 2025)
+
+Created backup directory structure:
 ```bash
-# Create backup directory if not exists
-mkdir -p backup/deprecated_api
-mkdir -p backup/deprecated_persistence
-mkdir -p backup/deprecated_weather
-
-# Move deprecated files
-git mv edge_api/edge_api_gateway_original.py backup/deprecated_api/
-git mv edge_api/edge_api_gateway.py backup/deprecated_api/
-git mv edge_processing/data_persistence/database_persistence_service.py backup/deprecated_persistence/
-git mv edge_processing/data_persistence/database_persistence_service_enhanced.py backup/deprecated_persistence/
-git mv edge_processing/data_persistence/redis_optimization_service.py backup/deprecated_persistence/
-git mv edge_processing/airport_weather_service.py backup/deprecated_weather/
-git mv edge_processing/dht_22_weather_service.py backup/deprecated_weather/
+backup/
+├── deprecated_api/
+├── deprecated_persistence/
+├── deprecated_weather/
+└── deprecated_radar/
 ```
 
-### Phase 2: Investigate Unclear Status
-- Review `edge_processing/ops243_radar_service.py` usage
-- Determine if it's used by any scripts or services
-- Move to backup/ or mark as production
+Moved 9 deprecated files to backup:
+- 2 API gateway files → `backup/deprecated_api/`
+- 3 persistence service files → `backup/deprecated_persistence/`
+- 2 weather service files → `backup/deprecated_weather/`
+- 2 radar service files → `backup/deprecated_radar/`
 
-### Phase 3: Consolidate Development Variants
+All moves tracked in git history for easy recovery if needed.
+
+### ✅ Phase 2: Investigate ops243_radar_service.py (COMPLETED)
+
+**Finding**: `edge_processing/ops243_radar_service.py` is an older class-based library version
+- Not used in docker-compose.yml (production uses `radar_service.py` in root)
+- Only referenced in old documentation and test files
+- **Action**: Moved to `backup/deprecated_radar/` along with its test file
+
+### ⏸️ Phase 3: Consolidate Development Variants (FUTURE)
+
+When ready:
 - Keep only the most recent/complete versions in scripts/development/
 - Move older variants to documentation/archive/
 
