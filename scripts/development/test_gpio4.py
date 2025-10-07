@@ -74,7 +74,7 @@ def test_gpio4():
             try:
                 lgpio.gpiochip_close(gpio_handle)
                 print("✅ GPIO chip closed")
-            except:
+            except Exception as e:
                 pass
 
 def test_gpio_devices():

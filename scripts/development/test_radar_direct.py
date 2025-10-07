@@ -39,7 +39,7 @@ def test_radar_hardware():
                 try:
                     decoded = data.decode('utf-8', errors='ignore')
                     print(f'[DETECT #{detection_count}] {decoded.strip()}')
-                except:
+                except (UnicodeDecodeError, AttributeError) as e:
                     print(f'[DETECT #{detection_count}] Raw: {data}')
             time.sleep(0.1)
         

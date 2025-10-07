@@ -89,7 +89,7 @@ class IMX500AITester:
             with open('/proc/device-tree/model', 'r') as f:
                 model = f.read()
             return 'Raspberry Pi' in model
-        except:
+        except (FileNotFoundError, IOError) as e:
             return False
     
     def _test_imx500_model(self) -> bool:
@@ -115,12 +115,12 @@ class IMX500AITester:
             self.redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_timeout=5)
             self.redis_client.ping()
             return True
-        except:
+        except (redis.ConnectionError, redis.TimeoutError):
             try:
                 self.redis_client = redis.Redis(host='redis', port=6379, decode_responses=True, socket_timeout=5)
                 self.redis_client.ping()
                 return True
-            except:
+            except (redis.ConnectionError, redis.TimeoutError):
                 return False
     
     def _test_storage_directories(self) -> bool:
@@ -167,7 +167,7 @@ class IMX500AITester:
             result = subprocess.run(['systemctl', 'is-active', 'imx500-ai-capture'], 
                                   capture_output=True, text=True, timeout=5)
             return result.returncode == 0 and 'active' in result.stdout
-        except:
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
             return False
     
     def _test_service_logs(self) -> bool:
@@ -187,7 +187,7 @@ class IMX500AITester:
             has_errors = any(indicator in logs for indicator in error_indicators)
             
             return has_success and not has_errors
-        except:
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
             return False
     
     def _test_image_generation(self) -> bool:
@@ -208,7 +208,7 @@ class IMX500AITester:
                         recent_images.append(filename)
             
             return len(recent_images) > 0
-        except:
+        except (OSError, PermissionError) as e:
             return False
     
     def _test_redis_vehicle_data(self) -> bool:
@@ -227,7 +227,7 @@ class IMX500AITester:
             # Note: This is harder to test as events are ephemeral
             
             return len(vehicle_keys) > 0 or stats_data is not None
-        except:
+        except (redis.ConnectionError, redis.TimeoutError, redis.RedisError) as e:
             return False
     
     def test_docker_integration(self) -> bool:
@@ -266,7 +266,7 @@ class IMX500AITester:
             running_containers = result.stdout
             
             return all(container in running_containers for container in expected_containers)
-        except:
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
             return False
     
     def _test_vehicle_consolidator(self) -> bool:
@@ -285,7 +285,7 @@ class IMX500AITester:
             has_errors = any(indicator in logs for indicator in error_indicators)
             
             return has_success and not has_errors
-        except:
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
             return False
     
     def _test_docker_redis_integration(self) -> bool:
@@ -295,7 +295,7 @@ class IMX500AITester:
                                    'import redis; r=redis.Redis(host="redis", port=6379); r.ping()'], 
                                   capture_output=True, text=True, timeout=10)
             return result.returncode == 0
-        except:
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
             return False
     
     def _test_api_endpoints(self) -> bool:
@@ -310,7 +310,7 @@ class IMX500AITester:
             # Parse JSON response
             response = json.loads(result.stdout)
             return 'analyses' in response or 'message' in response
-        except:
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError) as e:
             return False
     
     def test_performance_metrics(self) -> Dict[str, Any]:
@@ -343,7 +343,7 @@ class IMX500AITester:
                 self.redis_client.ping()
             latency = (time.time() - start) / 10 * 1000  # ms
             return f"{latency:.2f}ms"
-        except:
+        except (redis.ConnectionError, redis.TimeoutError, redis.RedisError) as e:
             return "Error measuring latency"
     
     def _measure_system_load(self) -> str:
@@ -352,7 +352,7 @@ class IMX500AITester:
             with open('/proc/loadavg', 'r') as f:
                 load = f.read().strip().split()[0]
             return f"{float(load):.2f}"
-        except:
+        except (FileNotFoundError, IOError, ValueError, IndexError) as e:
             return "Unknown"
     
     def _measure_memory_usage(self) -> str:
@@ -368,7 +368,7 @@ class IMX500AITester:
                     return f"{available_mb:.0f}MB available"
             
             return "Unknown"
-        except:
+        except (FileNotFoundError, IOError, ValueError) as e:
             return "Unknown"
     
     def _measure_detection_rate(self) -> str:
@@ -383,7 +383,7 @@ class IMX500AITester:
                 return f"{stats.get('detections_per_minute', 0):.1f}/min"
             else:
                 return "No data available"
-        except:
+        except (redis.ConnectionError, redis.TimeoutError, json.JSONDecodeError, redis.RedisError) as e:
             return "Error measuring rate"
     
     def run_full_test_suite(self) -> bool:

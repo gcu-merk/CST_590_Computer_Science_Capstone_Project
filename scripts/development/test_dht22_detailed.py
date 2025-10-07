@@ -120,7 +120,7 @@ def detailed_dht22_test(gpio_pin=4):
             try:
                 lgpio.gpiochip_close(gpio_handle)
                 print("✅ GPIO chip closed")
-            except:
+            except Exception as e:
                 pass
 
 def check_gpio_state(gpio_pin=4):
