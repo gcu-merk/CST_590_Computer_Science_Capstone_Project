@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-OPS243-C Radar Service with Centralized Logging
-Enhanced production radar service with correlation tracking and performance monitoring
-Version: 2.1.2 - Enhanced monitoring loop error handling (Sept 26, 2025)
+OPS243-C Radar Service with Centralized Configuration
+Enhanced production radar service with centralized config, correlation tracking and performance monitoring
+Version: 2.2.0 - Migrated to centralized configuration system (Oct 7, 2025)
 
 NOTE: This is the PRODUCTION version used by docker-compose.yml
       Restored from scripts/deprecated/ to maintain docker-compose compatibility.
       Do not move this file - it is referenced by: command: ["python", "radar_service.py"]
+      
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
 """
 
 import time
@@ -21,30 +26,37 @@ import uuid
 from datetime import datetime
 from typing import Callable, Optional, Dict
 
+# Import centralized configuration
+from config.settings import get_config
+
 # Import centralized logging infrastructure
 from edge_processing.shared_logging import ServiceLogger, CorrelationContext, performance_monitor
 
 class RadarServiceEnhanced:
     """Enhanced OPS243-C Radar Service with centralized logging and correlation tracking"""
     
-    def __init__(self, 
-                 uart_port='/dev/ttyAMA0',
-                 baudrate=19200,
-                 redis_host='localhost',
-                 redis_port=6379):
+    def __init__(self, config=None):
+        """
+        Initialize radar service with centralized configuration.
+        
+        Args:
+            config: Optional Config instance. If None, loads from environment via get_config()
+        """
+        # Load centralized configuration
+        self.config = config if config is not None else get_config()
         
         # Initialize centralized logger
         self.logger = ServiceLogger(
             service_name="radar-service",
-            service_version="2.1.2",
-            environment=os.environ.get('ENVIRONMENT', 'production')
+            service_version="2.2.0",  # Updated for centralized config
+            environment=self.config.environment
         )
         
-        # Service configuration
-        self.uart_port = uart_port
-        self.baudrate = baudrate
-        self.redis_host = redis_host
-        self.redis_port = redis_port
+        # Service configuration from centralized config
+        self.uart_port = self.config.radar.uart_port
+        self.baudrate = self.config.radar.baud_rate
+        self.redis_host = self.config.redis.host
+        self.redis_port = self.config.redis.port
         
         # Service state
         self.running = False
@@ -737,19 +749,18 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     
-    # Read configuration from environment variables
-    uart_port = os.environ.get('RADAR_UART_PORT', '/dev/ttyAMA0')
-    baudrate = int(os.environ.get('RADAR_BAUD_RATE', '19200'))
-    redis_host = os.environ.get('REDIS_HOST', 'localhost')
-    redis_port = int(os.environ.get('REDIS_PORT', '6379'))
+    # Load centralized configuration
+    print("Loading configuration from environment...")
+    config = get_config()
     
-    # Create enhanced radar service
-    service = RadarServiceEnhanced(
-        uart_port=uart_port,
-        baudrate=baudrate,
-        redis_host=redis_host,
-        redis_port=redis_port
-    )
+    print(f"Configuration loaded:")
+    print(f"  - Environment: {config.environment}")
+    print(f"  - Radar UART: {config.radar.uart_port} @ {config.radar.baud_rate} baud")
+    print(f"  - Redis: {config.redis.host}:{config.redis.port}")
+    print(f"  - Speed units: {config.radar.speed_units}")
+    
+    # Create enhanced radar service with centralized config
+    service = RadarServiceEnhanced(config=config)
     
     if service.start():
         print("Enhanced radar service running with centralized logging. Press Ctrl+C to stop.")
