@@ -4,51 +4,76 @@ __pycache__/
 *.pyo
 *.pyd
 .env
+!.env.example
 .venv
 venv/
 ENV/
+env/
+*.egg-info/
 
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
 # Ignore VS Code settings
 .vscode/
+*.code-workspace
 
 # Ignore JetBrains IDE settings
 .idea/
 
 # Ignore macOS system files
 .DS_Store
+.AppleDouble
+.LSOverride
 
 # Ignore Windows system files
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
 
 # Ignore node modules
 node_modules/
+package-lock.json
+yarn.lock
 
 # Ignore build and log files
 *.log
+*.log.*
+logs/
 dist/
 build/
+*.egg
+*.egg-info
 
-# Ignore database backups
+# Ignore database files
+*.db
 *.sql
+*.sqlite
 *.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
 
 # Ignore Dart/Flutter build files
 .dart_tool/
-build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
 
 # Ignore Android/iOS build files
 android/.gradle/
 android/app/build/
 ios/Pods/
 ios/Runner.xcworkspace/
+ios/.symlinks/
 
 # Ignore miscellaneous
 .vs/
 *.swp
 *.swo
+*~
+*.bak
 
 # Ignore temporary and analysis files
 **/temp/
@@ -81,3 +106,47 @@ setup.log
 # Ignore numeric/timestamp temporary files
 /[0-9]*
 /datetime
+
+# Prevent duplicate documentation files in root
+/*.service
+/*- Copy.*
+/*_copy.*
+/*.html
+/*.js
+
+# Prevent markdown files in root (except README and LICENSE)
+/*.md
+!/README.md
+!/LICENSE.md
+
+# Ignore generated secret files
+/secrets.txt
+/credentials.json
+/*.key
+/*.pem
+/*.crt
+
+# Ignore coverage reports
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# Ignore pytest cache
+.pytest_cache/
+.tox/
+
+# Ignore mypy cache
+.mypy_cache/
+.dmypy.json
+
+# Ignore deployment artifacts
+*.tar.gz
+*.zip
+deployment/*.tar.gz
+deployment/*.zip
+
+# Ignore local configuration overrides
+docker-compose.override.yml
+config.local.yml
+settings.local.json
