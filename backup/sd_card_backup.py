@@ -192,7 +192,7 @@ def create_backup():
             try:
                 os.remove(backup_file)
                 logger.info("Removed incomplete backup file")
-            except:
+            except (OSError, PermissionError) as e:
                 pass
         return False
 

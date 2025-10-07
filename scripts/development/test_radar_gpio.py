@@ -83,7 +83,7 @@ def main():
                     try:
                         state = GPIO.input(pin_num)
                         states.append(f"{pin_name}={'H' if state else 'L'}")
-                    except:
+                    except Exception as e:
                         states.append(f"{pin_name}=ERR")
                 
                 log_with_timestamp(f"📊 Status: {' | '.join(states)}")

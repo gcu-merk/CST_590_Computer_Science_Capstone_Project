@@ -1191,7 +1191,7 @@ class EnhancedSwaggerAPIGateway:
         if redis_healthy:
             try:
                 self.redis_client.ping()
-            except:
+            except Exception as e:
                 redis_healthy = False
         
         health_status = {
@@ -1681,7 +1681,7 @@ class EnhancedSwaggerAPIGateway:
                         import json
                         types = json.loads(row['vehicle_type']) if isinstance(row['vehicle_type'], str) else row['vehicle_type']
                         vehicle_type = types[0] if isinstance(types, list) and types else str(types)
-                    except:
+                    except (json.JSONDecodeError, ValueError, TypeError, IndexError) as e:
                         vehicle_type = str(row['vehicle_type'])
                 
                 csv_data.append([

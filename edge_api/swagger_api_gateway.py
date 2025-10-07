@@ -768,7 +768,7 @@ class SwaggerAPIGateway:
             if self.redis_client:
                 self.redis_client.ping()
                 return True
-        except:
+        except Exception as e:
             pass
         return False
     

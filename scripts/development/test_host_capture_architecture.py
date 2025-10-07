@@ -541,7 +541,7 @@ def show_system_status():
             print("✓ Host capture service: Running")
         else:
             print("✗ Host capture service: Not running")
-    except:
+    except (subprocess.SubprocessError, FileNotFoundError) as e:
         print("? Host capture service: Unknown")
     
     # Docker container
@@ -556,7 +556,7 @@ def show_system_status():
                 print("✓ Docker container: Running")
             else:
                 print("✗ Docker container: Not running")
-    except:
+    except (subprocess.SubprocessError, FileNotFoundError) as e:
         print("? Docker container: Unknown")
     
     # Shared volume status
@@ -574,7 +574,7 @@ def show_system_status():
             provider = SharedVolumeImageProvider()
             status = provider.get_status()
             print(f"✓ Image provider: {status.get('live_images', 0)} images available")
-        except:
+        except Exception as e:
             print("✗ Image provider: Error getting status")
     else:
         print("? Image provider: Mock implementation")

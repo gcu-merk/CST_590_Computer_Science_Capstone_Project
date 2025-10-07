@@ -226,7 +226,7 @@ class RadarServiceDebug:
         if self.ser:
             try:
                 self.ser.close()
-            except:
+            except Exception as e:
                 pass
         
         logger.info("Radar debug service stopped")

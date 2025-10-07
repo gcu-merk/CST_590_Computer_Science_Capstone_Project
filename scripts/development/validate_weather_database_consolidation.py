@@ -227,7 +227,7 @@ class WeatherDatabaseConsolidationValidator:
             # Clean up temporary database
             try:
                 os.unlink(temp_db_path)
-            except:
+            except (OSError, PermissionError, FileNotFoundError) as e:
                 pass
     
     def validate_environment_configuration(self) -> bool:
@@ -285,7 +285,7 @@ class WeatherDatabaseConsolidationValidator:
             # Clean up temporary database
             try:
                 os.unlink(temp_db_path)
-            except:
+            except (OSError, PermissionError, FileNotFoundError) as e:
                 pass
     
     def run_comprehensive_validation(self) -> Dict:

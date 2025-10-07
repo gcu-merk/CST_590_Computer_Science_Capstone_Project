@@ -74,7 +74,7 @@ class PiSystemStatus:
             with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
                 cpu_temp = float(f.read()) / 1000.0
             weather_metrics['system_temperature_c'] = cpu_temp
-        except:
+        except (FileNotFoundError, IOError, ValueError) as e:
             weather_metrics['system_temperature_c'] = None
             
         return weather_metrics

@@ -346,7 +346,7 @@ class WorkflowMonitor:
                 hourly_count = int(stdout.strip())
                 print(f"\n📈 ACTIVITY: {hourly_count} detections in the last hour")
             
-        except:
+        except (subprocess.SubprocessError, ValueError) as e:
             pass
         
         print("\n" + "="*80)

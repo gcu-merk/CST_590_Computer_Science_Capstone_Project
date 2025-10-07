@@ -24,7 +24,7 @@ def test_endpoint_direct(url, description):
             try:
                 json_data = response.json()
                 print(f"   📄 Response: {json.dumps(json_data, indent=2)[:200]}...")
-            except:
+            except (json.JSONDecodeError, ValueError) as e:
                 text_data = response.text
                 if text_data and len(text_data) < 500:
                     print(f"   📄 Response: {text_data}")
@@ -91,7 +91,7 @@ def get_container_status():
         cmd = 'ssh merk@100.121.231.16 "docker ps --format \'table {{.Names}}\\t{{.Status}}\'"'
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
         return result.stdout if result.returncode == 0 else "Failed to get container status"
-    except:
+    except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
         return "SSH connection failed"
 
 def main():

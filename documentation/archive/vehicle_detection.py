@@ -403,7 +403,7 @@ class CameraManager:
             try:
                 self.picam2.stop()
                 self.picam2.close()
-            except:
+            except Exception as e:
                 pass
             self.picam2 = None
         

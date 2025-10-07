@@ -236,7 +236,7 @@ def test_normalized_database():
         try:
             db_path.unlink()
             print(f"🧹 Cleaned up test database: {db_path}")
-        except:
+        except (OSError, PermissionError) as e:
             pass
 
 if __name__ == "__main__":
