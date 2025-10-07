@@ -15,7 +15,8 @@ def is_running_on_pi():
     try:
         hostname = socket.gethostname()
         return "raspberrypi" in hostname.lower() or "pi" in hostname.lower()
-    except:
+    except (OSError, socket.error) as e:
+        print(f"Warning: Could not determine hostname: {e}")
         return False
 
 def run_command(command):
@@ -103,7 +104,8 @@ def check_recent_detections():
             if count != "0":
                 print(f"  First: {first}")
                 print(f"  Last: {last}")
-        except:
+        except (IndexError, ValueError) as e:
+            print(f"Warning: Could not parse radar query result: {e}")
             print(f"Radar query result: {stdout}")
     else:
         print(f"❌ Failed to query radar detections: {stderr}")
@@ -137,7 +139,8 @@ def check_recent_detections():
                         if count != "0":
                             print(f"    First: {first}")
                             print(f"    Last: {last}")
-                    except:
+                    except (IndexError, ValueError) as e:
+                        print(f"  Warning: Could not parse traffic detection line: {e}")
                         print(f"  Raw: {line}")
         else:
             print("  No detections in last 2 hours")

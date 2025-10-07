@@ -458,7 +458,8 @@ class ContainerMaintenance:
                         temp_file.unlink()
                         emergency_stats['temp_files_removed'] += 1
                         emergency_stats['space_freed_mb'] += file_size / (1024 * 1024)
-                except:
+                except (OSError, PermissionError) as e:
+                    self.logger.debug(f"Could not remove temp file {temp_file}: {e}")
                     pass
             
             # Remove large log files
@@ -470,7 +471,8 @@ class ContainerMaintenance:
                             log_file.unlink()
                             emergency_stats['logs_removed'] += 1
                             emergency_stats['space_freed_mb'] += file_size / (1024 * 1024)
-                    except:
+                    except (OSError, PermissionError) as e:
+                        self.logger.debug(f"Could not remove log file {log_file}: {e}")
                         pass
             
             # Aggressive Docker cleanup for emergency situations

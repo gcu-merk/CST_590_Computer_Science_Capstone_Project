@@ -7,18 +7,30 @@ Installs dependencies and prepares the system for operation
 import subprocess
 import sys
 import os
+import logging
 from pathlib import Path
+
+# Setup basic logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('setup.log', mode='a')
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def run_command(command, description):
     """Run a shell command and handle errors"""
-    print(f"\n{description}...")
+    logger.info(f"{description}...")
     try:
         result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-        print(f"✓ {description} completed successfully")
+        logger.info(f"✓ {description} completed successfully")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ {description} failed: {e}")
-        print(f"Error output: {e.stderr}")
+        logger.error(f"✗ {description} failed: {e}")
+        logger.error(f"Error output: {e.stderr}")
         return False
 
 def install_system_dependencies():
@@ -36,7 +48,7 @@ def install_system_dependencies():
         ("sudo apt install -y git wget curl", "Installing utilities")
     ]
     
-    print("Installing system dependencies...")
+    logger.info("Installing system dependencies...")
     for command, description in commands:
         if not run_command(command, description):
             return False
@@ -47,7 +59,7 @@ def create_virtual_environment():
     venv_path = Path("venv")
     
     if venv_path.exists():
-        print("Virtual environment already exists")
+        logger.info("Virtual environment already exists")
         return True
     
     return run_command("python3 -m venv venv", "Creating virtual environment")
@@ -82,7 +94,7 @@ def setup_directories():
     
     for directory in directories:
         Path(directory).mkdir(parents=True, exist_ok=True)
-        print(f"✓ Created directory: {directory}")
+        logger.info(f"✓ Created directory: {directory}")
     
     return True
 
@@ -134,14 +146,14 @@ temp_threshold = 70.0
     with open("config/traffic_monitoring.conf", "w") as f:
         f.write(config_content)
     
-    print("✓ Created configuration file")
+    logger.info("✓ Created configuration file")
     return True
 
 def main():
     """Main setup function"""
-    print("=" * 60)
-    print("Raspberry Pi 5 Edge ML Traffic Monitoring System Setup")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Raspberry Pi 5 Edge ML Traffic Monitoring System Setup")
+    logger.info("=" * 60)
     
     steps = [
         ("Installing system dependencies", install_system_dependencies),
@@ -152,12 +164,12 @@ def main():
     ]
     
     for step_name, step_function in steps:
-        print(f"\n{'='*20} {step_name} {'='*20}")
+        logger.info(f"\n{'='*20} {step_name} {'='*20}")
         if not step_function():
-            print(f"\n✗ Setup failed at: {step_name}")
+            logger.error(f"\n✗ Setup failed at: {step_name}")
             sys.exit(1)
     
-    print("\n" + "="*60)
+    logger.info("\n" + "="*60)
     print("✓ Setup completed successfully!")
     print("="*60)
     print("\nNext steps:")

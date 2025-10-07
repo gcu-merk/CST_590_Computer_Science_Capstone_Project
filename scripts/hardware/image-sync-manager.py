@@ -412,7 +412,8 @@ class ImageSyncManager:
                 service_result = subprocess.run(['systemctl', 'is-active', self.service_name], 
                                              capture_output=True, text=True)
                 service_status = service_result.stdout.strip()
-            except:
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                logger.debug(f"Could not check service status: {e}")
                 service_status = 'unknown'
             
             # Container status
@@ -421,7 +422,8 @@ class ImageSyncManager:
                 try:
                     container = self.docker_client.containers.get(self.container_name)
                     container_status = container.status
-                except:
+                except (docker.errors.NotFound, docker.errors.APIError) as e:
+                    logger.debug(f"Could not get container status: {e}")
                     container_status = 'not_found'
             
             return {

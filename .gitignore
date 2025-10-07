@@ -49,3 +49,35 @@ ios/Runner.xcworkspace/
 .vs/
 *.swp
 *.swo
+
+# Ignore temporary and analysis files
+**/temp/
+**/tmp/
+*.tmp
+*_backup.*
+*_old.*
+*_deprecated.*
+
+# Ignore analysis and report files in root
+/LOG_ANALYSIS_REPORT_*.json
+/LOG_ANALYSIS_REPORT_*.md
+/LOG_ANALYSIS_REPORT_*.txt
+/*_validation_report.json
+/*_validation_results.json
+
+# Ignore multiple docker-compose variants in root (keep main only)
+/docker-compose.*.yml
+/working-compose.yml
+
+# Ignore ROI config files in root (should be in config/camera/)
+/*_roi*.json
+
+# Ignore setup logs
+setup.log
+
+# Ignore nginx config variants in root (keep main only)
+/nginx_*.conf
+
+# Ignore numeric/timestamp temporary files
+/[0-9]*
+/datetime

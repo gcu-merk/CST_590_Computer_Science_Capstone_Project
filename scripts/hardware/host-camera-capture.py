@@ -185,7 +185,8 @@ class HostCameraCapture:
                     files = list(directory.glob("*"))
                     if files:
                         size_info = f" ({len(files)} existing files)"
-                except:
+                except (OSError, PermissionError) as e:
+                    logger.debug(f"Could not list directory {directory}: {e}")
                     pass
                 logger.info(f"  {directory.name}: {directory}{size_info}")
             

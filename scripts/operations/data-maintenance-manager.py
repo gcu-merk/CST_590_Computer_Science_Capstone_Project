@@ -471,7 +471,8 @@ class DataMaintenanceManager:
                                 temp_file.unlink()
                                 emergency_stats['temp_files_removed'] += 1
                                 emergency_stats['space_freed_mb'] += file_size / (1024 * 1024)
-                            except:
+                            except (OSError, PermissionError) as e:
+                                self.logger.debug(f"Could not remove temp file {temp_file}: {e}")
                                 pass  # Skip files we can't remove
             
             # Force Docker cleanup
