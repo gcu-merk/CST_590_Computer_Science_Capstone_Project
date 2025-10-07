@@ -624,7 +624,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
                     if isinstance(vehicle_types, str):
                         try:
                             vehicle_types = json.loads(vehicle_types)
-                        except:
+                        except (json.JSONDecodeError, ValueError) as e:
                             vehicle_types = [vehicle_types] if vehicle_types else None
                     
                     camera_detection = CameraDetection(
@@ -973,7 +973,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
             try:
                 cursor.execute("ROLLBACK")
                 cursor.close()
-            except:
+            except Exception as rollback_error:
                 pass
                 
             # Enhanced error logging with full exception details

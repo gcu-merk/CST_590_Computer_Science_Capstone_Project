@@ -238,7 +238,7 @@ class EnhancedDHT22Service:
                 # Always free the GPIO pin
                 try:
                     lgpio.gpio_free(self.gpio_handle, self.gpio_pin)
-                except:
+                except Exception as e:
                     pass
     
     def store_reading(self, temperature: float, humidity: float) -> bool:

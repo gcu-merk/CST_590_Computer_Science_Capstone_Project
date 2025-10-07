@@ -13,7 +13,7 @@ import aiohttp
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
-from queue import Queue
+from queue import Queue, Full
 import threading
 
 
@@ -153,7 +153,7 @@ class HybridLogger:
         if self.enable_shipping and self.log_queue:
             try:
                 self.log_queue.put_nowait(log_entry)
-            except:
+            except Full:
                 # Queue full - drop the central log but keep local
                 pass
     

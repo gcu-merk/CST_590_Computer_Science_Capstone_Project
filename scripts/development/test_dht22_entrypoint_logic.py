@@ -82,7 +82,7 @@ def simulate_entrypoint_flow():
         with open('/proc/cpuinfo', 'r') as f:
             cpuinfo = f.read().lower()
         is_pi = any(keyword in cpuinfo for keyword in ['raspberry', 'bcm'])
-    except:
+    except (FileNotFoundError, IOError) as e:
         is_pi = False
     
     print(f"1. Pi Detection: {'✓ Pi detected' if is_pi else 'ℹ Not a Pi'}")

@@ -273,7 +273,7 @@ class VehicleDetectionService:
                         else:  # YUV or other format - try conversion
                             try:
                                 frame = cv2.cvtColor(frame, cv2.COLOR_YUV2RGB_I420)
-                            except:
+                            except cv2.error as e:
                                 # If color conversion fails, fallback to system level
                                 logger.warning("Picamera2 color conversion failed, falling back to system-level capture")
                                 return self._capture_frame_system_level()

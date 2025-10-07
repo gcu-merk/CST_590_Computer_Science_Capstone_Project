@@ -74,7 +74,7 @@ class SimpleRadarService:
                 data = json.loads(line)
                 data['_ts'] = time.time()
                 return data
-        except:
+        except (json.JSONDecodeError, ValueError) as e:
             pass
         
         # Try simple format
@@ -89,7 +89,7 @@ class SimpleRadarService:
                     '_raw': line, 
                     '_ts': time.time()
                 }
-            except:
+            except (ValueError, IndexError) as e:
                 pass
         
         return {'_raw': line, '_ts': time.time()}

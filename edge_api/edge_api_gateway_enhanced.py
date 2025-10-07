@@ -292,7 +292,7 @@ class EnhancedSwaggerAPIGateway:
             try:
                 central_tz = ZoneInfo('America/Chicago')
                 central_dt = dt.astimezone(central_tz)
-            except:
+            except Exception as e:
                 # Fallback: approximate Central Time as UTC-6
                 central_dt = dt.astimezone(timezone(timedelta(hours=-6)))
 
@@ -609,7 +609,7 @@ class EnhancedSwaggerAPIGateway:
                     try:
                         dir_contents = os.listdir(camera_dir)
                         return {"error": "No camera images available", "directory": camera_dir, "contents": dir_contents}, 404
-                    except:
+                    except (OSError, PermissionError) as e:
                         return {"error": "No camera images available", "directory": camera_dir}, 404
                 
                 # Get the most recent file by modification time

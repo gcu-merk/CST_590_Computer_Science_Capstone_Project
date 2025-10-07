@@ -29,7 +29,7 @@ def test_baud_rates():
                 try:
                     decoded = response.decode('utf-8', errors='ignore')
                     print(f"Decoded: '{decoded}'")
-                except:
+                except (UnicodeDecodeError, AttributeError) as e:
                     print("Could not decode as UTF-8")
             else:
                 print(f"No response at {baud}")
@@ -78,7 +78,7 @@ def test_command_formats():
                         print(f"Decoded: '{decoded}'")
                     else:
                         print("Got noise pattern")
-                except:
+                except (UnicodeDecodeError, AttributeError) as e:
                     print("Decode failed")
             else:
                 print("No response")
@@ -117,14 +117,14 @@ def test_continuous_read():
                         utf8 = data.decode('utf-8', errors='ignore')
                         if utf8.strip():
                             print(f"[{data_count}] UTF-8: '{utf8.strip()}'")
-                    except:
+                    except (UnicodeDecodeError, AttributeError) as e:
                         pass
                     
                     try:
                         ascii_clean = ''.join(chr(b) if 32 <= b <= 126 else '?' for b in data)
                         if ascii_clean.strip('?'):
                             print(f"[{data_count}] ASCII: '{ascii_clean}'")
-                    except:
+                    except (ValueError, TypeError) as e:
                         pass
             
             time.sleep(0.1)

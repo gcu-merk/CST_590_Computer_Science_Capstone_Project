@@ -21,7 +21,7 @@ def is_running_in_docker():
     try:
         with open('/proc/1/cgroup', 'rt') as f:
             return 'docker' in f.read()
-    except:
+    except (FileNotFoundError, IOError) as e:
         return False
 
 def check_docker_requirements():

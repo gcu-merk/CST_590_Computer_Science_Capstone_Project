@@ -99,7 +99,7 @@ def test_roi_configuration():
         r = redis.Redis(host='localhost', port=6379, decode_responses=True)
         r.ping()
         print("✓ Connected to Redis")
-    except:
+    except (redis.ConnectionError, redis.TimeoutError) as e:
         print("✗ Could not connect to Redis")
         return
     

@@ -77,7 +77,7 @@ def test_actual_api_registration():
                     try:
                         error_data = json.loads(error_text)
                         print(f"Specific error: {error_data.get('error', 'Unknown')}")
-                    except:
+                    except (json.JSONDecodeError, ValueError) as e:
                         pass
                 
                 return False

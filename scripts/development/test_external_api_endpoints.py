@@ -54,7 +54,7 @@ class ExternalAPITester:
                 try:
                     json_data = response.json()
                     print(f"   📊 JSON Keys: {list(json_data.keys()) if isinstance(json_data, dict) else 'Array'}")
-                except:
+                except (ValueError, json.JSONDecodeError) as e:
                     pass
                     
             elif status == 404:

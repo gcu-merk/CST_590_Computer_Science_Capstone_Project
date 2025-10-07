@@ -25,7 +25,7 @@ def test_redis_connection():
                 print(f"✅ Redis connection ({host}): OK")
                 redis_host = host
                 break
-            except:
+            except (redis.ConnectionError, redis.TimeoutError):
                 continue
         else:
             print("❌ Could not connect to Redis on any host")
@@ -84,7 +84,7 @@ def test_api_endpoints():
                     if 'humidity' in str(data):
                         print(f"   💧 Contains humidity data")
                     print(f"   📄 Response preview: {str(data)[:100]}...")
-                except:
+                except (ValueError, json.JSONDecodeError) as e:
                     print(f"   📄 Raw response: {response.text[:100]}...")
             else:
                 print(f"   ❌ Error response: {response.text[:100]}...")

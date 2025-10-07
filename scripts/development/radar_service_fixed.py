@@ -129,7 +129,7 @@ class RadarServiceFixed:
                     decoded = response.decode('utf-8', errors='ignore').strip()
                     if decoded and decoded not in ['(*', '(*(*', '(*(*(*']:
                         logger.info(f"📥 Response: {decoded}")
-                except:
+                except (UnicodeDecodeError, AttributeError) as e:
                     logger.debug(f"📥 Raw response: {response}")
         
         # Final configuration check
