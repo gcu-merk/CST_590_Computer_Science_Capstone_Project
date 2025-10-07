@@ -8,7 +8,18 @@ import subprocess
 import sys
 import json
 import socket
+import logging
 from datetime import datetime, timedelta
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def is_running_on_pi():
     """Check if script is running on the Pi"""
@@ -16,7 +27,7 @@ def is_running_on_pi():
         hostname = socket.gethostname()
         return "raspberrypi" in hostname.lower() or "pi" in hostname.lower()
     except (OSError, socket.error) as e:
-        print(f"Warning: Could not determine hostname: {e}")
+        logger.warning(f"Could not determine hostname: {e}")
         return False
 
 def run_command(command):
@@ -43,44 +54,39 @@ def run_command(command):
 
 def check_containers():
     """Check if Docker containers are running"""
-    print("=== Container Status ===")
+    logger.info("=== Container Status ===")
     
     # Check if docker-compose is running
     stdout, stderr, returncode = run_command("cd /home/merk && docker-compose ps")
     
     if returncode == 0 and stdout:
-        print("Docker Compose Status:")
-        print(stdout)
-        print()
+        logger.info("Docker Compose Status:")
+        logger.info(stdout)
         
         # Also check individual containers
         containers = ["redis", "vehicle-consolidator", "realtime-events-broadcaster", "api-gateway"]
         
         for container in containers:
             if container in stdout and "Up" in stdout:
-                print(f"✅ {container}: Running")
+                logger.info(f"✅ {container}: Running")
             else:
-                print(f"❌ {container}: Not found in compose output")
+                logger.warning(f"❌ {container}: Not found in compose output")
     else:
-        print(f"❌ Failed to check docker-compose: {stderr}")
-    
-    print()
+        logger.error(f"❌ Failed to check docker-compose: {stderr}")
 
 def check_camera_service():
     """Check camera service status"""
-    print("=== Camera Service Status ===")
+    logger.info("=== Camera Service Status ===")
     
     stdout, stderr, returncode = run_command("systemctl is-active imx500-ai-capture")
     if stdout.strip() == "active":
-        print("✅ Camera service: Running")
+        logger.info("✅ Camera service: Running")
     else:
-        print(f"❌ Camera service: {stdout}")
-    
-    print()
+        logger.warning(f"❌ Camera service: {stdout}")
 
 def check_recent_detections():
     """Check for recent vehicle detections"""
-    print("=== Recent Detections (Last 2 Hours) ===")
+    logger.info("=== Recent Detections (Last 2 Hours) ===")
     
     # Check radar detections using docker exec
     query = """
@@ -100,15 +106,15 @@ def check_recent_detections():
             first = parts[1] if len(parts) > 1 and parts[1] else "None"
             last = parts[2] if len(parts) > 2 and parts[2] else "None"
             
-            print(f"Radar detections: {count}")
+            logger.info(f"Radar detections: {count}")
             if count != "0":
-                print(f"  First: {first}")
-                print(f"  Last: {last}")
+                logger.info(f"  First: {first}")
+                logger.info(f"  Last: {last}")
         except (IndexError, ValueError) as e:
-            print(f"Warning: Could not parse radar query result: {e}")
-            print(f"Radar query result: {stdout}")
+            logger.warning(f"Could not parse radar query result: {e}")
+            logger.info(f"Radar query result: {stdout}")
     else:
-        print(f"❌ Failed to query radar detections: {stderr}")
+        logger.error(f"❌ Failed to query radar detections: {stderr}")
     
     # Check traffic detections (final results)
     query2 = """
@@ -124,7 +130,7 @@ def check_recent_detections():
     stdout2, stderr2, returncode2 = run_command(f"cd /opt/vehicle-detection && docker-compose exec -T database-persistence sqlite3 /app/data/traffic_data.db \"{query2}\"")
     
     if returncode2 == 0 and stdout2:
-        print("\nFinal vehicle classifications:")
+        logger.info("\nFinal vehicle classifications:")
         if stdout2.strip():
             for line in stdout2.split('\n'):
                 if line.strip():
@@ -135,58 +141,53 @@ def check_recent_detections():
                         first = parts[2] if len(parts) > 2 else "None"
                         last = parts[3] if len(parts) > 3 else "None"
                         
-                        print(f"  {vehicle_type}: {count} detections")
+                        logger.info(f"  {vehicle_type}: {count} detections")
                         if count != "0":
-                            print(f"    First: {first}")
-                            print(f"    Last: {last}")
+                            logger.info(f"    First: {first}")
+                            logger.info(f"    Last: {last}")
                     except (IndexError, ValueError) as e:
-                        print(f"  Warning: Could not parse traffic detection line: {e}")
-                        print(f"  Raw: {line}")
+                        logger.warning(f"  Could not parse traffic detection line: {e}")
+                        logger.info(f"  Raw: {line}")
         else:
-            print("  No detections in last 2 hours")
+            logger.info("  No detections in last 2 hours")
     else:
-        print(f"❌ Failed to query traffic detections: {stderr2}")
-    
-    print()
+        logger.error(f"❌ Failed to query traffic detections: {stderr2}")
 
 def check_logs():
     """Check recent logs for errors"""
-    print("=== Recent Log Errors ===")
+    logger.info("=== Recent Log Errors ===")
     
     # Check consolidator logs using docker-compose
     stdout, stderr, returncode = run_command("cd /opt/vehicle-detection && docker-compose logs --tail 10 vehicle-consolidator 2>&1 | grep -i error")
     
     if stdout:
-        print("Consolidator errors:")
+        logger.info("Consolidator errors:")
         for line in stdout.split('\n'):
             if line.strip():
-                print(f"  {line}")
+                logger.error(f"  {line}")
     else:
-        print("✅ No recent consolidator errors found")
+        logger.info("✅ No recent consolidator errors found")
     
     # Also check for any recent logs
     stdout2, stderr2, returncode2 = run_command("cd /opt/vehicle-detection && docker-compose logs --tail 5 vehicle-consolidator")
     
     if stdout2:
-        print("\nLast 5 consolidator log lines:")
+        logger.info("\nLast 5 consolidator log lines:")
         for line in stdout2.split('\n'):
             if line.strip():
-                print(f"  {line}")
-    
-    print()
+                logger.info(f"  {line}")
 
 def main():
-    print("Vehicle Detection System - Simple Status Check")
-    print("=" * 50)
-    print(f"Check time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print()
+    logger.info("Vehicle Detection System - Simple Status Check")
+    logger.info("=" * 50)
+    logger.info(f"Check time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     check_containers()
     check_camera_service()
     check_recent_detections()
     check_logs()
     
-    print("Check complete!")
+    logger.info("Check complete!")
 
 if __name__ == "__main__":
     main()

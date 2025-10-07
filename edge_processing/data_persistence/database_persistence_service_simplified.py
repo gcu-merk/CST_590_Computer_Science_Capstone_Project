@@ -838,7 +838,7 @@ class SimplifiedEnhancedDatabasePersistenceService:
                         "trigger_source_type": type(traffic_detection.trigger_source).__name__,
                         "location_id_type": type(traffic_detection.location_id).__name__
                     }
-                    print(f"DEBUG TRAFFIC DETECTION DATA TYPES: {debug_data}")
+                    logger.debug(f"Traffic detection data types: {debug_data}")
                     
                     # Insert traffic detection with auto-increment id and separate consolidation_id
                     cursor.execute("""
@@ -989,10 +989,10 @@ class SimplifiedEnhancedDatabasePersistenceService:
             
             logger.error("Failed to commit normalized batch to database", extra=error_details)
             
-            # Also log to console for debugging
-            print(f"DATABASE COMMIT ERROR: {type(e).__name__}: {str(e)}")
-            print(f"Full traceback: {traceback.format_exc()}")
-            print(f"Batch size: {batch_size}, Correlation ID: {correlation_id}")
+            # Also log detailed error information
+            logger.error(f"DATABASE COMMIT ERROR: {type(e).__name__}: {str(e)}")
+            logger.debug(f"Full traceback: {traceback.format_exc()}")
+            logger.error(f"Batch size: {batch_size}, Correlation ID: {correlation_id}")
             self.stats["database_errors"] += 1
             # Don't clear batch on error - will retry
             return False

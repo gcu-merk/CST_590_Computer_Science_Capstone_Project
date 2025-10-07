@@ -170,19 +170,19 @@ def main():
             sys.exit(1)
     
     logger.info("\n" + "="*60)
-    print("✓ Setup completed successfully!")
-    print("="*60)
-    print("\nNext steps:")
-    print("1. Activate the virtual environment:")
+    logger.info("✓ Setup completed successfully!")
+    logger.info("="*60)
+    logger.info("\nNext steps:")
+    logger.info("1. Activate the virtual environment:")
     if os.name != 'nt':
-        print("   source venv/bin/activate")
+        logger.info("   source venv/bin/activate")
     else:
-        print("   venv\\Scripts\\activate")
-    print("2. Run the main application:")
-    print("   python radar_service.py")
-    print("3. Access the API at: http://localhost:5000")
-    print("4. Check system health: http://localhost:5000/api/health")
-    print("\nFor more information, see the documentation folder.")
+        logger.info("   venv\\Scripts\\activate")
+    logger.info("2. Run the main application:")
+    logger.info("   python radar_service.py")
+    logger.info("3. Access the API at: http://localhost:5000")
+    logger.info("4. Check system health: http://localhost:5000/api/health")
+    logger.info("\nFor more information, see the documentation folder.")
 
 if __name__ == "__main__":
     main()

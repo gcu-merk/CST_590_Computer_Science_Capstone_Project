@@ -299,7 +299,7 @@ class EnhancedSwaggerAPIGateway:
             return central_dt.isoformat()
 
         except Exception as e:
-            print(f"Failed to convert timestamp {timestamp_str}: {e}")
+            logger.error(f"Failed to convert timestamp {timestamp_str}: {e}")
             return timestamp_str
 
     def _setup_redis_connection(self):
@@ -1774,13 +1774,13 @@ def main():
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        logger.error("API gateway failed to start", extra={
+        logger.critical("API gateway failed to start", extra={
             "business_event": "api_gateway_startup_failure",
             "error": str(e),
             "traceback": error_details
         })
-        print(f"FATAL ERROR: {e}")
-        print(f"TRACEBACK: {error_details}")
+        logger.critical(f"FATAL ERROR: {e}")
+        logger.critical(f"TRACEBACK: {error_details}")
         sys.exit(1)
 
 

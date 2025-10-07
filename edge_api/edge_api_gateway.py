@@ -534,7 +534,7 @@ if __name__ == "__main__":
     try:
         api_gateway.start_server()
     except KeyboardInterrupt:
-        print("\nShutting down gracefully...")
+        logger.info("\nShutting down gracefully...")
         api_gateway.stop_server()
     except Exception as e:
         logger.error(f"Server startup failed: {e}")
