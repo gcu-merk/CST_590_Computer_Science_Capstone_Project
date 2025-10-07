@@ -35,12 +35,20 @@ class RedisConfig:
     camera_channel: str = field(default="camera:detections")
     consolidated_channel: str = field(default="consolidated:detections")
     
+    # Redis optimization settings
+    optimization_interval: int = field(default=3600)  # 1 hour
+    memory_threshold_mb: int = field(default=1000)  # 1GB threshold
+    
     def __post_init__(self):
         """Validate Redis configuration"""
         if not 1 <= self.port <= 65535:
             raise ValueError(f"Invalid Redis port: {self.port}")
         if not 0 <= self.db <= 15:
             raise ValueError(f"Invalid Redis DB index: {self.db}")
+        if self.optimization_interval < 60:
+            raise ValueError(f"Optimization interval must be >= 60 seconds, got {self.optimization_interval}")
+        if self.memory_threshold_mb < 100:
+            raise ValueError(f"Memory threshold must be >= 100 MB, got {self.memory_threshold_mb}")
 
 
 @dataclass
@@ -316,6 +324,8 @@ def load_config_from_env() -> Config:
             password=os.getenv("REDIS_PASSWORD"),
             max_connections=get_int("REDIS_MAX_CONNECTIONS", 50),
             weather_key=os.getenv("DHT22_REDIS_KEY", "weather:dht22"),
+            optimization_interval=get_int("OPTIMIZATION_INTERVAL", 3600),
+            memory_threshold_mb=get_int("MEMORY_THRESHOLD_MB", 1000),
         ),
         
         database=DatabaseConfig(

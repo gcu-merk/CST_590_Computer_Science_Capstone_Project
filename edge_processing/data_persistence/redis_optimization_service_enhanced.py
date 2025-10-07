@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Enhanced Redis Optimization Service - WITH CENTRALIZED LOGGING
+Enhanced Redis Optimization Service - WITH CENTRALIZED CONFIGURATION & LOGGING
 Implements intelligent TTL policies to manage Redis memory efficiently with full observability
+
+Version: 2.0.0 - Migrated to centralized configuration system (Oct 7, 2025)
 
 This enhanced service reduces Redis memory usage by applying proper TTL policies with comprehensive logging:
 - Sky analysis data: 24-hour TTL (manages 36K+ records)
@@ -10,12 +12,18 @@ This enhanced service reduces Redis memory usage by applying proper TTL policies
 - Radar data: Current only (no accumulation)
 
 Enhanced Features:
+- Centralized configuration via config.settings
 - Centralized logging with ServiceLogger and CorrelationContext integration
 - Redis operation monitoring and performance tracking
 - Memory usage optimization with detailed analytics
 - Key lifecycle management with business event logging
 - Intelligent cleanup strategies with correlation tracking
 - Real-time Redis health and performance monitoring
+
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
 
 The goal is to maintain system performance while reducing Redis storage
 from 38,491+ keys to manageable levels with full observability.
@@ -31,6 +39,9 @@ import os
 import sys
 import uuid
 from collections import defaultdict
+
+# Import centralized configuration
+from config.settings import get_config
 
 # Add edge_processing to path for shared_logging
 current_dir = Path(__file__).parent.parent
@@ -53,12 +64,13 @@ class EnhancedRedisOptimizationService:
     Reduces memory usage while maintaining operational data availability with full observability
     """
     
-    def __init__(self,
-                 redis_host: str = "redis",
-                 redis_port: int = 6379,
-                 optimization_interval: int = 3600,  # 1 hour
-                 memory_threshold_mb: int = 1000):    # 1GB threshold
+    def __init__(self, config=None):
+        """
+        Initialize Redis optimization service with centralized configuration.
         
+        Args:
+            config: Optional Config instance. If None, loads from environment via get_config()
+        """
         if not REDIS_AVAILABLE:
             logger.error("Redis required for optimization service", extra={
                 "business_event": "service_initialization_failure",
@@ -66,10 +78,14 @@ class EnhancedRedisOptimizationService:
             })
             raise RuntimeError("Redis required for optimization service")
         
-        self.redis_host = redis_host
-        self.redis_port = redis_port
-        self.optimization_interval = optimization_interval
-        self.memory_threshold_mb = memory_threshold_mb
+        # Load centralized configuration
+        self.config = config if config is not None else get_config()
+        
+        # Service configuration from centralized config
+        self.redis_host = self.config.redis.host
+        self.redis_port = self.config.redis.port
+        self.optimization_interval = self.config.redis.optimization_interval
+        self.memory_threshold_mb = self.config.redis.memory_threshold_mb
         
         # Service state
         self.running = False
@@ -575,13 +591,18 @@ class EnhancedRedisOptimizationService:
 def main():
     """Main entry point for enhanced Redis optimization service"""
     try:
-        # Configuration from environment
-        service = EnhancedRedisOptimizationService(
-            redis_host=os.environ.get('REDIS_HOST', 'redis'),
-            redis_port=int(os.environ.get('REDIS_PORT', 6379)),
-            optimization_interval=int(os.environ.get('OPTIMIZATION_INTERVAL', 3600)),
-            memory_threshold_mb=int(os.environ.get('MEMORY_THRESHOLD_MB', 1000))
-        )
+        # Load centralized configuration
+        print("Loading configuration from environment...")
+        config = get_config()
+        
+        print(f"Configuration loaded:")
+        print(f"  - Environment: {config.environment}")
+        print(f"  - Redis: {config.redis.host}:{config.redis.port}")
+        print(f"  - Optimization interval: {config.redis.optimization_interval}s")
+        print(f"  - Memory threshold: {config.redis.memory_threshold_mb} MB")
+        
+        # Create enhanced service with centralized config
+        service = EnhancedRedisOptimizationService(config=config)
         
         # Start service
         if service.start():
