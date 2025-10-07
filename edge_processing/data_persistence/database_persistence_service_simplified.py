@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 """
-Enhanced Database Persistence Service - DUAL JSON+3NF STORAGE - WITH CENTRALIZED LOGGING
+Enhanced Database Persistence Service - DUAL JSON+3NF STORAGE - WITH CENTRALIZED CONFIGURATION & LOGGING
 Enhanced version with dual storage: JSON source of truth + normalized 3NF analytics schema
+
+Version: 2.1.0 - Migrated to centralized configuration system (Oct 7, 2025)
 
 This enhanced service implements dual storage architecture:
 - JSON source of truth in consolidated_events table for fast API serving
 - Normalized 3NF schema with separate tables for traffic, radar, camera, weather analytics
 - Enhanced with ServiceLogger and CorrelationContext for observability
+- Centralized configuration via config.settings
 - Improved performance monitoring and business event tracking
 - Multi-table insertion with transaction management for data integrity
 - Backwards compatibility with legacy schema detection
-- Version: 2.0 (Normalized Schema)
+
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
 
 Enhanced Features:
 - Centralized logging with ServiceLogger and CorrelationContext integration
@@ -35,6 +42,9 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 import sys
+
+# Import centralized configuration
+from config.settings import get_config
 
 # Add edge_processing to path for shared_logging
 current_dir = Path(__file__).parent.parent
@@ -178,20 +188,23 @@ class SimplifiedEnhancedDatabasePersistenceService:
     Focuses on reliable local persistence with comprehensive centralized logging
     """
     
-    def __init__(self,
-                 database_path: str = "/app/data/traffic_data.db",
-                 redis_host: str = "redis",
-                 redis_port: int = 6379,
-                 batch_size: int = 100,
-                 commit_interval_seconds: int = 30,
-                 retention_days: int = 90):
+    def __init__(self, config=None):
+        """
+        Initialize database persistence service with centralized configuration.
         
-        self.database_path = Path(database_path)
-        self.redis_host = redis_host
-        self.redis_port = redis_port
-        self.batch_size = batch_size
-        self.commit_interval_seconds = commit_interval_seconds
-        self.retention_days = retention_days
+        Args:
+            config: Optional Config instance. If None, loads from environment via get_config()
+        """
+        # Load centralized configuration
+        self.config = config if config is not None else get_config()
+        
+        # Service configuration from centralized config
+        self.database_path = Path(self.config.database.path)
+        self.redis_host = self.config.redis.host
+        self.redis_port = self.config.redis.port
+        self.batch_size = self.config.database.batch_size
+        self.commit_interval_seconds = self.config.database.commit_interval_seconds
+        self.retention_days = self.config.database.retention_days
         
         # Service state
         self.running = False
@@ -1373,15 +1386,20 @@ class SimplifiedEnhancedDatabasePersistenceService:
 def main():
     """Main entry point for simplified enhanced database persistence service"""
     try:
-        # Configuration from environment
-        service = SimplifiedEnhancedDatabasePersistenceService(
-            database_path=os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db'),
-            redis_host=os.environ.get('REDIS_HOST', 'redis'),
-            redis_port=int(os.environ.get('REDIS_PORT', 6379)),
-            batch_size=int(os.environ.get('BATCH_SIZE', 100)),
-            commit_interval_seconds=int(os.environ.get('COMMIT_INTERVAL_SEC', 30)),
-            retention_days=int(os.environ.get('RETENTION_DAYS', 90))
-        )
+        # Load centralized configuration
+        print("Loading configuration from environment...")
+        config = get_config()
+        
+        print(f"Configuration loaded:")
+        print(f"  - Environment: {config.environment}")
+        print(f"  - Database: {config.database.path}")
+        print(f"  - Redis: {config.redis.host}:{config.redis.port}")
+        print(f"  - Batch size: {config.database.batch_size}")
+        print(f"  - Commit interval: {config.database.commit_interval_seconds}s")
+        print(f"  - Retention: {config.database.retention_days} days")
+        
+        # Create enhanced service with centralized config
+        service = SimplifiedEnhancedDatabasePersistenceService(config=config)
         
         # Start service
         if service.start():
