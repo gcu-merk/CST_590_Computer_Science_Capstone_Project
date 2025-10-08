@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-Enhanced Vehicle Detection Data Consolidator Service with Centralized Logging
+Enhanced Vehicle Detection Data Consolidator Service with Centralized Configuration & Logging
 Consumes vehicle detection results from IMX500 host service and aggregates data with correlation tracking
+
+Version: 2.2.0 - Migrated to centralized configuration system (Oct 8, 2025)
+
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
 
 This service replaces the software-based vehicle detection with a data consolidation
 approach that leverages the IMX500's on-chip AI processing done by the host service.
@@ -22,9 +29,17 @@ import json
 import threading
 import uuid
 import os
+import sys
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from typing import Dict, List, Optional, Any
+from pathlib import Path
+
+# Add path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Import centralized configuration
+from config.settings import get_config
 
 # Import centralized logging infrastructure
 from edge_processing.shared_logging import ServiceLogger, CorrelationContext, performance_monitor
@@ -67,23 +82,35 @@ class VehicleDetectionConsolidatorEnhanced:
     """
     Enhanced Vehicle Detection Consolidator with centralized logging and correlation tracking
     Focuses on data aggregation, statistics, and persistence with full event tracing
+    
+    Configuration:
+        Uses centralized config module (config.settings) for all settings.
+        Automatically loads from environment via get_config().
     """
     
-    def __init__(self,
-                 redis_host: str = "redis",
-                 redis_port: int = 6379,
-                 data_retention_hours: int = 24,
-                 stats_update_interval: int = 60):
+    def __init__(self, config=None):
+        """
+        Initialize the Vehicle Detection Consolidator
+        
+        Args:
+            config: Optional Config instance. If None, loads from environment via get_config()
+        """
+        # Load configuration
+        self.config = config if config is not None else get_config()
         
         # Initialize centralized logger
         self.logger = ServiceLogger(
             service_name="vehicle-consolidator",
-            service_version="2.1.0",
-            environment=os.environ.get('ENVIRONMENT', 'production')
+            service_version="2.2.0",
+            environment=self.config.environment
         )
         
-        # Camera strict mode configuration - allows disabling camera requirement for nighttime/dark conditions
-        self.camera_strict_mode = os.environ.get('CAMERA_STRICT_MODE', 'true').lower() == 'true'
+        # Extract settings from centralized config
+        self.camera_strict_mode = self.config.consolidator.camera_strict_mode
+        self.redis_host = self.config.redis.host
+        self.redis_port = self.config.redis.port
+        self.data_retention_hours = self.config.consolidator.data_retention_hours
+        self.stats_update_interval = self.config.consolidator.stats_update_interval
         
         if not REDIS_AVAILABLE:
             self.logger.log_error(
@@ -101,11 +128,6 @@ class VehicleDetectionConsolidatorEnhanced:
                 error=str(RuntimeError("Redis models not available"))
             )
             raise RuntimeError("Redis models not available")
-        
-        self.redis_host = redis_host
-        self.redis_port = redis_port
-        self.data_retention_hours = data_retention_hours
-        self.stats_update_interval = stats_update_interval
         
         # Redis connection
         self.redis_client = None
@@ -153,10 +175,10 @@ class VehicleDetectionConsolidatorEnhanced:
             event_type="consolidator_initialized",
             message="Vehicle Detection Consolidator initialized with centralized logging",
             details={
-                "redis_host": redis_host,
-                "redis_port": redis_port,
-                "data_retention_hours": data_retention_hours,
-                "stats_update_interval": stats_update_interval
+                "redis_host": self.redis_host,
+                "redis_port": self.redis_port,
+                "data_retention_hours": self.data_retention_hours,
+                "stats_update_interval": self.stats_update_interval
             }
         )
     
@@ -1702,19 +1724,11 @@ class VehicleDetectionConsolidatorEnhanced:
 def main():
     """Main service entry point with enhanced error handling"""
     
-    # Read configuration from environment
-    redis_host = os.environ.get('REDIS_HOST', 'redis')
-    redis_port = int(os.environ.get('REDIS_PORT', '6379'))
-    data_retention_hours = int(os.environ.get('DATA_RETENTION_HOURS', '24'))
-    stats_interval = int(os.environ.get('STATS_UPDATE_INTERVAL', '60'))
+    # Load centralized configuration
+    config = get_config()
     
     # Create enhanced consolidator service
-    consolidator = VehicleDetectionConsolidatorEnhanced(
-        redis_host=redis_host,
-        redis_port=redis_port,
-        data_retention_hours=data_retention_hours,
-        stats_update_interval=stats_interval
-    )
+    consolidator = VehicleDetectionConsolidatorEnhanced(config=config)
     
     try:
         consolidator.start()

@@ -206,6 +206,30 @@ class LoggingConfig:
 
 
 @dataclass
+class ConsolidatorConfig:
+    """Vehicle detection consolidator service configuration"""
+    data_retention_hours: int = field(default=24)
+    stats_update_interval: int = field(default=60)  # seconds
+    camera_strict_mode: bool = field(default=True)
+    
+    # Vehicle grouping parameters
+    grouping_window_seconds: float = field(default=3.0)
+    speed_variation_threshold: float = field(default=5.0)  # mph
+    direction_consistency_threshold: float = field(default=0.8)
+    group_cleanup_interval: float = field(default=30.0)  # seconds
+    max_vehicle_groups: int = field(default=100)
+    
+    def __post_init__(self):
+        """Validate consolidator configuration"""
+        if self.data_retention_hours < 1:
+            raise ValueError(f"Data retention must be >= 1 hour, got {self.data_retention_hours}")
+        if self.stats_update_interval < 10:
+            raise ValueError(f"Stats interval must be >= 10 seconds, got {self.stats_update_interval}")
+        if not 0.0 < self.direction_consistency_threshold <= 1.0:
+            raise ValueError(f"Direction consistency threshold must be 0.0-1.0, got {self.direction_consistency_threshold}")
+
+
+@dataclass
 class MaintenanceConfig:
     """System maintenance configuration"""
     # Disk space thresholds
@@ -264,6 +288,7 @@ class Config:
     radar: RadarConfig = field(default_factory=RadarConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    consolidator: ConsolidatorConfig = field(default_factory=ConsolidatorConfig)
     maintenance: MaintenanceConfig = field(default_factory=MaintenanceConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
     
@@ -388,6 +413,12 @@ def load_config_from_env() -> Config:
             file_path=os.getenv("LOG_DIR", "/var/log/vehicle-detection"),
             central_logging_enabled=get_bool("ENABLE_LOG_SHIPPING", False),
             central_logging_url=os.getenv("CENTRAL_LOG_URL"),
+        ),
+        
+        consolidator=ConsolidatorConfig(
+            data_retention_hours=get_int("DATA_RETENTION_HOURS", 24),
+            stats_update_interval=get_int("STATS_UPDATE_INTERVAL", 60),
+            camera_strict_mode=get_bool("CAMERA_STRICT_MODE", True),
         ),
         
         maintenance=MaintenanceConfig(
