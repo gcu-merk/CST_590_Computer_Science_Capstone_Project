@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """
-Enhanced Airport Weather Service - WITH CENTRALIZED LOGGING
+Enhanced Airport Weather Service - WITH CENTRALIZED CONFIGURATION & LOGGING
 Periodically fetches weather.gov API and updates Redis with latest observation
 NOW WITH CENTRALIZED LOGGING AND CORRELATION TRACKING
+
+Version: 2.0.0 - Migrated to centralized configuration system (Oct 8, 2025)
+
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
 
 This service:
 - Fetches weather data from weather.gov API for KOKC station
@@ -27,38 +34,44 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-# Add edge_processing to path for shared_logging
+# Add paths for imports
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
+sys.path.insert(0, str(current_dir.parent))
+
+# Import centralized configuration
+from config.settings import get_config
+
 from shared_logging import ServiceLogger, CorrelationContext
+
+# Load configuration
+config = get_config()
 
 # Initialize centralized logging
 logger = ServiceLogger("airport_weather_service")
 
-# Configuration with logging
-FETCH_INTERVAL_MINUTES = int(os.getenv('FETCH_INTERVAL_MINUTES', 5))
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-REDIS_DB = int(os.getenv('REDIS_DB', 0))
-REDIS_KEY = os.getenv('AIRPORT_WEATHER_REDIS_KEY', 'weather:airport:latest')
-WEATHER_API_URL = os.getenv('WEATHER_API_URL', 'https://api.weather.gov/stations/KOKC/observations/latest')
-API_TIMEOUT = int(os.getenv('WEATHER_API_TIMEOUT', 10))
-
 logger.info("Airport weather service initialized", extra={
     "business_event": "service_initialization",
-    "fetch_interval_minutes": FETCH_INTERVAL_MINUTES,
-    "redis_host": REDIS_HOST,
-    "redis_port": REDIS_PORT,
-    "redis_key": REDIS_KEY,
-    "weather_api_url": WEATHER_API_URL,
-    "api_timeout": API_TIMEOUT
+    "fetch_interval_minutes": config.weather.fetch_interval_minutes,
+    "redis_host": config.redis.host,
+    "redis_port": config.redis.port,
+    "redis_key": config.weather.redis_key,
+    "weather_api_url": config.weather.api_url,
+    "api_timeout": config.weather.api_timeout
 })
 
 
 class EnhancedAirportWeatherService:
     """Enhanced airport weather service with centralized logging and monitoring"""
     
-    def __init__(self):
+    def __init__(self, config_obj=None):
+        """
+        Initialize Enhanced Airport Weather Service
+        
+        Args:
+            config_obj: Optional Config instance. If None, uses module-level config loaded by get_config()
+        """
+        self.config = config_obj if config_obj is not None else config
         self.redis_client = None
         self.stats = {
             "total_api_calls": 0,
@@ -83,23 +96,23 @@ class EnhancedAirportWeatherService:
         """Initialize Redis connection with logging"""
         try:
             self.redis_client = redis.Redis(
-                host=REDIS_HOST,
-                port=REDIS_PORT,
-                db=REDIS_DB,
+                host=self.config.redis.host,
+                port=self.config.redis.port,
+                db=self.config.redis.db,
                 decode_responses=True
             )
             self.redis_client.ping()
             logger.info("Connected to Redis successfully", extra={
                 "business_event": "redis_connection_established",
-                "redis_host": REDIS_HOST,
-                "redis_port": REDIS_PORT,
-                "redis_db": REDIS_DB
+                "redis_host": self.config.redis.host,
+                "redis_port": self.config.redis.port,
+                "redis_db": self.config.redis.db
             })
         except Exception as e:
             logger.error("Failed to connect to Redis", extra={
                 "business_event": "redis_connection_failure",
-                "redis_host": REDIS_HOST,
-                "redis_port": REDIS_PORT,
+                "redis_host": self.config.redis.host,
+                "redis_port": self.config.redis.port,
                 "error": str(e)
             })
             self.redis_client = None
@@ -118,7 +131,7 @@ class EnhancedAirportWeatherService:
             logger.debug("Starting weather API fetch", extra={
                 "business_event": "api_fetch_start",
                 "fetch_id": fetch_id,
-                "api_url": WEATHER_API_URL
+                "api_url": self.config.weather.api_url
             })
             
             self.stats["total_api_calls"] += 1
@@ -130,8 +143,8 @@ class EnhancedAirportWeatherService:
                 }
                 
                 response = requests.get(
-                    WEATHER_API_URL,
-                    timeout=API_TIMEOUT,
+                    self.config.weather.api_url,
+                    timeout=self.config.weather.api_timeout,
                     headers=headers
                 )
                 response.raise_for_status()
@@ -191,7 +204,7 @@ class EnhancedAirportWeatherService:
                     'error': 'timeout',
                     'error_message': str(e),
                     'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'api_url': WEATHER_API_URL
+                    'api_url': self.config.weather.api_url
                 }
                 
                 logger.error("Weather API fetch timeout", extra={
@@ -199,7 +212,7 @@ class EnhancedAirportWeatherService:
                     "fetch_id": fetch_id,
                     "error_type": "timeout",
                     "error": str(e),
-                    "timeout_seconds": API_TIMEOUT
+                    "timeout_seconds": self.config.weather.api_timeout
                 })
                 
                 return error_data
@@ -214,7 +227,7 @@ class EnhancedAirportWeatherService:
                     'error_message': str(e),
                     'status_code': getattr(e.response, 'status_code', None),
                     'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'api_url': WEATHER_API_URL
+                    'api_url': self.config.weather.api_url
                 }
                 
                 logger.error("Weather API HTTP error", extra={
@@ -236,7 +249,7 @@ class EnhancedAirportWeatherService:
                     'error': 'unexpected_error',
                     'error_message': str(e),
                     'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'api_url': WEATHER_API_URL
+                    'api_url': self.config.weather.api_url
                 }
                 
                 logger.error("Weather API unexpected error", extra={
@@ -268,10 +281,10 @@ class EnhancedAirportWeatherService:
         
         try:
             # Store latest weather data
-            self.redis_client.set(REDIS_KEY, json.dumps(weather_data))
+            self.redis_client.set(self.config.weather.redis_key, json.dumps(weather_data))
             
             # Store in time-series format for historical analysis
-            ts_key = f"{REDIS_KEY}:timeseries"
+            ts_key = f"{self.config.weather.redis_key}:timeseries"
             self.redis_client.zadd(ts_key, {json.dumps(weather_data): time.time()})
             
             # Keep only last 24 hours of time-series data
@@ -306,7 +319,7 @@ class EnhancedAirportWeatherService:
             logger.info("Weather data stored successfully", extra={
                 "business_event": "weather_data_stored",
                 "fetch_id": weather_data.get('fetch_id'),
-                "redis_key": REDIS_KEY,
+                "redis_key": self.config.weather.redis_key,
                 "has_error": 'error' in weather_data
             })
             
@@ -324,7 +337,7 @@ class EnhancedAirportWeatherService:
         """Publish service statistics"""
         try:
             if self.redis_client:
-                stats_key = f"{REDIS_KEY}:stats"
+                stats_key = f"{self.config.weather.redis_key}:stats"
                 self.redis_client.hset(stats_key, mapping=self.stats)
                 
                 logger.debug("Airport weather service statistics published", extra={
@@ -340,11 +353,11 @@ class EnhancedAirportWeatherService:
     
     def run(self):
         """Main service loop with enhanced monitoring"""
-        fetch_interval_seconds = FETCH_INTERVAL_MINUTES * 60
+        fetch_interval_seconds = self.config.weather.fetch_interval_minutes * 60
         
         logger.info("Starting airport weather service main loop", extra={
             "business_event": "service_start",
-            "fetch_interval_minutes": FETCH_INTERVAL_MINUTES,
+            "fetch_interval_minutes": self.config.weather.fetch_interval_minutes,
             "fetch_interval_seconds": fetch_interval_seconds
         })
         

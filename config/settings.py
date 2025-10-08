@@ -150,7 +150,8 @@ class RadarConfig:
 
 @dataclass
 class WeatherConfig:
-    """DHT22 Weather Sensor configuration"""
+    """Weather configuration (DHT22 sensor + airport weather API)"""
+    # DHT22 local sensor
     gpio_pin: int = field(default=4)
     update_interval_seconds: int = field(default=600)  # 10 minutes
     temperature_unit: Literal["celsius", "fahrenheit"] = field(default="celsius")
@@ -161,12 +162,22 @@ class WeatherConfig:
     humidity_min: float = field(default=0.0)
     humidity_max: float = field(default=100.0)
     
+    # Airport weather API configuration
+    api_url: str = field(default="https://api.weather.gov/stations/KOKC/observations/latest")
+    api_timeout: int = field(default=10)
+    fetch_interval_minutes: int = field(default=5)
+    redis_key: str = field(default="weather:airport:latest")
+    
     def __post_init__(self):
         """Validate weather configuration"""
         if not 1 <= self.gpio_pin <= 27:
             raise ValueError(f"Invalid GPIO pin: {self.gpio_pin}")
         if self.update_interval_seconds < 60:
             raise ValueError(f"Update interval must be >= 60 seconds, got {self.update_interval_seconds}")
+        if self.api_timeout < 1:
+            raise ValueError(f"API timeout must be >= 1 second, got {self.api_timeout}")
+        if self.fetch_interval_minutes < 1:
+            raise ValueError(f"Fetch interval must be >= 1 minute, got {self.fetch_interval_minutes}")
 
 
 @dataclass
@@ -366,6 +377,10 @@ def load_config_from_env() -> Config:
         weather=WeatherConfig(
             gpio_pin=get_int("DHT22_GPIO_PIN", 4),
             update_interval_seconds=get_int("DHT22_UPDATE_INTERVAL", 600),
+            api_url=os.getenv("WEATHER_API_URL", "https://api.weather.gov/stations/KOKC/observations/latest"),
+            api_timeout=get_int("WEATHER_API_TIMEOUT", 10),
+            fetch_interval_minutes=get_int("FETCH_INTERVAL_MINUTES", 5),
+            redis_key=os.getenv("AIRPORT_WEATHER_REDIS_KEY", "weather:airport:latest"),
         ),
         
         logging=LoggingConfig(
