@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Enhanced Swagger-Enabled Edge API Gateway - WITH CENTRALIZED LOGGING
+Enhanced Swagger-Enabled Edge API Gateway - WITH CENTRALIZED CONFIGURATION & LOGGING
 Flask-RESTX server providing documented REST API endpoints for the traffic monitoring system
-NOW WITH CENTRALIZED LOGGING AND CORRELATION TRACKING
+
+Version: 2.0.0 - Migrated to centralized configuration system (Oct 7, 2025)
 
 This enhanced API gateway provides:
 - Comprehensive REST API endpoints with Swagger documentation
+- Centralized configuration via config.settings
 - Request/response correlation tracking across all endpoints
 - Performance monitoring for API calls and database queries
 - Centralized logging with business event tracking
@@ -13,12 +15,20 @@ This enhanced API gateway provides:
 - System health monitoring and diagnostics
 - Error tracking and API analytics
 
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
+
 Architecture:
 HTTP Requests -> Enhanced API Gateway -> ServiceLogger -> Redis/Database -> Centralized Logging
 """
 
 from flask import Flask, jsonify, request, send_file, g, make_response
 from flask_restx import Api, Resource, Namespace, reqparse
+
+# Import centralized configuration
+from config.settings import get_config
 
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -184,11 +194,28 @@ class EnhancedSwaggerAPIGateway:
     """
     Enhanced Swagger-enabled API gateway with centralized logging and correlation tracking
     Provides documented REST endpoints and WebSocket communication with full observability
+    
+    Configuration:
+        Uses centralized config module (config.settings) for all settings.
+        Automatically loads from environment via get_config().
     """
     
-    def __init__(self, host='0.0.0.0', port=5000):
-        self.host = host
-        self.port = port
+    def __init__(self, config=None):
+        """
+        Initialize the Enhanced Swagger API Gateway
+        
+        Args:
+            config: Optional Config instance. If None, loads from environment via get_config()
+        """
+        # Load configuration
+        self.config = config if config is not None else get_config()
+        
+        # Extract settings from centralized config
+        self.host = self.config.api.host
+        self.port = self.config.api.port
+        self.redis_host = self.config.redis.host
+        self.redis_port = self.config.redis.port
+        self.database_path = self.config.database.path
         
         # Statistics tracking
         self.stats = {
@@ -306,8 +333,9 @@ class EnhancedSwaggerAPIGateway:
         """Setup Redis connection with enhanced logging"""
         try:
             import redis
-            redis_host = os.environ.get('REDIS_HOST', 'redis')
-            redis_port = int(os.environ.get('REDIS_PORT', 6379))
+            # Use centralized configuration
+            redis_host = self.redis_host
+            redis_port = self.redis_port
             
             self.redis_client = redis.Redis(
                 host=redis_host, 
@@ -334,7 +362,7 @@ class EnhancedSwaggerAPIGateway:
             logger.error("Redis connection failed", extra={
                 "business_event": "redis_connection_failure",
                 "error": str(e),
-                "redis_host": os.environ.get('REDIS_HOST', 'redis')
+                "redis_host": self.redis_host
             })
     
     def _setup_socketio_correlation(self):
@@ -1218,8 +1246,8 @@ class EnhancedSwaggerAPIGateway:
         detections = []
         
         try:
-            # Get database path from environment
-            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            # Get database path from centralized config
+            db_path = self.database_path
             
             # Check if database file exists
             if not os.path.exists(db_path):
@@ -1290,8 +1318,8 @@ class EnhancedSwaggerAPIGateway:
         events = []
         
         try:
-            # Get database path from environment
-            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            # Get database path from centralized config
+            db_path = self.database_path
             
             # Check if database file exists
             if not os.path.exists(db_path):
@@ -1517,8 +1545,8 @@ class EnhancedSwaggerAPIGateway:
     def _generate_monthly_report_data(self):
         """Generate data for monthly traffic summary report"""
         try:
-            # Get database path from environment
-            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            # Get database path from centralized config
+            db_path = self.database_path
             
             if not os.path.exists(db_path):
                 logger.warning(f"Database file not found at {db_path}")
@@ -1624,8 +1652,8 @@ class EnhancedSwaggerAPIGateway:
     def _generate_violations_report_data(self):
         """Generate data for speed violations CSV report"""
         try:
-            # Get database path from environment
-            db_path = os.environ.get('DATABASE_PATH', '/app/data/traffic_data.db')
+            # Get database path from centralized config
+            db_path = self.database_path
             
             if not os.path.exists(db_path):
                 logger.warning(f"Database file not found at {db_path}")
@@ -1758,14 +1786,12 @@ class EnhancedSwaggerAPIGateway:
 def main():
     """Main entry point for enhanced API gateway"""
     try:
-        # Configuration from environment
-        host = os.environ.get('API_HOST', '0.0.0.0')
-        port = int(os.environ.get('API_PORT', 5000))
-        debug = os.environ.get('API_DEBUG', 'false').lower() == 'true'
+        # Load centralized configuration
+        config = get_config()
         
-        # Create and run enhanced gateway
-        gateway = EnhancedSwaggerAPIGateway(host=host, port=port)
-        gateway.run(debug=debug)
+        # Create and run enhanced gateway with config
+        gateway = EnhancedSwaggerAPIGateway(config=config)
+        gateway.run(debug=config.api.debug)
         
     except KeyboardInterrupt:
         logger.info("API gateway shutdown requested by user", extra={
