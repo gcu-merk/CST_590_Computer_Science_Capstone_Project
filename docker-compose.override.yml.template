@@ -1,0 +1,144 @@
+# Docker Compose Override Template for Local Development
+# ========================================================
+#
+# This file demonstrates how to override settings for local development.
+# Copy this file to docker-compose.override.yml to use it:
+#
+#   cp docker-compose.override.yml.template docker-compose.override.yml
+#
+# The override file is automatically loaded by docker-compose and is in .gitignore.
+#
+# Use Cases:
+#   - Enable config validation on startup
+#   - Override environment variables for testing
+#   - Enable debug modes
+#   - Mount local code for development
+#   - Add development-specific services
+#
+# Configuration System Integration:
+#   - All services use centralized config (config/settings.py)
+#   - Environment variables here override config defaults
+#   - Use CONFIG_VALIDATION=strict to enforce validation
+#   - Use ENVIRONMENT=development for development mode
+
+version: '3.8'
+
+services:
+  # Example: Enable strict config validation for API gateway
+  traffic-monitor:
+    environment:
+      # Enable strict configuration validation on startup
+      - CONFIG_VALIDATION=strict
+      
+      # Development mode settings
+      - ENVIRONMENT=development
+      - API_DEBUG=true
+      - LOG_LEVEL=DEBUG
+      
+      # Override API settings
+      - API_WORKERS=2
+      
+    # Mount local code for live development
+    # volumes:
+    #   - ./edge_api:/app/edge_api:ro
+    #   - ./config:/app/config:ro
+
+  # Example: Enable validation for all data services
+  database-persistence:
+    environment:
+      - CONFIG_VALIDATION=strict
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      # Override batch settings for testing
+      # - BATCH_SIZE=10
+      # - COMMIT_INTERVAL_SEC=5
+
+  redis-optimization:
+    environment:
+      - CONFIG_VALIDATION=strict
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      # Override optimization settings
+      # - OPTIMIZATION_INTERVAL=300
+      # - MEMORY_THRESHOLD_MB=500
+
+  vehicle-consolidator:
+    environment:
+      - CONFIG_VALIDATION=strict
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      # Test with strict camera mode
+      # - CAMERA_STRICT_MODE=true
+      # - DATA_RETENTION_HOURS=6
+
+  radar-service:
+    environment:
+      - CONFIG_VALIDATION=strict
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      # Override radar settings if needed
+      # - RADAR_BAUD_RATE=19200
+      # - RADAR_UART_PORT=/dev/ttyAMA0
+
+  airport-weather:
+    environment:
+      - CONFIG_VALIDATION=strict
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      # Override weather API settings
+      # - WEATHER_API_URL=https://api.weather.gov/stations/KOKC/observations/latest
+      # - API_TIMEOUT=15
+      # - FETCH_INTERVAL_MINUTES=10
+
+  # Example: Add config validation test service
+  config-validator:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: config-validator
+    command: ["python", "config/validate_config.py", "--verbose"]
+    environment:
+      - ENVIRONMENT=development
+      # Test with all environment variables
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
+      - API_HOST=0.0.0.0
+      - API_PORT=5000
+      - RADAR_UART_PORT=/dev/ttyAMA0
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    networks:
+      - app-network
+    profiles:
+      - testing
+    # Note: Use 'docker-compose --profile testing up config-validator' to run
+    
+  # Example: Interactive config explorer
+  config-shell:
+    image: ${DOCKER_IMAGE:-gcumerk/cst590-capstone-public:latest}
+    container_name: config-shell
+    command: ["python"]
+    stdin_open: true
+    tty: true
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_PATH=/app/data/traffic_data.db
+    volumes:
+      - ./config:/app/config:ro
+      - ${STORAGE_ROOT:-/mnt/storage}/logs:/app/logs
+    networks:
+      - app-network
+    profiles:
+      - development
+    # Note: Use 'docker-compose --profile development run config-shell' to start
+    # Then run: from config.settings import get_config; config = get_config(); print(config)
+
+# Development-specific network settings
+# networks:
+#   app-network:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.25.0.0/16

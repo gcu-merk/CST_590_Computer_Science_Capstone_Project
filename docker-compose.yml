@@ -1,4 +1,21 @@
 # Production Docker Compose Configuration - v1.0.0-capstone-final
+#
+# Configuration Management:
+# - All services use centralized configuration (config/settings.py)
+# - Environment variables override defaults (see .env.template)
+# - Config validation available: python config/validate_config.py --verbose
+# - Core settings (REDIS_HOST, DATABASE_PATH) kept for backward compatibility
+# - Service-specific settings loaded automatically from config system
+#
+# Services can run with minimal environment variables:
+#   - REDIS_HOST and REDIS_PORT (for Redis connectivity)
+#   - DATABASE_PATH (for services needing SQLite)
+#   - LOG_DIR and SERVICE_NAME (for logging)
+#
+# Start: docker-compose up -d
+# Logs:  docker-compose logs -f [service-name]
+# Stop:  docker-compose down
+
 services:
   redis:
     image: redis:7-alpine
@@ -31,21 +48,32 @@ services:
       - /dev/gpiomem0:/dev/gpiomem  # GPIO access
     privileged: false
     environment:
+      # Core system settings
       - DOCKER_USER=${HOST_UID:-1000}:${HOST_GID:-1000}
       - STORAGE_ROOT=${STORAGE_ROOT:-/mnt/storage}
+      
+      # Redis connection (required)
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      # Enhanced API Gateway Configuration
-      - API_HOST=0.0.0.0
-      - API_PORT=5000
-      - API_DEBUG=false
-      # Database Configuration
+      
+      # Database path (required)
       - DATABASE_PATH=/app/data/traffic_data.db
-      # Centralized Logging Configuration
+      
+      # Logging configuration (required)
       - SERVICE_NAME=api_gateway_service
       - LOG_LEVEL=INFO
       - LOG_DIR=/app/logs
       - CORRELATION_HEADER=X-Correlation-ID
+      
+      # API settings - these have defaults in config/settings.py
+      # Override only if needed:
+      - API_HOST=0.0.0.0
+      - API_PORT=5000
+      - API_DEBUG=false
+      
+      # Optional: Enable config validation on startup
+      # Uncomment to validate configuration before starting service
+      # - CONFIG_VALIDATION=strict
     volumes:
       - ${STORAGE_ROOT:-/mnt/storage}/camera_capture:/app/camera_capture
       - ${STORAGE_ROOT:-/mnt/storage}/processed_data:/app/processed_data

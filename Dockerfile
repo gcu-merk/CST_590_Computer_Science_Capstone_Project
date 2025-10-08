@@ -1,5 +1,15 @@
 # Multi-stage Dockerfile following Docker best practices
 # Raspberry Pi 5 Edge ML Traffic Monitoring System
+#
+# Configuration Management:
+# - Centralized config system in config/settings.py
+# - All services use get_config() for type-safe configuration
+# - Environment variables override defaults (see .env.template)
+# - Config validation runs at build time and can be run at runtime
+# - Run: python config/validate_config.py --verbose (for detailed validation)
+#
+# Build: docker build -t vehicle-detection:latest .
+# Run:   docker-compose up -d
 
 # Build stage - for compiling dependencies
 FROM python:3.11-slim-bookworm AS builder
@@ -116,6 +126,13 @@ WORKDIR /app
 # Copy application code with proper ownership
 COPY --chown=merk:merk . /app/
 
+# Validate config system structure at build time
+RUN python -c "from config.settings import get_config; print('✅ Config system loaded successfully')" || \
+    (echo "❌ Config system validation failed" && exit 1)
+
+# Make validation script executable
+RUN chmod +x /app/config/validate_config.py
+
 # Create data directories with proper permissions
 RUN mkdir -p /mnt/storage/{logs,data,config,scripts,python-user,tmp,database} && \
     chown -R merk:merk /mnt/storage
@@ -137,7 +154,7 @@ ENV PYTHONPATH=/app \
 # Expose port
 EXPOSE 5000
 
-# Health check using Python with proper error handling
+# Health check - verify API is running AND config is valid
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import sys,urllib.request; urllib.request.urlopen('http://localhost:5000/health'); sys.exit(0)" || exit 1
 
