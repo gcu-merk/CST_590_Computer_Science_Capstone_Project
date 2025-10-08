@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
-IMX500 AI-Enabled Host Camera Capture Service - ENHANCED
+IMX500 AI-Enabled Host Camera Capture Service - ENHANCED WITH CENTRALIZED CONFIGURATION
 Leverages Sony IMX500's on-chip AI processing for real-time vehicle detection
 WITH CENTRALIZED LOGGING AND CORRELATION TRACKING
 
+Version: 2.0.0 - Migrated to centralized configuration system (Oct 8, 2025)
+
 This service replaces the traditional rpicam-still approach with picamera2 + IMX500 AI
 to utilize the sensor's built-in neural network processor for sub-100ms vehicle detection.
+
+Configuration:
+    Uses centralized config/settings.py for all configuration.
+    Environment variables loaded via get_config() singleton.
+    See config/README.md for configuration details.
 
 Key Benefits:
 - Sub-100ms inference directly on sensor (vs seconds in software)
@@ -31,8 +38,13 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import uuid
 
-# Add edge_processing to path for shared_logging
+# Add paths for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "edge_processing"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Import centralized configuration
+from config.settings import get_config
+
 from shared_logging import ServiceLogger, CorrelationContext
 
 # IMX500 AI Camera imports
@@ -52,11 +64,14 @@ except ImportError:
     REDIS_AVAILABLE = False
     print("WARNING: Redis not available. Install with: pip install redis")
 
+# Load configuration early for logger setup
+_temp_config = get_config()
+
 # Initialize centralized logging
 service_logger = ServiceLogger(
     service_name="imx500-camera-service",
-    log_level=os.getenv("LOG_LEVEL", "INFO"),
-    log_dir=os.getenv("LOG_DIR", "/mnt/storage/logs/applications"),
+    log_level=_temp_config.logging.level,
+    log_dir=_temp_config.logging.file_path,
     enable_correlation=True
 )
 logger = service_logger.logger
@@ -66,38 +81,45 @@ class IMX500AIHostCapture:
     """
     Enhanced Host service that leverages IMX500's on-chip AI for vehicle detection
     WITH centralized logging and correlation tracking
+    
+    Configuration:
+        Uses centralized config module (config.settings) for all settings.
+        Automatically loads from environment via get_config().
     """
     
     def __init__(self,
-                 capture_dir: str = "/mnt/storage/camera_capture",
-                 ai_model_path: str = "/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk",
-                 capture_interval: float = 1.0,
-                 confidence_threshold: float = 0.5,
-                 max_images: int = 100,
-                 redis_host: str = "localhost",
-                 redis_port: int = 6379,
-                 street_roi: dict = None,
+                 config=None,
                  enable_radar_gpio: bool = True):
+        """
+        Initialize the IMX500 AI Host Capture Service
+        
+        Args:
+            config: Optional Config instance. If None, loads from environment via get_config()
+            enable_radar_gpio: Whether to enable radar detection GPIO trigger (default: True)
+        """
+        # Load configuration
+        self.config = config if config is not None else get_config()
+        
+        # Extract settings from centralized config
+        self.capture_dir = Path(self.config.camera.capture_dir)
+        self.ai_model_path = self.config.camera.model_path
+        self.capture_interval = self.config.camera.capture_interval
+        self.confidence_threshold = self.config.camera.confidence_threshold
+        self.max_images = self.config.camera.max_stored_images
+        self.redis_host = self.config.redis.host
+        self.redis_port = self.config.redis.port
+        
+        # Street ROI configuration
+        self.street_roi = {
+            'x_start': self.config.camera.roi_x_start,
+            'x_end': self.config.camera.roi_x_end,
+            'y_start': self.config.camera.roi_y_start,
+            'y_end': self.config.camera.roi_y_end
+        }
         
         if not PICAMERA2_AVAILABLE:
             logger.error("picamera2 not available - required for IMX500 AI processing")
             raise RuntimeError("picamera2 not available - required for IMX500 AI processing")
-        
-        self.capture_dir = Path(capture_dir)
-        self.ai_model_path = ai_model_path
-        self.capture_interval = capture_interval
-        self.confidence_threshold = confidence_threshold
-        self.max_images = max_images
-        
-        # Street Region of Interest (ROI) for filtering out parked cars in driveways
-        # and cars on cross street at top of image
-        # Default ROI covers the center 70% horizontally and excludes top cross street
-        self.street_roi = street_roi or {
-            "x_start": 0.15,  # 15% from left edge
-            "x_end": 0.85,    # 85% from left edge (center 70%)
-            "y_start": 0.5,   # 50% from top (exclude cross street at top)
-            "y_end": 0.9      # 90% from top (exclude sky, include main street only)
-        }
         
         # Radar GPIO Integration
         self.enable_radar_gpio = enable_radar_gpio
@@ -131,18 +153,22 @@ class IMX500AIHostCapture:
         self.redis_client = None
         if REDIS_AVAILABLE:
             try:
-                self.redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+                self.redis_client = redis.Redis(
+                    host=self.redis_host, 
+                    port=self.redis_port, 
+                    decode_responses=True
+                )
                 self.redis_client.ping()
                 logger.info("Connected to Redis for correlation tracking", extra={
-                    "redis_host": redis_host,
-                    "redis_port": redis_port,
+                    "redis_host": self.redis_host,
+                    "redis_port": self.redis_port,
                     "business_event": "redis_connection_established"
                 })
             except Exception as e:
                 logger.warning("Redis connection failed - continuing without correlation", extra={
                     "error": str(e),
-                    "redis_host": redis_host,
-                    "redis_port": redis_port
+                    "redis_host": self.redis_host,
+                    "redis_port": self.redis_port
                 })
                 self.redis_client = None
         
@@ -717,36 +743,27 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Configuration from environment or defaults
-    config = {
-        'capture_dir': os.getenv('CAMERA_CAPTURE_DIR', '/mnt/storage/camera_capture'),
-        'ai_model_path': os.getenv('IMX500_MODEL_PATH', '/usr/share/imx500-models/imx500_network_ssd_mobilenetv2_fpnlite_320x320_pp.rpk'),
-        'capture_interval': float(os.getenv('CAPTURE_INTERVAL', '1.0')),
-        'confidence_threshold': float(os.getenv('AI_CONFIDENCE_THRESHOLD', '0.5')),
-        'max_images': int(os.getenv('MAX_STORED_IMAGES', '100')),
-        'redis_host': os.getenv('REDIS_HOST', 'localhost'),
-        'redis_port': int(os.getenv('REDIS_PORT', '6379')),
-        'street_roi': {
-            'x_start': float(os.getenv('STREET_ROI_X_START', '0.15')),  # 15% from left
-            'x_end': float(os.getenv('STREET_ROI_X_END', '0.85')),      # 85% from left  
-            'y_start': float(os.getenv('STREET_ROI_Y_START', '0.5')),   # 50% from top (exclude cross street)
-            'y_end': float(os.getenv('STREET_ROI_Y_END', '0.9'))        # 90% from top
-        }
-    }
+    # Load centralized configuration
+    config = get_config()
     
     logger.info("=== IMX500 AI Host Capture Service - Enhanced ===", extra={
         "business_event": "service_startup",
         "config": {
-            "capture_dir": config['capture_dir'],
-            "ai_model": config['ai_model_path'],
-            "confidence_threshold": config['confidence_threshold'],
-            "capture_interval": config['capture_interval'],
-            "street_roi": config['street_roi']
+            "capture_dir": config.camera.capture_dir,
+            "ai_model": config.camera.model_path,
+            "confidence_threshold": config.camera.confidence_threshold,
+            "capture_interval": config.camera.capture_interval,
+            "street_roi": {
+                "x_start": config.camera.roi_x_start,
+                "x_end": config.camera.roi_x_end,
+                "y_start": config.camera.roi_y_start,
+                "y_end": config.camera.roi_y_end
+            }
         }
     })
     
     try:
-        capture_service = IMX500AIHostCapture(**config)
+        capture_service = IMX500AIHostCapture(config=config)
         success = capture_service.run()
         return 0 if success else 1
         
